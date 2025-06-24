@@ -1,11 +1,26 @@
 name: CI/CD Pipeline
 
+# CI triggers:
+# - PRs: Validation and early feedback before merge
+# - Main/Develop: Final verification, release builds, and deployment prep
+# - Manual: Post auto-merge validation and release preparation
 on:
   push:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
     types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      trigger_reason:
+        description: 'Reason for manual trigger'
+        required: false
+        default: 'Manual trigger'
+        type: string
+      merged_pr:
+        description: 'PR number that was auto-merged'
+        required: false
+        type: string
 
 env:
   CARGO_TERM_COLOR: always

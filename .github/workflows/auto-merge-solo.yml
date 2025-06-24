@@ -93,6 +93,31 @@ jobs:
             throw error;
           }
 
+    - name: Trigger CI on main branch
+      if: steps.get-pr.outputs.pr_number != ''
+      uses: actions/github-script@v7
+      with:
+        script: |
+          console.log('🔄 Triggering CI workflow on main branch...');
+          
+          try {
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'ci.yml',
+              ref: 'main',
+              inputs: {
+                trigger_reason: 'Post auto-merge validation',
+                merged_pr: '${{ steps.get-pr.outputs.pr_number }}'
+              }
+            });
+            
+            console.log('✅ Main branch CI workflow triggered');
+          } catch (error) {
+            console.log('⚠️ Failed to trigger main branch CI:', error.message);
+            // Don't fail the entire workflow if CI trigger fails
+          }
+
     - name: Log merge status
       if: always()
       run: |
