@@ -3,7 +3,7 @@ name = "semisearch"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-rust-version = "1.81.0"
+rust-version = "1.82.0"
 
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
