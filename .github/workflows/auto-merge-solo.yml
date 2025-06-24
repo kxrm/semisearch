@@ -26,15 +26,65 @@ jobs:
           echo "eligible=false" >> $GITHUB_OUTPUT
         fi
 
-    - name: Wait for CI to complete
+    - name: Wait for all CI checks to complete
       if: steps.check-branch.outputs.eligible == 'true'
-      uses: fountainhead/action-wait-for-check@v1.2.0
+      uses: actions/github-script@v7
       id: wait-for-ci
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        checkName: "CI/CD Pipeline"
-        ref: ${{ github.event.pull_request.head.sha }}
-        timeoutSeconds: 1800
+        script: |
+          const maxWaitTime = 30 * 60 * 1000; // 30 minutes
+          const pollInterval = 30 * 1000; // 30 seconds
+          const startTime = Date.now();
+          
+          while (Date.now() - startTime < maxWaitTime) {
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            
+            const { data: checks } = await github.rest.checks.listForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: pr.head.sha,
+            });
+            
+            const { data: statuses } = await github.rest.repos.listCommitStatusesForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: pr.head.sha,
+            });
+            
+            // Check if all checks are completed
+            const allChecks = [...checks.check_runs];
+            const pendingChecks = allChecks.filter(check => 
+              check.status === 'in_progress' || check.status === 'queued'
+            );
+            
+            const failedChecks = allChecks.filter(check => 
+              check.conclusion === 'failure' || check.conclusion === 'cancelled'
+            );
+            
+            console.log(`Pending checks: ${pendingChecks.length}, Failed checks: ${failedChecks.length}`);
+            
+            if (failedChecks.length > 0) {
+              console.log('❌ Some CI checks failed');
+              core.setOutput('conclusion', 'failure');
+              return;
+            }
+            
+            if (pendingChecks.length === 0) {
+              console.log('✅ All CI checks completed successfully');
+              core.setOutput('conclusion', 'success');
+              return;
+            }
+            
+            console.log(`⏳ Waiting for ${pendingChecks.length} checks to complete...`);
+            await new Promise(resolve => setTimeout(resolve, pollInterval));
+          }
+          
+          console.log('⏰ Timeout waiting for CI checks');
+          core.setOutput('conclusion', 'timeout');
 
     - name: Auto-merge when CI passes
       if: |
