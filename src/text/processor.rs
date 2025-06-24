@@ -326,8 +326,8 @@ mod tests {
 
         assert_eq!(chunk.token_count(), 3);
         assert_eq!(chunk.char_count(), 16);
-        assert!(chunk.contains_terms(&vec!["hello".to_string()]));
-        assert!(!chunk.contains_terms(&vec!["missing".to_string()]));
+        assert!(chunk.contains_terms(&["hello".to_string()]));
+        assert!(!chunk.contains_terms(&["missing".to_string()]));
         assert_eq!(chunk.term_frequency("hello"), 1.0 / 3.0);
     }
 

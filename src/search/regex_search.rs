@@ -311,8 +311,10 @@ mod tests {
     #[test]
     fn test_case_sensitivity() {
         let search = RegexSearch::new();
-        let mut options = SearchOptions::default();
-        options.case_sensitive = true;
+        let options = SearchOptions {
+            case_sensitive: true,
+            ..Default::default()
+        };
 
         let chunks = vec![
             create_test_chunk(1, "Hello World"),
@@ -328,8 +330,10 @@ mod tests {
     #[test]
     fn test_whole_words_option() {
         let search = RegexSearch::new();
-        let mut options = SearchOptions::default();
-        options.whole_words = true;
+        let options = SearchOptions {
+            whole_words: true,
+            ..Default::default()
+        };
 
         let chunks = vec![
             create_test_chunk(1, "testing tested content"), // No standalone "test"

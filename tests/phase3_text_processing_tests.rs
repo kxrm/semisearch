@@ -11,9 +11,10 @@ use tempfile::TempDir;
 /// - Text processing and tokenization
 /// - Multiple search strategies (Keyword, Fuzzy, Regex, TF-IDF)
 /// - Search result merging and ranking
-
+/// 
 /// Test helper that can hold content for searching
 struct TestSearchEngine {
+    #[allow(dead_code)]
     engine: SearchEngine,
     content_store: HashMap<String, String>,
     processor: TextProcessor,
@@ -114,6 +115,7 @@ impl TestSearchEngine {
         Ok(all_results)
     }
 
+    #[allow(dead_code)]
     fn available_strategies(&self) -> Vec<&str> {
         self.engine.available_strategies()
     }
@@ -174,7 +176,7 @@ fn test_text_processor_comprehensive() {
         // Test complexity calculation
         let complexity = processor.calculate_complexity(content);
         assert!(
-            complexity >= 0.0 && complexity <= 1.0,
+            (0.0..=1.0).contains(&complexity),
             "Invalid complexity score for: {}",
             description
         );
@@ -420,28 +422,39 @@ fn test_search_options_comprehensive() {
     engine.add_content("test.txt", test_content);
 
     // Test case sensitivity
-    let mut options = SearchOptions::default();
-    options.case_sensitive = true;
-    let results_sensitive = engine.search("QUICK", Some("keyword"), &options).unwrap();
+    let options_sensitive = SearchOptions {
+        case_sensitive: true,
+        ..Default::default()
+    };
+    let results_sensitive = engine.search("QUICK", Some("keyword"), &options_sensitive).unwrap();
 
-    options.case_sensitive = false;
-    let results_insensitive = engine.search("QUICK", Some("keyword"), &options).unwrap();
+    let options_insensitive = SearchOptions {
+        case_sensitive: false,
+        ..Default::default()
+    };
+    let results_insensitive = engine.search("QUICK", Some("keyword"), &options_insensitive).unwrap();
 
     // Case insensitive should find more or equal results
     assert!(results_insensitive.len() >= results_sensitive.len());
 
     // Test result limits
-    options.max_results = 1;
-    let limited_results = engine.search("the", Some("keyword"), &options).unwrap();
+    let options_limited = SearchOptions {
+        max_results: 1,
+        ..Default::default()
+    };
+    let limited_results = engine.search("the", Some("keyword"), &options_limited).unwrap();
     assert!(
         limited_results.len() <= 1,
         "Should respect max_results limit"
     );
 
     // Test score threshold
-    options.max_results = 100;
-    options.min_score = 0.9;
-    let high_score_results = engine.search("fox", Some("keyword"), &options).unwrap();
+    let options_high_score = SearchOptions {
+        max_results: 100,
+        min_score: 0.9,
+        ..Default::default()
+    };
+    let high_score_results = engine.search("fox", Some("keyword"), &options_high_score).unwrap();
 
     for result in &high_score_results {
         assert!(
@@ -467,11 +480,11 @@ fn test_text_chunk_methods() {
 
     // Test term frequency
     let tf = chunk.term_frequency("machine");
-    assert!(tf >= 0.0 && tf <= 1.0);
+    assert!((0.0..=1.0).contains(&tf));
 
     // Test contains_terms
-    assert!(chunk.contains_terms(&vec!["machine".to_string()]));
-    assert!(!chunk.contains_terms(&vec!["nonexistent".to_string()]));
+    assert!(chunk.contains_terms(&["machine".to_string()]));
+    assert!(!chunk.contains_terms(&["nonexistent".to_string()]));
 }
 
 #[test]
@@ -528,7 +541,7 @@ fn test_overlapping_chunks() {
 
     // For this simple test, just verify chunks are created
     // The overlap logic is complex and may not work as expected with small content
-    assert!(chunks.len() >= 1, "Should create at least one chunk");
+    assert!(!chunks.is_empty(), "Should create at least one chunk");
 
     // Verify basic chunk properties
     for chunk in &chunks {
@@ -750,5 +763,6 @@ fn test_coverage_verification() {
 
     // This test serves as a coverage checkpoint
     // If this test runs, it means the basic infrastructure is working
-    assert!(true, "Phase 3 components are accessible and functional");
+    // This test serves as a coverage checkpoint
+    // If this test runs, it means the basic infrastructure is working
 }

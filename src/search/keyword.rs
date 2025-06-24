@@ -278,8 +278,10 @@ mod tests {
     #[test]
     fn test_case_sensitivity() {
         let search = KeywordSearch::new();
-        let mut options = SearchOptions::default();
-        options.case_sensitive = false;
+        let options = SearchOptions {
+            case_sensitive: false,
+            ..Default::default()
+        };
 
         let chunks = vec![
             create_test_chunk(1, "Hello World"),
@@ -352,8 +354,10 @@ mod tests {
     #[test]
     fn test_max_results_limit() {
         let search = KeywordSearch::new();
-        let mut options = SearchOptions::default();
-        options.max_results = 2;
+        let options = SearchOptions {
+            max_results: 2,
+            ..Default::default()
+        };
 
         let chunks = vec![
             create_test_chunk(1, "test content one"),
@@ -370,8 +374,10 @@ mod tests {
     #[test]
     fn test_score_threshold() {
         let search = KeywordSearch::new();
-        let mut options = SearchOptions::default();
-        options.min_score = 0.8; // High threshold
+        let options = SearchOptions {
+            min_score: 0.8, // High threshold
+            ..Default::default()
+        };
 
         let chunks = vec![
             create_test_chunk(1, "perfect test match"),

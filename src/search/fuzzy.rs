@@ -345,8 +345,10 @@ mod tests {
     #[test]
     fn test_case_sensitivity() {
         let search = FuzzySearch::new();
-        let mut options = SearchOptions::default();
-        options.case_sensitive = false;
+        let options = SearchOptions {
+            case_sensitive: false,
+            ..Default::default()
+        };
 
         let chunks = vec![
             create_test_chunk(1, "Machine Learning"),
