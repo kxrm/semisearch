@@ -3,7 +3,7 @@ name: Auto-merge Solo Development
 on:
   workflow_run:
     workflows: ["CI/CD Pipeline"]
-    branches: [feature/*, hotfix/*, bugfix/*]
+    branches: [feature/*, hotfix/*, bugfix/*, update-*]
     types: [completed]
 
 permissions:
