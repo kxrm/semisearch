@@ -1,3 +1,4 @@
+use crate::core::LocalEmbedder;
 use crate::storage::{Database, DatabaseStats};
 use crate::text::TextProcessor;
 use anyhow::Result;
@@ -14,6 +15,7 @@ pub struct FileIndexer {
     database: Database,
     text_processor: TextProcessor,
     config: IndexerConfig,
+    embedder: Option<LocalEmbedder>,
 }
 
 /// Configuration for the indexer
@@ -101,6 +103,7 @@ impl FileIndexer {
             database,
             text_processor: TextProcessor::new(),
             config: IndexerConfig::default(),
+            embedder: None,
         }
     }
 
@@ -110,6 +113,17 @@ impl FileIndexer {
             database,
             text_processor: TextProcessor::with_config(config.chunk_size, config.chunk_size * 2),
             config,
+            embedder: None,
+        }
+    }
+
+    /// Create indexer with embeddings support
+    pub fn with_embedder(database: Database, config: IndexerConfig, embedder: LocalEmbedder) -> Self {
+        Self {
+            database,
+            text_processor: TextProcessor::with_config(config.chunk_size, config.chunk_size * 2),
+            config,
+            embedder: Some(embedder),
         }
     }
 

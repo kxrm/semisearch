@@ -26,6 +26,12 @@ unicode-segmentation = "1.10"
 thiserror = "1.0"
 rayon = "1.7"
 rustc-hash = "1.1"
+# Phase 4: Local Embeddings dependencies
+reqwest = { version = "0.11", features = ["json", "stream"] }
+tokio = { version = "1.0", features = ["full"] }
+futures-util = "0.3"
+indicatif = "0.17"
+num_cpus = "1.0"
 
 [dev-dependencies]
 tempfile = "3.0"

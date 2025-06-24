@@ -1,6 +1,7 @@
 pub mod fuzzy;
 pub mod keyword;
 pub mod regex_search;
+pub mod semantic;
 pub mod strategy;
 pub mod tfidf;
 
