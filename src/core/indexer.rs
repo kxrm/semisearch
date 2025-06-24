@@ -29,22 +29,30 @@ pub struct IndexerConfig {
 impl Default for IndexerConfig {
     fn default() -> Self {
         let excluded_extensions: HashSet<String> = [
-            "exe", "dll", "so", "dylib", "bin", "obj", "o", "a", "lib",
-            "zip", "tar", "gz", "bz2", "7z", "rar",
-            "jpg", "jpeg", "png", "gif", "bmp", "tiff", "svg",
-            "mp3", "mp4", "avi", "mov", "wav", "flac",
-            "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+            "exe", "dll", "so", "dylib", "bin", "obj", "o", "a", "lib", "zip", "tar", "gz", "bz2",
+            "7z", "rar", "jpg", "jpeg", "png", "gif", "bmp", "tiff", "svg", "mp3", "mp4", "avi",
+            "mov", "wav", "flac", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
         ]
         .iter()
         .map(|&s| s.to_string())
         .collect();
 
         let excluded_directories: HashSet<String> = [
-            ".git", ".svn", ".hg",
-            "node_modules", ".venv", "venv", "__pycache__",
-            "target", "build", "dist",
-            ".aws", ".ssh", ".gnupg",
-            ".cargo", ".rustup",
+            ".git",
+            ".svn",
+            ".hg",
+            "node_modules",
+            ".venv",
+            "venv",
+            "__pycache__",
+            "target",
+            "build",
+            "dist",
+            ".aws",
+            ".ssh",
+            ".gnupg",
+            ".cargo",
+            ".rustup",
         ]
         .iter()
         .map(|&s| s.to_string())
@@ -127,7 +135,7 @@ impl FileIndexer {
         for entry in walker {
             match entry {
                 Ok(entry) => {
-                    if entry.file_type().map_or(false, |ft| ft.is_file()) {
+                    if entry.file_type().is_some_and(|ft| ft.is_file()) {
                         match self.process_file(entry.path()) {
                             Ok(file_stats) => {
                                 if file_stats.was_updated {
@@ -140,7 +148,9 @@ impl FileIndexer {
                             }
                             Err(e) => {
                                 stats.files_skipped += 1;
-                                stats.errors.push(format!("{}: {}", entry.path().display(), e));
+                                stats
+                                    .errors
+                                    .push(format!("{}: {}", entry.path().display(), e));
                                 eprintln!("Error processing {}: {}", entry.path().display(), e);
                             }
                         }
@@ -160,7 +170,10 @@ impl FileIndexer {
         println!("  Files updated: {}", stats.files_updated);
         println!("  Files skipped: {}", stats.files_skipped);
         println!("  Chunks created: {}", stats.chunks_created);
-        println!("  Total size: {} MB", stats.total_size_bytes / (1024 * 1024));
+        println!(
+            "  Total size: {} MB",
+            stats.total_size_bytes / (1024 * 1024)
+        );
         println!("  Duration: {:.2}s", stats.duration_seconds);
 
         if !stats.errors.is_empty() {
@@ -177,13 +190,15 @@ impl FileIndexer {
         let file_size = metadata.len();
 
         if file_size > self.config.max_file_size_mb * 1024 * 1024 {
-            return Err(anyhow::anyhow!("File too large: {} MB", file_size / (1024 * 1024)));
+            return Err(anyhow::anyhow!(
+                "File too large: {} MB",
+                file_size / (1024 * 1024)
+            ));
         }
 
         // Read file content
-        let content = fs::read_to_string(path).map_err(|e| {
-            anyhow::anyhow!("Could not read as UTF-8: {}", e)
-        })?;
+        let content = fs::read_to_string(path)
+            .map_err(|e| anyhow::anyhow!("Could not read as UTF-8: {}", e))?;
 
         // Calculate file hash
         let file_hash = self.calculate_file_hash(&content);
@@ -202,7 +217,9 @@ impl FileIndexer {
         let modified_at = DateTime::from(metadata.modified()?);
 
         // Insert or update file record
-        let file_id = self.database.insert_file(&path_str, &file_hash, modified_at, file_size as i64)?;
+        let file_id =
+            self.database
+                .insert_file(&path_str, &file_hash, modified_at, file_size as i64)?;
 
         // Process text into chunks
         let chunks = self.text_processor.process_file(&content);
@@ -228,9 +245,9 @@ impl FileIndexer {
 
     /// Check if a directory entry should be included (static version for thread safety)
     fn should_include_entry_static(
-        entry: &ignore::DirEntry, 
-        excluded_dirs: &HashSet<String>, 
-        excluded_exts: &HashSet<String>
+        entry: &ignore::DirEntry,
+        excluded_dirs: &HashSet<String>,
+        excluded_exts: &HashSet<String>,
     ) -> bool {
         // Skip excluded directories
         if let Some(file_name) = entry.file_name().to_str() {
@@ -240,7 +257,7 @@ impl FileIndexer {
         }
 
         // For files, check extension
-        if entry.file_type().map_or(false, |ft| ft.is_file()) {
+        if entry.file_type().is_some_and(|ft| ft.is_file()) {
             if let Some(extension) = entry.path().extension() {
                 if let Some(ext_str) = extension.to_str() {
                     if excluded_exts.contains(&ext_str.to_lowercase()) {
@@ -254,8 +271,13 @@ impl FileIndexer {
     }
 
     /// Check if a directory entry should be included
+    #[allow(dead_code)]
     fn should_include_entry(&self, entry: &ignore::DirEntry) -> bool {
-        Self::should_include_entry_static(entry, &self.config.excluded_directories, &self.config.excluded_extensions)
+        Self::should_include_entry_static(
+            entry,
+            &self.config.excluded_directories,
+            &self.config.excluded_extensions,
+        )
     }
 
     /// Calculate SHA-256 hash of file content
@@ -321,11 +343,11 @@ mod tests {
     #[test]
     fn test_file_hash_calculation() {
         let (indexer, _temp_file) = create_test_indexer();
-        
+
         let hash1 = indexer.calculate_file_hash("test content");
         let hash2 = indexer.calculate_file_hash("test content");
         let hash3 = indexer.calculate_file_hash("different content");
-        
+
         assert_eq!(hash1, hash2);
         assert_ne!(hash1, hash3);
         assert_eq!(hash1.len(), 64); // SHA-256 produces 64 hex characters
@@ -335,17 +357,21 @@ mod tests {
     fn test_process_single_file() {
         let (indexer, _temp_file) = create_test_indexer();
         let temp_dir = TempDir::new().unwrap();
-        
+
         // Create a test file
         let test_file = temp_dir.path().join("test.txt");
-        fs::write(&test_file, "Hello world\nThis is a test\nWith multiple lines").unwrap();
-        
+        fs::write(
+            &test_file,
+            "Hello world\nThis is a test\nWith multiple lines",
+        )
+        .unwrap();
+
         // Process the file
         let stats = indexer.process_file(&test_file).unwrap();
         assert!(stats.was_updated);
         assert!(stats.chunks_created > 0);
         assert!(stats.size_bytes > 0);
-        
+
         // Process again - should not update
         let stats2 = indexer.process_file(&test_file).unwrap();
         assert!(!stats2.was_updated);
@@ -356,19 +382,23 @@ mod tests {
     fn test_index_directory() {
         let (indexer, _temp_file) = create_test_indexer();
         let temp_dir = TempDir::new().unwrap();
-        
+
         // Create test files
         fs::write(temp_dir.path().join("file1.txt"), "Content of file 1").unwrap();
-        fs::write(temp_dir.path().join("file2.rs"), "fn main() { println!(\"Hello\"); }").unwrap();
-        
+        fs::write(
+            temp_dir.path().join("file2.rs"),
+            "fn main() { println!(\"Hello\"); }",
+        )
+        .unwrap();
+
         // Create excluded directory
         let git_dir = temp_dir.path().join(".git");
         fs::create_dir(&git_dir).unwrap();
         fs::write(git_dir.join("config"), "git config").unwrap();
-        
+
         // Index directory
         let stats = indexer.index_directory(temp_dir.path()).unwrap();
-        
+
         assert_eq!(stats.files_processed + stats.files_updated, 2); // Should skip .git/config
         assert_eq!(stats.files_skipped, 0);
         assert!(stats.chunks_created > 0);
@@ -379,14 +409,14 @@ mod tests {
     fn test_excluded_extensions() {
         let (indexer, _temp_file) = create_test_indexer();
         let temp_dir = TempDir::new().unwrap();
-        
+
         // Create files with different extensions
         fs::write(temp_dir.path().join("text.txt"), "Text file").unwrap();
         fs::write(temp_dir.path().join("binary.exe"), "Binary file").unwrap();
         fs::write(temp_dir.path().join("image.jpg"), "Image file").unwrap();
-        
+
         let stats = indexer.index_directory(temp_dir.path()).unwrap();
-        
+
         // Should only process the .txt file
         assert_eq!(stats.files_processed + stats.files_updated, 1);
     }
@@ -395,18 +425,18 @@ mod tests {
     fn test_large_file_skipping() {
         let temp_file = NamedTempFile::new().unwrap();
         let database = Database::new(temp_file.path()).unwrap();
-        
+
         // Create config with very small max file size
         let config = IndexerConfig {
             max_file_size_mb: 0, // 0 MB limit
             ..Default::default()
         };
         let indexer = FileIndexer::with_config(database, config);
-        
+
         let temp_dir = TempDir::new().unwrap();
         let large_file = temp_dir.path().join("large.txt");
         fs::write(&large_file, "This file is too large").unwrap();
-        
+
         // Should fail to process due to size limit
         let result = indexer.process_file(&large_file);
         assert!(result.is_err());
@@ -417,15 +447,15 @@ mod tests {
     fn test_database_integration() {
         let (indexer, _temp_file) = create_test_indexer();
         let temp_dir = TempDir::new().unwrap();
-        
+
         // Initially empty
         let stats = indexer.get_database_stats().unwrap();
         assert_eq!(stats.file_count, 0);
-        
+
         // Create and index a file
         fs::write(temp_dir.path().join("test.txt"), "Test content").unwrap();
         indexer.index_directory(temp_dir.path()).unwrap();
-        
+
         // Should have data
         let stats = indexer.get_database_stats().unwrap();
         assert!(stats.file_count > 0);
@@ -437,15 +467,15 @@ mod tests {
         let (indexer, _temp_file) = create_test_indexer();
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("test.txt");
-        
+
         // Create and index file
         fs::write(&test_file, "Test content").unwrap();
         indexer.index_directory(temp_dir.path()).unwrap();
-        
+
         assert!(indexer.is_file_indexed(&test_file).unwrap());
-        
+
         // Remove from index
         indexer.remove_file(&test_file).unwrap();
         assert!(!indexer.is_file_indexed(&test_file).unwrap());
     }
-} 
+}

@@ -1,3 +1,3 @@
 pub mod indexer;
 
-pub use indexer::{FileIndexer, IndexStats, IndexerConfig}; 
+pub use indexer::{FileIndexer, IndexStats, IndexerConfig};

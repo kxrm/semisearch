@@ -1,3 +1,3 @@
 pub mod database;
 
-pub use database::{Database, FileRecord, ChunkRecord, DatabaseStats}; 
+pub use database::{ChunkRecord, Database, DatabaseStats, FileRecord};

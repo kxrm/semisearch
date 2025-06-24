@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
-use semisearch::{search_files, OutputFormat, SearchOptions, SearchResult};
-use semisearch::core::{FileIndexer, IndexStats};
+use semisearch::core::FileIndexer;
 use semisearch::storage::Database;
+use semisearch::{search_files, OutputFormat, SearchOptions, SearchResult};
 use std::path::Path;
 use std::process;
 
@@ -119,16 +119,16 @@ fn main() {
         Commands::Index { path } => {
             // Create database path in user's home directory
             let db_path = get_database_path();
-            
+
             match Database::new(&db_path) {
                 Ok(database) => {
                     let indexer = FileIndexer::new(database);
-                    
+
                     match indexer.index_directory(Path::new(&path)) {
                         Ok(stats) => {
                             println!("Indexing completed successfully!");
                             println!("Database location: {}", db_path.display());
-                            
+
                             if !stats.errors.is_empty() {
                                 eprintln!("\nErrors encountered:");
                                 for error in &stats.errors {
@@ -151,23 +151,24 @@ fn main() {
 
         Commands::Config => {
             let db_path = get_database_path();
-            
+
             println!("semisearch Configuration:");
             println!("  Database path: {}", db_path.display());
-            
+
             // Try to get database stats if it exists
             if db_path.exists() {
                 match Database::new(&db_path) {
-                    Ok(database) => {
-                        match database.get_stats() {
-                            Ok(stats) => {
-                                println!("  Files indexed: {}", stats.file_count);
-                                println!("  Chunks stored: {}", stats.chunk_count);
-                                println!("  Total size: {} MB", stats.total_size_bytes / (1024 * 1024));
-                            }
-                            Err(e) => eprintln!("  Error reading stats: {}", e),
+                    Ok(database) => match database.get_stats() {
+                        Ok(stats) => {
+                            println!("  Files indexed: {}", stats.file_count);
+                            println!("  Chunks stored: {}", stats.chunk_count);
+                            println!(
+                                "  Total size: {} MB",
+                                stats.total_size_bytes / (1024 * 1024)
+                            );
                         }
-                    }
+                        Err(e) => eprintln!("  Error reading stats: {}", e),
+                    },
                     Err(e) => eprintln!("  Error opening database: {}", e),
                 }
             } else {
@@ -195,13 +196,17 @@ fn get_database_path() -> std::path::PathBuf {
     // Create database in user's home directory under .semisearch/
     let home_dir = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
     let semisearch_dir = home_dir.join(".semisearch");
-    
+
     // Create directory if it doesn't exist
     if !semisearch_dir.exists() {
         std::fs::create_dir_all(&semisearch_dir).unwrap_or_else(|e| {
-            eprintln!("Warning: Could not create directory {}: {}", semisearch_dir.display(), e);
+            eprintln!(
+                "Warning: Could not create directory {}: {}",
+                semisearch_dir.display(),
+                e
+            );
         });
     }
-    
+
     semisearch_dir.join("index.db")
 }

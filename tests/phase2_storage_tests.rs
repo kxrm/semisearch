@@ -1,5 +1,5 @@
 use semisearch::core::{FileIndexer, IndexerConfig};
-use semisearch::storage::{Database, DatabaseStats};
+use semisearch::storage::Database;
 use std::collections::HashSet;
 use std::fs;
 use tempfile::{NamedTempFile, TempDir};
@@ -105,7 +105,7 @@ fn test_large_file_handling() {
     let temp_dir = TempDir::new().unwrap();
 
     let database = Database::new(temp_db.path()).unwrap();
-    
+
     // Create config with very small file size limit
     let config = IndexerConfig {
         max_file_size_mb: 0, // 0 MB limit
@@ -114,7 +114,11 @@ fn test_large_file_handling() {
     let indexer = FileIndexer::with_config(database, config);
 
     // Create a file that exceeds the limit
-    fs::write(temp_dir.path().join("large.txt"), "This content exceeds the 0MB limit").unwrap();
+    fs::write(
+        temp_dir.path().join("large.txt"),
+        "This content exceeds the 0MB limit",
+    )
+    .unwrap();
 
     let stats = indexer.index_directory(temp_dir.path()).unwrap();
 
@@ -132,7 +136,9 @@ fn test_database_operations() {
     let now = chrono::Utc::now();
 
     // Test file insertion
-    let file_id = database.insert_file("/test/file.txt", "hash123", now, 1024).unwrap();
+    let file_id = database
+        .insert_file("/test/file.txt", "hash123", now, 1024)
+        .unwrap();
     assert!(file_id > 0);
 
     // Test file retrieval
@@ -144,7 +150,9 @@ fn test_database_operations() {
     assert_eq!(record.size_bytes, 1024);
 
     // Test chunk insertion
-    let chunk_id = database.insert_chunk(file_id, 1, 0, 12, "test content", None).unwrap();
+    let chunk_id = database
+        .insert_chunk(file_id, 1, 0, 12, "test content", None)
+        .unwrap();
     assert!(chunk_id > 0);
 
     // Test chunk retrieval
@@ -159,9 +167,15 @@ fn test_database_operations() {
     assert_eq!(search_results[0].content, "test content");
 
     // Test reindexing check
-    assert!(!database.needs_reindexing("/test/file.txt", "hash123").unwrap()); // Same hash
-    assert!(database.needs_reindexing("/test/file.txt", "different_hash").unwrap()); // Different hash
-    assert!(database.needs_reindexing("/test/nonexistent.txt", "any_hash").unwrap()); // New file
+    assert!(!database
+        .needs_reindexing("/test/file.txt", "hash123")
+        .unwrap()); // Same hash
+    assert!(database
+        .needs_reindexing("/test/file.txt", "different_hash")
+        .unwrap()); // Different hash
+    assert!(database
+        .needs_reindexing("/test/nonexistent.txt", "any_hash")
+        .unwrap()); // New file
 }
 
 #[test]
@@ -177,12 +191,22 @@ fn test_database_stats() {
 
     // Add some data
     let now = chrono::Utc::now();
-    let file_id1 = database.insert_file("/test/file1.txt", "hash1", now, 500).unwrap();
-    let file_id2 = database.insert_file("/test/file2.txt", "hash2", now, 750).unwrap();
-    
-    database.insert_chunk(file_id1, 1, 0, 10, "content 1", None).unwrap();
-    database.insert_chunk(file_id1, 2, 11, 20, "content 2", None).unwrap();
-    database.insert_chunk(file_id2, 1, 0, 10, "content 3", None).unwrap();
+    let file_id1 = database
+        .insert_file("/test/file1.txt", "hash1", now, 500)
+        .unwrap();
+    let file_id2 = database
+        .insert_file("/test/file2.txt", "hash2", now, 750)
+        .unwrap();
+
+    database
+        .insert_chunk(file_id1, 1, 0, 10, "content 1", None)
+        .unwrap();
+    database
+        .insert_chunk(file_id1, 2, 11, 20, "content 2", None)
+        .unwrap();
+    database
+        .insert_chunk(file_id2, 1, 0, 10, "content 3", None)
+        .unwrap();
 
     let stats = database.get_stats().unwrap();
     assert_eq!(stats.file_count, 2);
@@ -212,7 +236,7 @@ fn test_custom_indexer_config() {
     };
 
     let indexer = FileIndexer::with_config(database, config);
-    
+
     // Verify configuration is applied
     assert_eq!(indexer.config().max_file_size_mb, 10);
     assert!(indexer.config().excluded_extensions.contains("tmp"));
@@ -298,4 +322,4 @@ Some regular text with common words like 'the', 'a', 'and' that should be filter
 
     let search_results = database2.search_chunks("hello_world", 10).unwrap();
     assert!(!search_results.is_empty());
-} 
+}
