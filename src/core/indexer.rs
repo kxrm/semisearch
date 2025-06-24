@@ -157,8 +157,8 @@ impl FileIndexer {
                     }
                 }
                 Err(e) => {
-                                            stats.errors.push(format!("Walk error: {e}"));
-                        eprintln!("Walk error: {e}");
+                    stats.errors.push(format!("Walk error: {e}"));
+                    eprintln!("Walk error: {e}");
                 }
             }
         }
