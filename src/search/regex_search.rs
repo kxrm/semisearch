@@ -64,7 +64,7 @@ impl RegexSearch {
 
     /// Build regex from query with caching
     fn build_regex(&self, query: &str, options: &SearchOptions) -> Result<Regex> {
-        let cache_key = format!("{}:{}", query, options.case_sensitive);
+        let cache_key = format!("{query}:{}", options.case_sensitive);
 
         // Try to get from cache first
         {

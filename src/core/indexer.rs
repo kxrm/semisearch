@@ -150,15 +150,15 @@ impl FileIndexer {
                                 stats.files_skipped += 1;
                                 stats
                                     .errors
-                                    .push(format!("{}: {}", entry.path().display(), e));
-                                eprintln!("Error processing {}: {}", entry.path().display(), e);
+                                    .push(format!("{}: {e}", entry.path().display()));
+                                eprintln!("Error processing {}: {e}", entry.path().display());
                             }
                         }
                     }
                 }
                 Err(e) => {
-                    stats.errors.push(format!("Walk error: {}", e));
-                    eprintln!("Walk error: {}", e);
+                                            stats.errors.push(format!("Walk error: {e}"));
+                        eprintln!("Walk error: {e}");
                 }
             }
         }

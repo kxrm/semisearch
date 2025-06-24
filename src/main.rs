@@ -132,18 +132,18 @@ fn main() {
                             if !stats.errors.is_empty() {
                                 eprintln!("\nErrors encountered:");
                                 for error in &stats.errors {
-                                    eprintln!("  {}", error);
+                                    eprintln!("  {error}");
                                 }
                             }
                         }
                         Err(e) => {
-                            eprintln!("Error during indexing: {}", e);
+                            eprintln!("Error during indexing: {e}");
                             process::exit(1);
                         }
                     }
                 }
                 Err(e) => {
-                    eprintln!("Error creating database: {}", e);
+                    eprintln!("Error creating database: {e}");
                     process::exit(1);
                 }
             }

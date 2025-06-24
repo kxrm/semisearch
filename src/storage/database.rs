@@ -158,7 +158,7 @@ impl Database {
              LIMIT ?2"
         )?;
 
-        let search_pattern = format!("%{}%", query);
+        let search_pattern = format!("%{query}%");
         let rows = stmt.query_map(params![search_pattern, limit], |row| {
             let embedding_bytes: Option<Vec<u8>> = row.get(7)?;
             let embedding = embedding_bytes.map(|bytes| {
