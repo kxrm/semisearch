@@ -33,6 +33,18 @@ pub enum Commands {
         /// Output format (plain, json)
         #[arg(short, long, default_value = "plain")]
         format: String,
+        
+        /// Enable fuzzy matching
+        #[arg(long)]
+        fuzzy: bool,
+        
+        /// Use regex pattern matching
+        #[arg(long)]
+        regex: bool,
+        
+        /// Case-sensitive search
+        #[arg(long)]
+        case_sensitive: bool,
     },
     
     /// Index files in directory (placeholder for future implementation)
@@ -49,10 +61,13 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Search { query, path, score, limit, format } => {
+        Commands::Search { query, path, score, limit, format, fuzzy, regex, case_sensitive } => {
             let options = SearchOptions {
                 min_score: score,
                 max_results: limit,
+                fuzzy_matching: fuzzy,
+                regex_mode: regex,
+                case_sensitive,
             };
             
             let output_format = match format.as_str() {

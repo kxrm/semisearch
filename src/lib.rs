@@ -1,18 +1,47 @@
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 use anyhow::Result;
+use fuzzy_matcher::FuzzyMatcher;
+use fuzzy_matcher::skim::SkimMatcherV2;
+use regex::Regex;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResult {
     pub file_path: String,
     pub line_number: usize,
     pub content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub score: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub match_type: Option<MatchType>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum MatchType {
+    Exact,
+    Fuzzy,
+    Regex,
 }
 
 #[derive(Debug, Clone)]
 pub struct SearchOptions {
     pub min_score: f32,
     pub max_results: usize,
+    pub fuzzy_matching: bool,
+    pub regex_mode: bool,
+    pub case_sensitive: bool,
+}
+
+impl Default for SearchOptions {
+    fn default() -> Self {
+        Self {
+            min_score: 0.0,
+            max_results: 10,
+            fuzzy_matching: false,
+            regex_mode: false,
+            case_sensitive: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -23,7 +52,6 @@ pub enum OutputFormat {
 
 pub fn search_files(query: &str, path: &str, options: &SearchOptions) -> Result<Vec<SearchResult>> {
     let mut results = Vec::new();
-    let query_lower = query.to_lowercase();
 
     // Use ignore crate to respect .gitignore files
     let walker = WalkBuilder::new(path)
@@ -34,22 +62,30 @@ pub fn search_files(query: &str, path: &str, options: &SearchOptions) -> Result<
     for entry in walker {
         let entry = entry?;
         if entry.file_type().map_or(false, |ft| ft.is_file()) {
-            if let Some(file_results) = search_in_file(entry.path(), &query_lower)? {
+            if let Some(file_results) = search_in_file_enhanced(entry.path(), query, options)? {
                 results.extend(file_results);
-                if results.len() >= options.max_results {
-                    results.truncate(options.max_results);
-                    break;
-                }
             }
         }
     }
 
+    // Sort by score (descending) and apply limits
+    results.sort_by(|a, b| {
+        let score_a = a.score.unwrap_or(0.0);
+        let score_b = b.score.unwrap_or(0.0);
+        score_b.partial_cmp(&score_a).unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    // Filter by minimum score and limit results
+    results.retain(|r| r.score.unwrap_or(1.0) >= options.min_score);
+    results.truncate(options.max_results);
+
     Ok(results)
 }
 
-pub fn search_in_file(
+pub fn search_in_file_enhanced(
     file_path: &std::path::Path,
     query: &str,
+    options: &SearchOptions,
 ) -> Result<Option<Vec<SearchResult>>> {
     // Skip binary files and common non-text files
     if let Some(extension) = file_path.extension() {
@@ -65,13 +101,63 @@ pub fn search_in_file(
     };
 
     let mut matches = Vec::new();
+    
+    // Initialize search tools based on options
+    let fuzzy_matcher = if options.fuzzy_matching {
+        Some(SkimMatcherV2::default())
+    } else {
+        None
+    };
+    
+    let regex = if options.regex_mode {
+        match Regex::new(query) {
+            Ok(r) => Some(r),
+            Err(_) => return Ok(None), // Invalid regex
+        }
+    } else {
+        None
+    };
+
     for (line_number, line) in content.lines().enumerate() {
-        let line_lower = line.to_lowercase();
-        if line_lower.contains(query) {
+        let search_line = if options.case_sensitive {
+            line.to_string()
+        } else {
+            line.to_lowercase()
+        };
+        
+        let search_query = if options.case_sensitive {
+            query.to_string()
+        } else {
+            query.to_lowercase()
+        };
+
+        let mut match_result: Option<(f32, MatchType)> = None;
+
+        // Try different search strategies in order of preference
+        if let Some(ref re) = regex {
+            // For regex, always use the original line, not the case-modified version
+            if re.is_match(line) {
+                match_result = Some((1.0, MatchType::Regex));
+            }
+        } else if search_line.contains(&search_query) {
+            // Exact match gets highest score
+            match_result = Some((1.0, MatchType::Exact));
+        } else if let Some(ref matcher) = fuzzy_matcher {
+            if let Some(score) = matcher.fuzzy_match(&search_line, &search_query) {
+                let normalized_score = (score as f32) / 100.0; // Normalize to 0.0-1.0
+                if normalized_score >= options.min_score {
+                    match_result = Some((normalized_score, MatchType::Fuzzy));
+                }
+            }
+        }
+
+        if let Some((score, match_type)) = match_result {
             matches.push(SearchResult {
                 file_path: file_path.to_string_lossy().to_string(),
                 line_number: line_number + 1,
                 content: line.trim().to_string(),
+                score: Some(score),
+                match_type: Some(match_type),
             });
         }
     }
@@ -81,6 +167,15 @@ pub fn search_in_file(
     } else {
         Ok(Some(matches))
     }
+}
+
+// Keep the original function for backward compatibility
+pub fn search_in_file(
+    file_path: &std::path::Path,
+    query: &str,
+) -> Result<Option<Vec<SearchResult>>> {
+    let options = SearchOptions::default();
+    search_in_file_enhanced(file_path, query, &options)
 }
 
 #[cfg(test)]
@@ -143,6 +238,9 @@ mod tests {
         let options = SearchOptions {
             min_score: 0.0,
             max_results: 10,
+            fuzzy_matching: false,
+            regex_mode: false,
+            case_sensitive: false,
         };
         let results = search_files("todo", temp_dir.path().to_str().unwrap(), &options).unwrap();
         
@@ -170,6 +268,9 @@ mod tests {
         let options = SearchOptions {
             min_score: 0.0,
             max_results: 5,
+            fuzzy_matching: false,
+            regex_mode: false,
+            case_sensitive: false,
         };
         let results = search_files("todo", temp_dir.path().to_str().unwrap(), &options).unwrap();
         
@@ -182,8 +283,98 @@ mod tests {
         let options = SearchOptions {
             min_score: 0.0,
             max_results: 10,
+            fuzzy_matching: false,
+            regex_mode: false,
+            case_sensitive: false,
         };
         let results = search_files("todo", temp_dir.path().to_str().unwrap(), &options).unwrap();
         assert!(results.is_empty());
+    }
+
+    // Phase 2: Enhanced Search Tests
+    #[test]
+    fn test_fuzzy_matching() {
+        let temp_dir = TempDir::new().unwrap();
+        let file1 = temp_dir.path().join("test.txt");
+        fs::write(&file1, "TODO: Fix this bug\nTODO: Another task\nToDO: Mixed case").unwrap();
+
+        let options = SearchOptions {
+            min_score: 0.0,
+            max_results: 10,
+            fuzzy_matching: true,
+            regex_mode: false,
+            case_sensitive: false,
+        };
+
+        // Test fuzzy matching with typos - use a query that won't match exactly
+        let results = search_files("TOOD", temp_dir.path().to_str().unwrap(), &options).unwrap();
+        assert!(!results.is_empty());
+        assert!(results.iter().any(|r| r.match_type == Some(MatchType::Fuzzy)));
+    }
+
+    #[test]
+    fn test_regex_search() {
+        let temp_dir = TempDir::new().unwrap();
+        let file1 = temp_dir.path().join("test.txt");
+        fs::write(&file1, "Error: File not found\nWarning: Low disk space\nInfo: Process started").unwrap();
+
+        let options = SearchOptions {
+            min_score: 0.0,
+            max_results: 10,
+            fuzzy_matching: false,
+            regex_mode: true,
+            case_sensitive: false,
+        };
+
+        // Test regex pattern matching
+        let results = search_files(r"(Error|Warning):", temp_dir.path().to_str().unwrap(), &options).unwrap();
+        assert_eq!(results.len(), 2);
+        assert!(results.iter().all(|r| r.match_type == Some(MatchType::Regex)));
+    }
+
+    #[test]
+    fn test_case_sensitive_search() {
+        let temp_dir = TempDir::new().unwrap();
+        let file1 = temp_dir.path().join("test.txt");
+        fs::write(&file1, "TODO: Fix this bug\ntodo: lowercase task\nToDo: Mixed case").unwrap();
+
+        let options = SearchOptions {
+            min_score: 0.0,
+            max_results: 10,
+            fuzzy_matching: false,
+            regex_mode: false,
+            case_sensitive: true,
+        };
+
+        // Test case-sensitive search
+        let results = search_files("TODO", temp_dir.path().to_str().unwrap(), &options).unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(results[0].content.contains("TODO: Fix this bug"));
+    }
+
+    #[test]
+    fn test_search_scoring() {
+        let temp_dir = TempDir::new().unwrap();
+        let file1 = temp_dir.path().join("test.txt");
+        fs::write(&file1, "TODO: exact match\nTODO task fuzzy\nCompletely different").unwrap();
+
+        let options = SearchOptions {
+            min_score: 0.3,
+            max_results: 10,
+            fuzzy_matching: true,
+            regex_mode: false,
+            case_sensitive: false,
+        };
+
+        let results = search_files("TODO", temp_dir.path().to_str().unwrap(), &options).unwrap();
+        
+        // Should have scores and be sorted by score
+        assert!(!results.is_empty());
+        assert!(results.iter().all(|r| r.score.is_some()));
+        
+        // Check that results are sorted by score (descending)
+        for i in 1..results.len() {
+            assert!(results[i-1].score >= results[i].score);
+        }
     }
 } 
