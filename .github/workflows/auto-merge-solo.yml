@@ -1,0 +1,90 @@
+name: Auto-merge Solo Development
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  check_suite:
+    types: [completed]
+
+jobs:
+  auto-merge-solo:
+    name: Auto-merge for solo development
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false && github.actor == 'kxrm'
+    
+    steps:
+    - name: Check if PR is from feature branch
+      id: check-branch
+      run: |
+        echo "Checking branch eligibility..."
+        
+        if [[ "${{ github.head_ref }}" == feature/* ]] || [[ "${{ github.head_ref }}" == hotfix/* ]] || [[ "${{ github.head_ref }}" == bugfix/* ]]; then
+          echo "✅ PR is from an allowed branch type"
+          echo "eligible=true" >> $GITHUB_OUTPUT
+        else
+          echo "❌ PR is not from a feature/hotfix/bugfix branch"
+          echo "eligible=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Wait for CI to complete
+      if: steps.check-branch.outputs.eligible == 'true'
+      uses: fountainhead/action-wait-for-check@v1.2.0
+      id: wait-for-ci
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        checkName: "CI/CD Pipeline"
+        ref: ${{ github.event.pull_request.head.sha }}
+        timeoutSeconds: 1800
+
+    - name: Auto-merge when CI passes
+      if: |
+        steps.check-branch.outputs.eligible == 'true' && 
+        steps.wait-for-ci.outputs.conclusion == 'success'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          console.log('🚀 CI passed for solo development, auto-merging...');
+          
+          try {
+            await github.rest.pulls.merge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              merge_method: "squash",
+              commit_title: `${context.payload.pull_request.title} (#${context.issue.number})`,
+              commit_message: context.payload.pull_request.body || ''
+            });
+            
+            console.log('✅ PR merged successfully');
+            
+            // Add success comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '🤖 **Auto-merged successfully!**\n\n✅ All CI checks passed\n✅ Branch follows naming conventions\n✅ Solo development mode active\n\nSquash-merged to maintain clean commit history.'
+            });
+            
+          } catch (error) {
+            console.log('❌ Auto-merge failed:', error.message);
+            
+            // Add failure comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `❌ **Auto-merge failed**: ${error.message}\n\nPlease merge manually or check for conflicts.`
+            });
+            
+            throw error;
+          }
+
+    - name: Log merge status
+      if: always()
+      run: |
+        echo "=== Solo Auto-merge Status ==="
+        echo "Eligible: ${{ steps.check-branch.outputs.eligible }}"
+        echo "CI Status: ${{ steps.wait-for-ci.outputs.conclusion }}"
+        echo "Actor: ${{ github.actor }}"
+        echo "Branch: ${{ github.head_ref }}"
+        echo "==============================" 
