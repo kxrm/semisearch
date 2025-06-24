@@ -172,6 +172,7 @@ impl TfIdfSearch {
     }
 
     /// Check if window contains partial phrase match
+    #[allow(clippy::manual_div_ceil)]
     fn is_partial_phrase_match(&self, query_tokens: &[String], window: &[String]) -> bool {
         let matches = query_tokens
             .iter()
@@ -179,7 +180,7 @@ impl TfIdfSearch {
             .filter(|(q, w)| q == w)
             .count();
 
-        matches >= query_tokens.len().div_ceil(2) // At least half the terms match
+        matches >= (query_tokens.len() + 1) / 2 // At least half the terms match
     }
 
     /// Calculate penalty for very long or very short documents
