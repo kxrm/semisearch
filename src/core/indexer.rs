@@ -15,6 +15,7 @@ pub struct FileIndexer {
     database: Database,
     text_processor: TextProcessor,
     config: IndexerConfig,
+    #[allow(dead_code)]
     embedder: Option<LocalEmbedder>,
 }
 

@@ -369,7 +369,7 @@ mod tests {
 
     #[test]
     fn test_embedding_dimension() {
-        let config = EmbeddingConfig::default();
+        let _config = EmbeddingConfig::default();
         // We can't create a full embedder in tests without model files,
         // but we can test the expected dimension
         assert_eq!(384, 384); // Expected dimension for all-MiniLM-L6-v2
