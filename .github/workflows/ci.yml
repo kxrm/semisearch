@@ -1,0 +1,325 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Test Matrix - Multiple Rust versions and platforms
+  test:
+    name: Test Suite
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        rust: [stable, beta]
+        include:
+          - os: ubuntu-latest
+            rust: 1.70.0  # MSRV (Minimum Supported Rust Version)
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+        components: rustfmt, clippy
+
+    - name: Cache Cargo dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-${{ matrix.rust }}-
+          ${{ runner.os }}-cargo-
+
+    - name: Check code formatting
+      run: cargo fmt --all -- --check
+
+    - name: Run Clippy (code quality)
+      run: cargo clippy --all-targets --all-features -- -D warnings
+
+    - name: Build project
+      run: cargo build --verbose
+
+    - name: Run unit tests
+      run: cargo test --lib --verbose
+
+    - name: Run integration tests
+      run: cargo test --test integration_tests --verbose
+
+    - name: Run all tests with coverage (Ubuntu only)
+      if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
+      run: |
+        cargo install cargo-tarpaulin || true
+        cargo tarpaulin --out xml --timeout 120
+
+    - name: Upload coverage to Codecov (Ubuntu stable only)
+      if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./cobertura.xml
+        fail_ci_if_error: false
+
+  # Comprehensive Feature Testing
+  feature-tests:
+    name: Feature Tests
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache Cargo dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ubuntu-cargo-stable-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Build optimized binary
+      run: cargo build --release
+
+    - name: Make test scripts executable
+      run: chmod +x tests/*.sh
+
+    - name: Run comprehensive test suite
+      run: timeout 300 bash tests/run-all.sh
+
+    - name: Test Phase 2 features specifically
+      run: bash tests/test_phase2_features.sh
+
+    - name: Test search functionality
+      run: bash tests/test-search.sh "TODO"
+
+    - name: Create test data for performance tests
+      run: |
+        mkdir -p test-data
+        echo "TODO: Sample task" > test-data/sample.txt
+        echo "FIXME: Another task" > test-data/sample2.txt
+        echo "function test() { return true; }" > test-data/code.js
+        echo "def search_function(): pass" > test-data/code.py
+
+    - name: Run performance tests
+      run: bash tests/test-performance.sh
+
+  # Security and Audit
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install cargo-audit
+      run: cargo install cargo-audit
+
+    - name: Run security audit
+      run: cargo audit
+
+    - name: Run cargo deny (licenses and advisories)
+      uses: EmbarkStudios/cargo-deny-action@v1
+
+  # Documentation
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Generate documentation
+      run: cargo doc --no-deps --all-features
+
+    - name: Check for broken links in docs
+      run: |
+        cargo install cargo-deadlinks || true
+        cargo deadlinks --check-http
+
+  # Binary Build and Release Preparation
+  build:
+    name: Build Release Binaries
+    runs-on: ${{ matrix.os }}
+    needs: [test, feature-tests]
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary-suffix: ""
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary-suffix: ".exe"
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            binary-suffix: ""
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            binary-suffix: ""
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+
+    - name: Install cross (for cross-compilation)
+      if: matrix.target == 'aarch64-unknown-linux-gnu'
+      run: cargo install cross
+
+    - name: Build release binary
+      run: |
+        if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
+          cross build --release --target ${{ matrix.target }}
+        else
+          cargo build --release --target ${{ matrix.target }}
+        fi
+
+    - name: Upload binary artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: semisearch-${{ matrix.target }}
+        path: target/${{ matrix.target }}/release/semisearch${{ matrix.binary-suffix }}
+        retention-days: 7
+
+  # Integration with Architecture Plan Requirements
+  architecture-compliance:
+    name: Architecture Plan Compliance
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Verify project structure matches plan
+      run: |
+        echo "Checking project structure compliance..."
+        
+        # Check required directories exist
+        test -d src/ || (echo "❌ Missing src/ directory" && exit 1)
+        test -d tests/ || (echo "❌ Missing tests/ directory" && exit 1)
+        test -d docs/ || (echo "❌ Missing docs/ directory" && exit 1)
+        
+        # Check required files exist
+        test -f src/lib.rs || (echo "❌ Missing src/lib.rs" && exit 1)
+        test -f src/main.rs || (echo "❌ Missing src/main.rs" && exit 1)
+        test -f tests/integration_tests.rs || (echo "❌ Missing integration tests" && exit 1)
+        test -f docs/SEMANTIC_SEARCH_ARCHITECTURE_PLAN.md || (echo "❌ Missing architecture plan" && exit 1)
+        
+        # Check test scripts are executable
+        test -x tests/run-all.sh || (echo "❌ run-all.sh not executable" && exit 1)
+        test -x tests/test-search.sh || (echo "❌ test-search.sh not executable" && exit 1)
+        test -x tests/test-performance.sh || (echo "❌ test-performance.sh not executable" && exit 1)
+        
+        echo "✅ Project structure complies with architecture plan"
+
+    - name: Verify MVP features are implemented
+      run: |
+        echo "Checking MVP feature implementation..."
+        
+        # Build and test basic functionality
+        cargo build --release
+        
+        # Test CLI interface
+        ./target/release/semisearch --help | grep -q "search" || (echo "❌ Search command missing" && exit 1)
+        ./target/release/semisearch --help | grep -q "index" || (echo "❌ Index command missing" && exit 1)
+        ./target/release/semisearch --help | grep -q "config" || (echo "❌ Config command missing" && exit 1)
+        
+        # Create test file for functionality verification
+        echo "TODO: Test item" > test_mvp.txt
+        
+        # Test basic search functionality
+        ./target/release/semisearch search "TODO" --path . | grep -q "test_mvp.txt" || (echo "❌ Basic search not working" && exit 1)
+        
+        # Test JSON output
+        ./target/release/semisearch search "TODO" --path . --format json | jq . > /dev/null || (echo "❌ JSON output not working" && exit 1)
+        
+        # Test fuzzy matching
+        ./target/release/semisearch search "TOOD" --path . --fuzzy | wc -l | grep -q -v "^0$" || (echo "❌ Fuzzy matching not working" && exit 1)
+        
+        # Test regex
+        ./target/release/semisearch search "TODO.*:" --path . --regex | wc -l | grep -q -v "^0$" || (echo "❌ Regex search not working" && exit 1)
+        
+        # Test typo tolerance
+        ./target/release/semisearch search "TODO" --path . --typo-tolerance | wc -l | grep -q -v "^0$" || (echo "❌ Typo tolerance not working" && exit 1)
+        
+        # Cleanup
+        rm test_mvp.txt
+        
+        echo "✅ All MVP features are working correctly"
+
+    - name: Verify Phase 2 completion
+      run: |
+        echo "Verifying Phase 2 Enhanced Search completion..."
+        
+        # Count test cases to ensure comprehensive coverage
+        UNIT_TESTS=$(cargo test --lib 2>&1 | grep "test result:" | grep -o "[0-9]\+ passed" | cut -d' ' -f1)
+        INTEGRATION_TESTS=$(cargo test --test integration_tests 2>&1 | grep "test result:" | grep -o "[0-9]\+ passed" | cut -d' ' -f1)
+        
+        echo "Unit tests: $UNIT_TESTS"
+        echo "Integration tests: $INTEGRATION_TESTS"
+        
+        # Verify minimum test coverage per architecture plan
+        test "$UNIT_TESTS" -ge 10 || (echo "❌ Insufficient unit tests (need ≥10, have $UNIT_TESTS)" && exit 1)
+        test "$INTEGRATION_TESTS" -ge 8 || (echo "❌ Insufficient integration tests (need ≥8, have $INTEGRATION_TESTS)" && exit 1)
+        
+        echo "✅ Phase 2 test coverage meets architecture plan requirements"
+
+  # Final Status Check
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [test, feature-tests, security, docs, build, architecture-compliance]
+    if: always()
+    
+    steps:
+    - name: Check all jobs succeeded
+      run: |
+        if [ "${{ needs.test.result }}" != "success" ] || \
+           [ "${{ needs.feature-tests.result }}" != "success" ] || \
+           [ "${{ needs.security.result }}" != "success" ] || \
+           [ "${{ needs.docs.result }}" != "success" ] || \
+           [ "${{ needs.build.result }}" != "success" ] || \
+           [ "${{ needs.architecture-compliance.result }}" != "success" ]; then
+          echo "❌ One or more CI jobs failed"
+          exit 1
+        fi
+        echo "✅ All CI jobs completed successfully!"
+        echo "🎉 Ready for Phase 3 implementation or production deployment" 

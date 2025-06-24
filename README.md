@@ -50,6 +50,9 @@ cargo run -- search "query" --format json --limit 5
 # Fuzzy matching (handles typos)
 cargo run -- search "TOOD" --fuzzy
 
+# Enhanced typo tolerance with edit distance
+cargo run -- search "TODO" --typo-tolerance --max-edit-distance 2
+
 # Regex pattern matching
 cargo run -- search "TODO.*:" --regex
 
@@ -66,6 +69,8 @@ cargo run -- search "error" --fuzzy --score 0.5 --format json
 - `--limit, -l`: Maximum number of results (default: 10)
 - `--score, -s`: Minimum similarity score (0.0-1.0, default: 0.0)
 - `--fuzzy`: Enable fuzzy matching for typos and partial matches
+- `--typo-tolerance`: Enable typo tolerance using edit distance
+- `--max-edit-distance`: Maximum edit distance for typos (default: 2)
 - `--regex`: Use regex pattern matching
 - `--case-sensitive`: Perform case-sensitive search (default: case-insensitive)
 
@@ -97,14 +102,44 @@ Current implementation follows the progressive enhancement strategy from the arc
 
 ## Testing
 
+The project follows a comprehensive testing strategy with proper test organization:
+
+### Test Structure
+```
+tests/
+├── integration_tests.rs     # Integration tests (8 test cases)
+├── run-all.sh              # Comprehensive test runner
+├── test-search.sh           # Search functionality tests
+├── test-performance.sh      # Performance benchmarking
+└── test_phase2_features.sh  # Phase 2 feature validation
+```
+
+### Running Tests
+
 ```bash
-# Run all tests
+# Run all tests (unit + integration)
 cargo test
 
-# Build and test search functionality
-cargo build
-cargo run -- search "test query" --path ./
+# Run comprehensive test suite
+bash tests/run-all.sh
+
+# Run specific test categories
+cargo test --test integration_tests
+cargo test test_fuzzy_matching
+
+# Test specific functionality
+bash tests/test-search.sh "TODO"
+bash tests/test-performance.sh
+
+# Validate Phase 2 features
+bash tests/test_phase2_features.sh
 ```
+
+### Test Coverage
+- **Unit Tests (10)**: Core functionality, edge cases, search algorithms
+- **Integration Tests (8)**: End-to-end workflows, output formats, performance
+- **Feature Tests**: Fuzzy matching, regex patterns, case sensitivity
+- **Performance Tests**: Large datasets, memory usage, response times
 
 ## Performance
 
