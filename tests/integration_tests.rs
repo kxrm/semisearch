@@ -235,12 +235,12 @@ fn test_large_directory_handling() {
 
     // Create multiple nested directories with files
     for i in 0..5 {
-        let sub_dir = temp_dir.path().join(format!("dir_{}", i));
+        let sub_dir = temp_dir.path().join(format!("dir_{i}"));
         fs::create_dir(&sub_dir).unwrap();
 
         for j in 0..3 {
-            let file = sub_dir.join(format!("file_{}.txt", j));
-            fs::write(&file, format!("Content {} in directory {}", j, i)).unwrap();
+            let file = sub_dir.join(format!("file_{j}.txt"));
+            fs::write(&file, format!("Content {j} in directory {i}")).unwrap();
         }
     }
 
@@ -281,8 +281,8 @@ fn test_performance_with_limits() {
 
     // Create many files with matches
     for i in 0..50 {
-        let file = temp_dir.path().join(format!("file_{}.txt", i));
-        fs::write(&file, format!("This is file number {} with a match", i)).unwrap();
+        let file = temp_dir.path().join(format!("file_{i}.txt"));
+        fs::write(&file, format!("This is file number {i} with a match")).unwrap();
     }
 
     let options = SearchOptions {

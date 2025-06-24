@@ -313,7 +313,7 @@ mod tests {
         // Create a file with many matches
         let file1 = temp_dir.path().join("many_todos.txt");
         let content = (0..20)
-            .map(|i| format!("TODO item {}", i))
+            .map(|i| format!("TODO item {i}"))
             .collect::<Vec<_>>()
             .join("\n");
         fs::write(&file1, content).unwrap();

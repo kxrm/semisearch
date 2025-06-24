@@ -99,15 +99,15 @@ fn main() {
             match search_files(&query, &path, &options) {
                 Ok(results) => {
                     if results.is_empty() {
-                        eprintln!("No matches found for '{}'", query);
+                        eprintln!("No matches found for '{query}'");
                         process::exit(1);
                     }
 
                     let output = format_results(&results, output_format);
-                    println!("{}", output);
+                    println!("{output}");
                 }
                 Err(e) => {
-                    eprintln!("Error: {}", e);
+                    eprintln!("Error: {e}");
                     process::exit(1);
                 }
             }
@@ -115,8 +115,7 @@ fn main() {
 
         Commands::Index { path } => {
             println!(
-                "Indexing functionality not yet implemented for path: {}",
-                path
+                "Indexing functionality not yet implemented for path: {path}"
             );
             println!("This will be added in Phase 2 (Persistent Index)");
         }
