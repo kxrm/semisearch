@@ -43,9 +43,15 @@ jobs:
     - name: Auto-merge PR
       if: steps.get-pr.outputs.pr_number != ''
       uses: actions/github-script@v7
+      env:
+        PR_TITLE: ${{ steps.get-pr.outputs.pr_title }}
+        PR_BODY: ${{ steps.get-pr.outputs.pr_body }}
       with:
         script: |
           const prNumber = parseInt('${{ steps.get-pr.outputs.pr_number }}');
+          const prTitle = process.env.PR_TITLE || 'Auto-merge';
+          const prBody = process.env.PR_BODY || 'Auto-merged by workflow';
+          
           console.log(`🚀 CI completed successfully, auto-merging PR #${prNumber}...`);
           
           try {
@@ -54,8 +60,8 @@ jobs:
               repo: context.repo.repo,
               pull_number: prNumber,
               merge_method: "squash",
-              commit_title: `${{ steps.get-pr.outputs.pr_title }} (#${prNumber})`,
-              commit_message: '${{ steps.get-pr.outputs.pr_body }}'
+              commit_title: `${prTitle} (#${prNumber})`,
+              commit_message: prBody
             });
             
             console.log('✅ PR merged successfully');
