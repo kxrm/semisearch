@@ -17,9 +17,9 @@ echo "This guide will help you get started with the project."
 echo ""
 
 # Check if we're in the right directory
-if [ ! -f "/workspaces/search/SEMANTIC_SEARCH_ARCHITECTURE_PLAN.md" ]; then
+if [ ! -f "/workspaces/semisearch/SEMANTIC_SEARCH_ARCHITECTURE_PLAN.md" ]; then
     echo -e "${YELLOW}⚠️  Warning: Not in the expected workspace directory${NC}"
-    echo "Expected: /workspaces/search"
+    echo "Expected: /workspaces/semisearch"
     echo "Current: $(pwd)"
     echo ""
 fi
@@ -40,7 +40,7 @@ case $approach in
         echo "You'll start with basic keyword search - perfect for learning!"
         
         # Create MVP-focused Cargo.toml
-        cat > /workspaces/search/Cargo.toml << 'EOF'
+        cat > /workspaces/semisearch/Cargo.toml << 'EOF'
 [package]
 name = "semisearch"
 version = "0.1.0"
@@ -66,7 +66,7 @@ EOF
         echo "You'll have fuzzy matching and basic caching!"
         
         # Add more dependencies
-        cat > /workspaces/search/Cargo.toml << 'EOF'
+        cat > /workspaces/semisearch/Cargo.toml << 'EOF'
 [package]
 name = "semisearch"
 version = "0.1.0"
@@ -88,8 +88,8 @@ EOF
         echo "Complete setup with ML capabilities!"
         
         # Full dependencies from architecture plan
-        cp /workspaces/search/.devcontainer/templates/Cargo-full.toml /workspaces/search/Cargo.toml 2>/dev/null || \
-        cat > /workspaces/search/Cargo.toml << 'EOF'
+        cp /workspaces/semisearch/.devcontainer/templates/Cargo-full.toml /workspaces/semisearch/Cargo.toml 2>/dev/null || \
+        cat > /workspaces/semisearch/Cargo.toml << 'EOF'
 [package]
 name = "semisearch"
 version = "0.1.0"

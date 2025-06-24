@@ -142,7 +142,7 @@ This devcontainer provides a complete development environment for the semantic s
 
 The setup script creates this structure:
 ```
-/workspaces/search/
+/workspaces/semisearch/
 ├── .devcontainer/          # Development environment
 ├── src/                    # Source code (created by setup)
 ├── tests/                  # Test files
@@ -182,8 +182,8 @@ bash .devcontainer/scripts/new-developer-setup.sh
 
 The container sets these environment variables:
 - `CARGO_TARGET_DIR=/tmp/target` - Shared build cache
-- `SEMISEARCH_MODELS_DIR=/workspaces/search/.models` - ML models storage
-- `SEMISEARCH_CACHE_DIR=/workspaces/search/.cache` - Application cache
+- `SEMISEARCH_MODELS_DIR=/workspaces/semisearch/.models` - ML models storage
+- `SEMISEARCH_CACHE_DIR=/workspaces/semisearch/.cache` - Application cache
 - `RUST_BACKTRACE=1` - Enhanced error reporting
 - `RUST_LOG=info` - Default logging level
 
@@ -219,7 +219,7 @@ create_test_data # Create sample test files
 ### Common Issues
 - **Missing tools**: Run `bash .devcontainer/install-more-tools.sh`
 - **Build errors**: Ensure Cargo.toml exists with `ls -la Cargo.toml`
-- **Path issues**: All scripts use `/workspaces/search/` consistently
+- **Path issues**: All scripts use `/workspaces/semisearch/` consistently
 
 ### Getting Help
 - **Architecture guidance**: `cat SEMANTIC_SEARCH_ARCHITECTURE_PLAN.md`

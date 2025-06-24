@@ -92,14 +92,14 @@
     "RUST_BACKTRACE": "1",
     "RUST_LOG": "info",
     "CARGO_TARGET_DIR": "/tmp/target",
-    "SEMISEARCH_MODELS_DIR": "/workspaces/search/.models",
-    "SEMISEARCH_CACHE_DIR": "/workspaces/search/.cache"
+    "SEMISEARCH_MODELS_DIR": "/workspaces/semisearch/.models",
+    "SEMISEARCH_CACHE_DIR": "/workspaces/semisearch/.cache"
   },
 
   "mounts": [
     "source=semisearch-target,target=/tmp/target,type=volume",
-    "source=semisearch-models,target=/workspaces/search/.models,type=volume",
-    "source=semisearch-cache,target=/workspaces/search/.cache,type=volume"
+    "source=semisearch-models,target=/workspaces/semisearch/.models,type=volume",
+    "source=semisearch-cache,target=/workspaces/semisearch/.cache,type=volume"
   ],
 
   "forwardPorts": [

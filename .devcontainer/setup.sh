@@ -43,12 +43,12 @@ rustup component add clippy rustfmt
 
 # Create project structure in workspace (if not exists)
 log_info "Setting up workspace structure..."
-mkdir -p /workspaces/search/{src,tests,benches,docs}
+mkdir -p /workspaces/semisearch/{src,tests,benches,docs}
 
 # Create .vscode settings if not exists
-if [ ! -f /workspaces/search/.vscode/settings.json ]; then
-    mkdir -p /workspaces/search/.vscode
-    cat > /workspaces/search/.vscode/settings.json << 'EOF'
+if [ ! -f /workspaces/semisearch/.vscode/settings.json ]; then
+    mkdir -p /workspaces/semisearch/.vscode
+    cat > /workspaces/semisearch/.vscode/settings.json << 'EOF'
 {
     "rust-analyzer.linkedProjects": ["./Cargo.toml"],
     "rust-analyzer.checkOnSave.command": "clippy"
@@ -62,11 +62,11 @@ cat >> ~/.zshrc << 'EOF'
 
 # Semantic Search Development Environment
 export CARGO_TARGET_DIR=/tmp/target
-export SEMISEARCH_MODELS_DIR=/workspaces/search/.models
-export SEMISEARCH_CACHE_DIR=/workspaces/search/.cache
+export SEMISEARCH_MODELS_DIR=/workspaces/semisearch/.models
+export SEMISEARCH_CACHE_DIR=/workspaces/semisearch/.cache
 
 # Always start in workspace
-cd /workspaces/search
+cd /workspaces/semisearch
 
 # Handy aliases
 alias ll='ls -la'
@@ -86,7 +86,7 @@ alias jl='just --list'
 search_help() {
     echo "🔍 Semantic Search CLI Development"
     echo ""
-    echo "📁 Workspace: /workspaces/search"
+    echo "📁 Workspace: /workspaces/semisearch"
     echo ""
     echo "🚀 Quick Commands:"
     echo "  cb       # cargo build"
@@ -107,27 +107,27 @@ search_help() {
 # Create test data helper
 create_test_data() {
     echo "📝 Creating test data..."
-    mkdir -p /workspaces/search/test-data/{small,medium}
+    mkdir -p /workspaces/semisearch/test-data/{small,medium}
     
     # Create some test files
-    echo "Ghostbusters is a classic movie" > /workspaces/search/test-data/small/movies.txt
-    echo "Jim Carrey stars in Ace Ventura" >> /workspaces/search/test-data/small/movies.txt
-    echo "The Silence of the Lambs won many awards" >> /workspaces/search/test-data/small/movies.txt
+    echo "Ghostbusters is a classic movie" > /workspaces/semisearch/test-data/small/movies.txt
+    echo "Jim Carrey stars in Ace Ventura" >> /workspaces/semisearch/test-data/small/movies.txt
+    echo "The Silence of the Lambs won many awards" >> /workspaces/semisearch/test-data/small/movies.txt
     
-    echo "✅ Test data created in /workspaces/search/test-data/"
+    echo "✅ Test data created in /workspaces/semisearch/test-data/"
 }
 
 # Welcome message
 echo "🦀 Semantic Search CLI Development Environment"
-echo "📁 Workspace: /workspaces/search"
+echo "📁 Workspace: /workspaces/semisearch"
 echo "💡 Run 'search_help' for guidance"
 echo ""
 EOF
 
 # Create initial Cargo.toml if it doesn't exist
-if [ ! -f /workspaces/search/Cargo.toml ]; then
+if [ ! -f /workspaces/semisearch/Cargo.toml ]; then
     log_info "Creating initial Cargo.toml..."
-    cat > /workspaces/search/Cargo.toml << 'EOF'
+    cat > /workspaces/semisearch/Cargo.toml << 'EOF'
 [package]
 name = "semisearch"
 version = "0.1.0"
@@ -143,10 +143,10 @@ walkdir = "2.3"
 EOF
 
     # Create basic main.rs if it doesn't exist
-    if [ ! -f /workspaces/search/src/main.rs ]; then
+    if [ ! -f /workspaces/semisearch/src/main.rs ]; then
         log_info "Creating initial src/main.rs..."
-        mkdir -p /workspaces/search/src
-        cat > /workspaces/search/src/main.rs << 'RUST'
+        mkdir -p /workspaces/semisearch/src
+        cat > /workspaces/semisearch/src/main.rs << 'RUST'
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -197,9 +197,9 @@ RUST
 fi
 
 # Create a Justfile for common tasks
-if [ ! -f /workspaces/search/Justfile ]; then
+if [ ! -f /workspaces/semisearch/Justfile ]; then
     log_info "Creating Justfile for task automation..."
-    cat > /workspaces/search/Justfile << 'EOF'
+    cat > /workspaces/semisearch/Justfile << 'EOF'
 # List available commands
 default:
     @just --list
@@ -250,7 +250,7 @@ log_success "Setup complete!"
 echo ""
 echo "🎉 Development environment ready!"
 echo ""
-echo "📍 Workspace: /workspaces/search"
+echo "📍 Workspace: /workspaces/semisearch"
 echo ""
 echo "🚀 Quick Start:"
 echo "  cargo build"
