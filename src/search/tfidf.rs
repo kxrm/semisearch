@@ -179,7 +179,7 @@ impl TfIdfSearch {
             .filter(|(q, w)| q == w)
             .count();
 
-        matches >= (query_tokens.len() + 1) / 2 // At least half the terms match
+        matches >= query_tokens.len().div_ceil(2) // At least half the terms match
     }
 
     /// Calculate penalty for very long or very short documents

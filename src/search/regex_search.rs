@@ -173,8 +173,7 @@ impl RegexSearch {
             + word_boundary_bonus
             + line_start_bonus
             + length_penalty)
-            .min(1.0)
-            .max(0.0)
+            .clamp(0.0, 1.0)
     }
 
     /// Check if match is at word boundaries

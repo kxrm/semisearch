@@ -1,3 +1,4 @@
+#[allow(unused_imports)]
 use super::{MatchType, SearchResult};
 
 /// Helper functions for search strategies
