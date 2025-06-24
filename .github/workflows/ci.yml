@@ -272,7 +272,7 @@ jobs:
         ./target/release/semisearch search "TODO" --path ./test_mvp.txt --format json | jq . > /dev/null || (echo "❌ JSON output not working" && exit 1)
         
         # Test regex (this will work)
-        ./target/release/semisearch search "TODO.*:" --path ./test_mvp.txt | wc -l | grep -q -v "^0$" || (echo "❌ Regex search not working" && exit 1)
+        ./target/release/semisearch search "TODO.*:" --path ./test_mvp.txt --regex | wc -l | grep -q -v "^0$" || (echo "❌ Regex search not working" && exit 1)
         
         # Test typo tolerance (this will work)
         ./target/release/semisearch search "TODO" --path ./test_mvp.txt --typo-tolerance | wc -l | grep -q -v "^0$" || (echo "❌ Typo tolerance not working" && exit 1)
