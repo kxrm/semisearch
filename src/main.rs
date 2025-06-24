@@ -167,9 +167,9 @@ fn main() {
                                 stats.total_size_bytes / (1024 * 1024)
                             );
                         }
-                        Err(e) => eprintln!("  Error reading stats: {}", e),
+                        Err(e) => eprintln!("  Error reading stats: {e}"),
                     },
-                    Err(e) => eprintln!("  Error opening database: {}", e),
+                    Err(e) => eprintln!("  Error opening database: {e}"),
                 }
             } else {
                 println!("  Status: No index found (run 'semisearch index <path>' to create one)");
