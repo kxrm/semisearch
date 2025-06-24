@@ -11,7 +11,7 @@ use tempfile::TempDir;
 /// - Text processing and tokenization
 /// - Multiple search strategies (Keyword, Fuzzy, Regex, TF-IDF)
 /// - Search result merging and ranking
-/// 
+///
 /// Test helper that can hold content for searching
 struct TestSearchEngine {
     #[allow(dead_code)]
@@ -426,13 +426,17 @@ fn test_search_options_comprehensive() {
         case_sensitive: true,
         ..Default::default()
     };
-    let results_sensitive = engine.search("QUICK", Some("keyword"), &options_sensitive).unwrap();
+    let results_sensitive = engine
+        .search("QUICK", Some("keyword"), &options_sensitive)
+        .unwrap();
 
     let options_insensitive = SearchOptions {
         case_sensitive: false,
         ..Default::default()
     };
-    let results_insensitive = engine.search("QUICK", Some("keyword"), &options_insensitive).unwrap();
+    let results_insensitive = engine
+        .search("QUICK", Some("keyword"), &options_insensitive)
+        .unwrap();
 
     // Case insensitive should find more or equal results
     assert!(results_insensitive.len() >= results_sensitive.len());
@@ -442,7 +446,9 @@ fn test_search_options_comprehensive() {
         max_results: 1,
         ..Default::default()
     };
-    let limited_results = engine.search("the", Some("keyword"), &options_limited).unwrap();
+    let limited_results = engine
+        .search("the", Some("keyword"), &options_limited)
+        .unwrap();
     assert!(
         limited_results.len() <= 1,
         "Should respect max_results limit"
@@ -454,7 +460,9 @@ fn test_search_options_comprehensive() {
         min_score: 0.9,
         ..Default::default()
     };
-    let high_score_results = engine.search("fox", Some("keyword"), &options_high_score).unwrap();
+    let high_score_results = engine
+        .search("fox", Some("keyword"), &options_high_score)
+        .unwrap();
 
     for result in &high_score_results {
         assert!(
