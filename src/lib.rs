@@ -6,6 +6,10 @@ use ignore::WalkBuilder;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+// Phase 3: Text Processing modules
+pub mod search;
+pub mod text;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResult {
     pub file_path: String,
