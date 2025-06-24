@@ -1,5 +1,5 @@
 pub mod processor;
 pub mod tokenizer;
 
-pub use processor::{TextProcessor, TextChunk};
-pub use tokenizer::{Tokenizer, TokenType}; 
+pub use processor::{TextChunk, TextProcessor};
+pub use tokenizer::{TokenType, Tokenizer};

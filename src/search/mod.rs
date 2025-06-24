@@ -1,7 +1,7 @@
-pub mod strategy;
-pub mod keyword;
 pub mod fuzzy;
+pub mod keyword;
 pub mod regex_search;
+pub mod strategy;
 pub mod tfidf;
 
 use anyhow::Result;
@@ -83,64 +83,83 @@ pub struct SearchEngine {
 impl SearchEngine {
     pub fn new() -> Self {
         let mut strategies: HashMap<String, Box<dyn SearchStrategy>> = HashMap::new();
-        
+
         // Register available strategies
-        strategies.insert("keyword".to_string(), Box::new(keyword::KeywordSearch::new()));
+        strategies.insert(
+            "keyword".to_string(),
+            Box::new(keyword::KeywordSearch::new()),
+        );
         strategies.insert("fuzzy".to_string(), Box::new(fuzzy::FuzzySearch::new()));
-        strategies.insert("regex".to_string(), Box::new(regex_search::RegexSearch::new()));
+        strategies.insert(
+            "regex".to_string(),
+            Box::new(regex_search::RegexSearch::new()),
+        );
         strategies.insert("tfidf".to_string(), Box::new(tfidf::TfIdfSearch::new()));
-        
+
         Self {
             strategies,
             default_strategy: "keyword".to_string(),
         }
     }
-    
-    pub fn search(&self, query: &str, strategy_name: Option<&str>, options: &SearchOptions) -> Result<Vec<SearchResult>> {
+
+    pub fn search(
+        &self,
+        query: &str,
+        strategy_name: Option<&str>,
+        options: &SearchOptions,
+    ) -> Result<Vec<SearchResult>> {
         let strategy_name = strategy_name.unwrap_or(&self.default_strategy);
-        
-        let strategy = self.strategies.get(strategy_name)
+
+        let strategy = self
+            .strategies
+            .get(strategy_name)
             .ok_or_else(|| anyhow::anyhow!("Unknown search strategy: {}", strategy_name))?;
-        
+
         strategy.search(query, options)
     }
-    
-    pub fn search_multi_strategy(&self, query: &str, strategies: &[&str], options: &SearchOptions) -> Result<Vec<SearchResult>> {
+
+    pub fn search_multi_strategy(
+        &self,
+        query: &str,
+        strategies: &[&str],
+        options: &SearchOptions,
+    ) -> Result<Vec<SearchResult>> {
         let mut all_results = Vec::new();
-        
+
         for strategy_name in strategies {
             if let Some(strategy) = self.strategies.get(*strategy_name) {
                 let results = strategy.search(query, options)?;
                 all_results.extend(results);
             }
         }
-        
+
         // Merge and deduplicate results
         self.merge_results(all_results)
     }
-    
+
     pub fn available_strategies(&self) -> Vec<&str> {
         self.strategies.keys().map(|s| s.as_str()).collect()
     }
-    
+
     pub fn get_strategy_requirements(&self, strategy_name: &str) -> Option<ResourceRequirements> {
-        self.strategies.get(strategy_name).map(|s| s.required_resources())
+        self.strategies
+            .get(strategy_name)
+            .map(|s| s.required_resources())
     }
-    
+
     fn merge_results(&self, mut results: Vec<SearchResult>) -> Result<Vec<SearchResult>> {
         // Sort by score (descending) then by file path and line number
         results.sort_by(|a, b| {
-            b.score.partial_cmp(&a.score)
+            b.score
+                .partial_cmp(&a.score)
                 .unwrap_or(std::cmp::Ordering::Equal)
                 .then_with(|| a.file_path.cmp(&b.file_path))
                 .then_with(|| a.line_number.cmp(&b.line_number))
         });
-        
+
         // Remove duplicates based on file path and line number
-        results.dedup_by(|a, b| {
-            a.file_path == b.file_path && a.line_number == b.line_number
-        });
-        
+        results.dedup_by(|a, b| a.file_path == b.file_path && a.line_number == b.line_number);
+
         Ok(results)
     }
 }
@@ -159,7 +178,7 @@ mod tests {
     fn test_search_engine_creation() {
         let engine = SearchEngine::new();
         let strategies = engine.available_strategies();
-        
+
         assert!(strategies.contains(&"keyword"));
         assert!(strategies.contains(&"fuzzy"));
         assert!(strategies.contains(&"regex"));
@@ -201,9 +220,9 @@ mod tests {
                 context_after: None,
             },
         ];
-        
+
         let merged = engine.merge_results(results).unwrap();
         assert_eq!(merged.len(), 1);
         assert_eq!(merged[0].score, 0.8);
     }
-} 
+}

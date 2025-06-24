@@ -1,5 +1,5 @@
-use unicode_segmentation::UnicodeSegmentation;
 use std::collections::HashSet;
+use unicode_segmentation::UnicodeSegmentation;
 
 /// Simple tokenizer for text processing
 pub struct Tokenizer {
@@ -9,12 +9,15 @@ pub struct Tokenizer {
 impl Tokenizer {
     pub fn new() -> Self {
         let stop_words = [
-            "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by"
-        ].iter().map(|&s| s.to_string()).collect();
-        
+            "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by",
+        ]
+        .iter()
+        .map(|&s| s.to_string())
+        .collect();
+
         Self { stop_words }
     }
-    
+
     /// Tokenize text into words
     pub fn tokenize(&self, text: &str) -> Vec<Token> {
         text.unicode_words()
@@ -22,7 +25,7 @@ impl Tokenizer {
             .map(|(index, word)| {
                 let word_lower = word.to_lowercase();
                 let token_type = self.classify_token(&word_lower);
-                
+
                 Token {
                     text: word_lower,
                     original: word.to_string(),
@@ -32,7 +35,7 @@ impl Tokenizer {
             })
             .collect()
     }
-    
+
     /// Classify token type
     fn classify_token(&self, word: &str) -> TokenType {
         if self.stop_words.contains(word) {
@@ -86,7 +89,7 @@ mod tests {
     fn test_basic_tokenization() {
         let tokenizer = Tokenizer::new();
         let tokens = tokenizer.tokenize("Hello world test");
-        
+
         assert_eq!(tokens.len(), 3);
         assert_eq!(tokens[0].text, "hello");
         assert_eq!(tokens[0].original, "Hello");
@@ -98,19 +101,19 @@ mod tests {
     fn test_token_classification() {
         let tokenizer = Tokenizer::new();
         let tokens = tokenizer.tokenize("The number 123 and mixed123");
-        
+
         // "The" should be classified as stop word
         assert_eq!(tokens[0].token_type, TokenType::StopWord);
-        
+
         // "number" should be a regular word
         assert_eq!(tokens[1].token_type, TokenType::Word);
-        
+
         // "123" should be classified as number
         assert_eq!(tokens[2].token_type, TokenType::Number);
-        
+
         // "and" should be stop word
         assert_eq!(tokens[3].token_type, TokenType::StopWord);
-        
+
         // "mixed123" should be mixed
         assert_eq!(tokens[4].token_type, TokenType::Mixed);
     }
@@ -119,7 +122,7 @@ mod tests {
     fn test_empty_text() {
         let tokenizer = Tokenizer::new();
         let tokens = tokenizer.tokenize("");
-        
+
         assert!(tokens.is_empty());
     }
 
@@ -127,7 +130,7 @@ mod tests {
     fn test_unicode_handling() {
         let tokenizer = Tokenizer::new();
         let tokens = tokenizer.tokenize("café naïve résumé");
-        
+
         assert_eq!(tokens.len(), 3);
         assert_eq!(tokens[0].text, "café");
         assert_eq!(tokens[1].text, "naïve");
@@ -138,9 +141,9 @@ mod tests {
     fn test_position_tracking() {
         let tokenizer = Tokenizer::new();
         let tokens = tokenizer.tokenize("first second third");
-        
+
         assert_eq!(tokens[0].position, 0);
         assert_eq!(tokens[1].position, 1);
         assert_eq!(tokens[2].position, 2);
     }
-} 
+}
