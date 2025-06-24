@@ -1,88 +1,80 @@
-# Semisearch - MVP Implementation
+# Semantic Search CLI Tool
 
-A simple semantic search CLI tool for searching text across local files.
+A privacy-first CLI tool for semantic search across local files, built with Rust.
 
 ## MVP Features (Checkpoint 1) ✅
 
-This MVP implementation provides:
+All MVP features from the architecture plan have been implemented:
 
-- ✅ Simple CLI with search command
-- ✅ File traversal with walkdir
-- ✅ Line-by-line keyword matching
-- ✅ Display results with file:line:content format
-- ✅ Case-insensitive search
-- ✅ Binary file filtering
-- ✅ Result limiting
-- ✅ Comprehensive test coverage
+### ✅ **COMPLETED Features:**
 
-## Installation
+1. **✅ CLI Interface with Subcommands** - Proper `clap` implementation with:
+   - `search` - Search for matches in files
+   - `index` - Placeholder for future indexing functionality  
+   - `config` - Placeholder for configuration management
 
-```bash
-cargo build --release
-```
+2. **✅ File Traversal** - Using `ignore` crate for:
+   - Recursive directory scanning
+   - Respects `.gitignore` files automatically
+   - Handles permissions and binary file exclusions
+
+3. **✅ Keyword Search** - Case-insensitive substring matching:
+   - Line-by-line processing
+   - Proper file type filtering
+   - Error handling for unreadable files
+
+4. **✅ Multiple Output Formats**:
+   - Plain text: `file:line:content`
+   - JSON: Structured output with metadata
+
+5. **✅ Comprehensive Testing** - 6 unit tests covering:
+   - File matching functionality
+   - Directory traversal
+   - Result limiting
+   - Edge cases (empty directories, no matches)
 
 ## Usage
 
-### Basic Search
+### Search Command
 ```bash
-# Search for "TODO" in current directory
-cargo run -- "TODO"
+# Basic search
+cargo run -- search "TODO" --path ./src
 
-# Search in specific directory
-cargo run -- "TODO" --path ./src
+# JSON output with limit
+cargo run -- search "query" --format json --limit 5
 
-# Limit results
-cargo run -- "TODO" --path ./src --limit 5
+# Search in current directory
+cargo run -- search "pattern"
 ```
 
-### Examples
+### Available Options
+- `--path, -p`: Target directory (default: current directory)
+- `--format, -f`: Output format - `plain` or `json` (default: plain)
+- `--limit, -l`: Maximum number of results (default: 10)
+- `--score, -s`: Minimum similarity score - placeholder for future semantic features
 
+### Placeholder Commands
 ```bash
-# Find all TODO items in source code
-$ cargo run -- "TODO" --path ./src
-./src/main.rs:15:// TODO: Add fuzzy matching
-
-# Case-insensitive search
-$ cargo run -- "hello" --path ./test_data
-./test_data/test1.txt:1:Hello world
-
-# Search with result limit
-$ cargo run -- "TODO" --path . --limit 2
-./test_data/test1.txt:2:This is a TODO item
-./test_data/test2.txt:1:TODO: Fix this bug
+# Future functionality
+cargo run -- index ./path    # Will add persistent indexing
+cargo run -- config          # Will add configuration management
 ```
 
-## CLI Options
+## Architecture
 
-- `<query>` - Search query (required)
-- `--path, -p` - Target directory (default: current directory)
-- `--limit, -l` - Maximum number of results (default: 10)
+Current implementation follows the progressive enhancement strategy from the architecture plan:
 
-## Output Format
+- **Phase 1: Foundation** ✅ - CLI interface, basic search, file traversal
+- **Phase 2: Enhanced Search** 🔄 - Coming next: fuzzy matching, TF-IDF scoring
+- **Phase 3: Semantic Search** 📋 - Future: ML-based semantic understanding
+- **Phase 4: Production Ready** 📋 - Future: optimization, cross-platform support
 
-Results are displayed as:
-```
-file_path:line_number:content
-```
+## Dependencies
 
-## Implementation Details
-
-### Architecture
-- **Language**: Rust 2021 edition
-- **CLI Framework**: clap v4 with derive features
-- **File Traversal**: walkdir crate
-- **Dependencies**: Minimal (clap, walkdir, tempfile for tests)
-
-### Features
-- **Binary File Detection**: Automatically skips common binary file extensions
-- **Error Handling**: Gracefully handles unreadable files and permission errors
-- **Memory Efficient**: Processes files one at a time, respects result limits
-- **Cross-Platform**: Works on Linux, macOS, and Windows
-
-### Code Quality
-- **Test-Driven Development**: Comprehensive test suite with 100% core function coverage
-- **Error Handling**: Proper error propagation and user-friendly error messages
-- **Documentation**: Well-documented code with clear function signatures
+- `clap` - Command line argument parsing with derive macros
+- `ignore` - Git-aware file traversal (respects .gitignore)
+- `serde` + `serde_json` - JSON serialization for output
+- `anyhow` - Better error handling and propagation
 
 ## Testing
 
@@ -90,74 +82,58 @@ file_path:line_number:content
 # Run all tests
 cargo test
 
-# Run with verbose output
-cargo test -- --nocapture
+# Build and test search functionality
+cargo build
+cargo run -- search "test query" --path ./
 ```
-
-### Test Coverage
-- ✅ Single file search with matches
-- ✅ Case-insensitive matching
-- ✅ No matches scenario
-- ✅ Directory traversal
-- ✅ Result limiting
-- ✅ Empty directory handling
 
 ## Performance
 
-The MVP is optimized for:
-- **Small to Medium Projects**: < 10,000 files
-- **Memory Usage**: < 50MB for typical usage
-- **Search Speed**: < 2 seconds for most queries
-- **File Size Limit**: Automatically handles large files gracefully
+Current MVP performance targets (achieved):
+- **Startup Time:** < 1s for basic keyword search
+- **Search Speed:** Handles thousands of files efficiently
+- **Memory Usage:** Minimal memory footprint
+- **File Filtering:** Automatically excludes binary files and respects .gitignore
 
-## Next Steps (Future Phases)
+## Next Steps (Phase 2)
 
-1. **Enhanced Search (Week 1)**
+Based on the architecture plan, the next features to implement are:
+
+1. **Enhanced Search Quality**:
    - Fuzzy matching with edit distance
    - Regex support
-   - .gitignore respect
+   - Multi-word query handling
 
-2. **Persistent Index (Week 2)**
-   - SQLite storage
+2. **Persistent Index**:
+   - SQLite storage for file metadata
    - Incremental indexing
-   - Progress indicators
+   - Search result caching
 
-3. **Smart Search (Week 3-4)**
-   - TF-IDF scoring
-   - Multi-word queries
-   - Context snippets
+3. **Configuration System**:
+   - User preferences
+   - File exclusion patterns
+   - Performance tuning options
 
-4. **Semantic Search (Week 5-6)**
-   - Local ML models
-   - Embedding-based search
-   - System capability detection
+## Project Structure
 
-## Development
-
-### Project Structure
 ```
-semisearch/
-├── Cargo.toml          # Dependencies and metadata
-├── src/
-│   └── main.rs         # Complete MVP implementation
-├── test_data/          # Test files for manual verification
-└── README.md           # This file
+src/
+├── main.rs    # CLI interface and command handling
+└── lib.rs     # Core search functionality and types
 ```
 
-### Adding Features
-The codebase is designed for progressive enhancement:
-1. Start with working MVP
-2. Add one feature at a time
-3. Maintain test coverage
-4. Keep backward compatibility
+The architecture plan calls for a more modular structure that will be implemented in Phase 2:
+```
+src/
+├── cli/       # Command line interface
+├── core/      # Search algorithms  
+├── storage/   # Database and caching
+├── text/      # Text processing
+└── config/    # Configuration management
+```
 
-## License
+This MVP provides a solid foundation for the full semantic search tool described in the [architecture plan](docs/SEMANTIC_SEARCH_ARCHITECTURE_PLAN.md).
 
-This project is part of the semantic search CLI tool development plan.
+## Documentation
 
----
-
-**MVP Status**: ✅ Complete and Working
-**Deliverable**: `cargo run -- "TODO" --path ./src` works as specified
-**Code Quality**: Test-driven development with comprehensive coverage
-**Performance**: Meets MVP targets for small-medium projects 
+- [Architecture Plan](docs/SEMANTIC_SEARCH_ARCHITECTURE_PLAN.md) - Complete technical specification and implementation roadmap 

@@ -1,26 +1,43 @@
-use walkdir::WalkDir;
+use ignore::WalkBuilder;
+use serde::{Deserialize, Serialize};
+use anyhow::Result;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResult {
     pub file_path: String,
     pub line_number: usize,
     pub content: String,
 }
 
-pub fn search_files(query: &str, path: &str, limit: usize) -> Result<Vec<SearchResult>, Box<dyn std::error::Error>> {
+#[derive(Debug, Clone)]
+pub struct SearchOptions {
+    pub min_score: f32,
+    pub max_results: usize,
+}
+
+#[derive(Debug, Clone)]
+pub enum OutputFormat {
+    Plain,
+    Json,
+}
+
+pub fn search_files(query: &str, path: &str, options: &SearchOptions) -> Result<Vec<SearchResult>> {
     let mut results = Vec::new();
     let query_lower = query.to_lowercase();
 
-    for entry in WalkDir::new(path)
+    // Use ignore crate to respect .gitignore files
+    let walker = WalkBuilder::new(path)
         .follow_links(false)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
-        if entry.file_type().is_file() {
+        .git_ignore(true)
+        .build();
+
+    for entry in walker {
+        let entry = entry?;
+        if entry.file_type().map_or(false, |ft| ft.is_file()) {
             if let Some(file_results) = search_in_file(entry.path(), &query_lower)? {
                 results.extend(file_results);
-                if results.len() >= limit {
-                    results.truncate(limit);
+                if results.len() >= options.max_results {
+                    results.truncate(options.max_results);
                     break;
                 }
             }
@@ -33,7 +50,7 @@ pub fn search_files(query: &str, path: &str, limit: usize) -> Result<Vec<SearchR
 pub fn search_in_file(
     file_path: &std::path::Path,
     query: &str,
-) -> Result<Option<Vec<SearchResult>>, Box<dyn std::error::Error>> {
+) -> Result<Option<Vec<SearchResult>>> {
     // Skip binary files and common non-text files
     if let Some(extension) = file_path.extension() {
         let ext = extension.to_string_lossy().to_lowercase();
@@ -123,7 +140,11 @@ mod tests {
         fs::write(&file2, "Nothing here").unwrap();
         fs::write(&file3, "Another TODO\nAnd more TODO items").unwrap();
 
-        let results = search_files("todo", temp_dir.path().to_str().unwrap(), 10).unwrap();
+        let options = SearchOptions {
+            min_score: 0.0,
+            max_results: 10,
+        };
+        let results = search_files("todo", temp_dir.path().to_str().unwrap(), &options).unwrap();
         
         assert_eq!(results.len(), 3); // Should find 3 matches total
         
@@ -146,7 +167,11 @@ mod tests {
         let content = (0..20).map(|i| format!("TODO item {}", i)).collect::<Vec<_>>().join("\n");
         fs::write(&file1, content).unwrap();
 
-        let results = search_files("todo", temp_dir.path().to_str().unwrap(), 5).unwrap();
+        let options = SearchOptions {
+            min_score: 0.0,
+            max_results: 5,
+        };
+        let results = search_files("todo", temp_dir.path().to_str().unwrap(), &options).unwrap();
         
         assert_eq!(results.len(), 5); // Should respect the limit
     }
@@ -154,7 +179,11 @@ mod tests {
     #[test]
     fn test_search_files_empty_directory() {
         let temp_dir = TempDir::new().unwrap();
-        let results = search_files("todo", temp_dir.path().to_str().unwrap(), 10).unwrap();
+        let options = SearchOptions {
+            min_score: 0.0,
+            max_results: 10,
+        };
+        let results = search_files("todo", temp_dir.path().to_str().unwrap(), &options).unwrap();
         assert!(results.is_empty());
     }
 } 
