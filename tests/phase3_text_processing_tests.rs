@@ -65,7 +65,7 @@ impl TestSearchEngine {
                     let tfidf_search = semisearch::search::tfidf::TfIdfSearch::new();
                     tfidf_search.search_chunks(query, &chunks, options)?
                 }
-                _ => return Err(anyhow::anyhow!("Unknown strategy: {}", strategy_name)),
+                _ => return Err(anyhow::anyhow!("Unknown strategy: {strategy_name}")),
             };
 
             // Update file paths in results
@@ -147,29 +147,25 @@ fn test_text_processor_comprehensive() {
         let chunks = processor.process_file(content);
 
         // Verify chunks are created
-        assert!(!chunks.is_empty(), "Failed to process: {}", description);
+        assert!(!chunks.is_empty(), "Failed to process: {description}");
 
         // Verify each chunk has required fields
         for chunk in &chunks {
             assert!(
                 !chunk.content.is_empty(),
-                "Empty content in chunk for: {}",
-                description
+                "Empty content in chunk for: {description}"
             );
             assert!(
                 !chunk.tokens.is_empty(),
-                "No tokens generated for: {}",
-                description
+                "No tokens generated for: {description}"
             );
             assert!(
                 chunk.line_number > 0,
-                "Invalid line number for: {}",
-                description
+                "Invalid line number for: {description}"
             );
             assert!(
                 chunk.end_char >= chunk.start_char,
-                "Invalid char positions for: {}",
-                description
+                "Invalid char positions for: {description}"
             );
         }
 
@@ -177,8 +173,7 @@ fn test_text_processor_comprehensive() {
         let complexity = processor.calculate_complexity(content);
         assert!(
             (0.0..=1.0).contains(&complexity),
-            "Invalid complexity score for: {}",
-            description
+            "Invalid complexity score for: {description}"
         );
     }
 }
@@ -193,8 +188,7 @@ fn test_search_engine_strategy_registration() {
     for strategy in expected_strategies {
         assert!(
             strategies.contains(&strategy),
-            "Missing strategy: {}",
-            strategy
+            "Missing strategy: {strategy}"
         );
     }
 
@@ -203,15 +197,13 @@ fn test_search_engine_strategy_registration() {
         let requirements = engine.get_strategy_requirements(strategy_name);
         assert!(
             requirements.is_some(),
-            "No requirements for strategy: {}",
-            strategy_name
+            "No requirements for strategy: {strategy_name}"
         );
 
         let req = requirements.unwrap();
         assert!(
             req.min_memory_mb > 0,
-            "Invalid memory requirement for: {}",
-            strategy_name
+            "Invalid memory requirement for: {strategy_name}"
         );
     }
 }
@@ -325,9 +317,7 @@ fn test_regex_search_patterns() {
         let results = engine.search(pattern, Some("regex"), &options).unwrap();
         assert!(
             !results.is_empty(),
-            "Regex should match {}: {}",
-            description,
-            pattern
+            "Regex should match {description}: {pattern}"
         );
 
         for result in &results {
@@ -516,8 +506,7 @@ fn test_language_detection() {
             assert_eq!(
                 chunks[0].language_hint,
                 expected_lang.map(|s| s.to_string()),
-                "Language detection failed for: {}",
-                code
+                "Language detection failed for: {code}"
             );
         }
     }
@@ -584,8 +573,7 @@ fn test_search_result_scoring_consistency() {
         for window in results.windows(2) {
             assert!(
                 window[0].score >= window[1].score,
-                "Results not sorted by score for strategy {}",
-                strategy
+                "Results not sorted by score for strategy {strategy}"
             );
         }
     }
@@ -618,8 +606,7 @@ fn test_empty_and_edge_cases() {
             let results = engine.search(query, Some(strategy), &options);
             assert!(
                 results.is_ok(),
-                "Should handle special characters in query: {}",
-                query
+                "Should handle special characters in query: {query}"
             );
         }
     }
@@ -641,8 +628,7 @@ fn test_performance_with_large_content() {
     // Should complete within reasonable time (adjust threshold as needed)
     assert!(
         duration.as_millis() < 1000,
-        "Search took too long: {:?}",
-        duration
+        "Search took too long: {duration:?}"
     );
     assert!(!results.is_empty(), "Should find matches in large content");
 }
@@ -661,7 +647,7 @@ fn test_concurrent_searches() {
             let options = options.clone();
 
             thread::spawn(move || {
-                let query = format!("test{}", i);
+                let query = format!("test{i}");
                 engine.search(&query, Some("keyword"), &options)
             })
         })
@@ -700,7 +686,7 @@ fn test_file_integration() {
         let content = fs::read_to_string(&file_path).unwrap();
         let chunks = processor.process_file(&content);
 
-        assert!(!chunks.is_empty(), "Should process file: {}", filename);
+        assert!(!chunks.is_empty(), "Should process file: {filename}");
 
         // Language detection is based on content, not file extensions
         // Just verify that chunks have basic properties
@@ -722,13 +708,11 @@ fn test_search_strategy_requirements() {
         // Memory requirements should be reasonable
         assert!(
             requirements.min_memory_mb >= 10,
-            "Too low memory requirement for {}",
-            strategy_name
+            "Too low memory requirement for {strategy_name}"
         );
         assert!(
             requirements.min_memory_mb <= 1000,
-            "Too high memory requirement for {}",
-            strategy_name
+            "Too high memory requirement for {strategy_name}"
         );
 
         // Verify strategy characteristics

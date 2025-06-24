@@ -362,8 +362,7 @@ mod tests {
             let has_overlap = first_words.iter().any(|word| second_words.contains(word));
             assert!(
                 has_overlap,
-                "First chunk words {:?} should overlap with second chunk words {:?}",
-                first_words, second_words
+                "First chunk words {first_words:?} should overlap with second chunk words {second_words:?}"
             );
         }
     }
