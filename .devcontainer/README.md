@@ -231,4 +231,148 @@ create_test_data # Create sample test files
 
 **Ready to build an amazing semantic search tool!** 🦀✨
 
-Start with the MVP approach and progressively enhance your way to a full-featured semantic search CLI that works on any system. 
+Start with the MVP approach and progressively enhance your way to a full-featured semantic search CLI that works on any system.
+
+# Development Container Setup
+
+This development container provides a complete Rust development environment with GitHub CLI integration for the Semantic Search CLI project.
+
+## Features
+
+- **Rust Development**: Latest Rust toolchain with rust-analyzer
+- **GitHub CLI**: Pre-installed with persistent authentication
+- **Development Tools**: Python, Node.js, Docker-in-Docker
+- **VS Code Extensions**: Rust, GitHub Copilot, GitLens, and more
+- **Persistent Storage**: Target cache, models, and credentials
+
+## GitHub CLI Authentication
+
+The devcontainer is configured to persist GitHub CLI credentials across container rebuilds by mounting your host's `~/.config/gh` directory.
+
+### Setup Options
+
+#### Option 1: Environment Variable (Recommended for CI/Automation)
+
+1. Create a GitHub Personal Access Token:
+   - Go to GitHub Settings → Developer settings → Personal access tokens
+   - Generate a new token with scopes: `repo`, `read:org`, `gist`
+   
+2. Set the token as an environment variable on your host:
+   ```bash
+   # Add to your ~/.bashrc, ~/.zshrc, or ~/.profile
+   export GH_TOKEN="your_token_here"
+   ```
+
+3. Rebuild the container - authentication will be automatic
+
+#### Option 2: Interactive Authentication
+
+1. Run the setup script:
+   ```bash
+   .devcontainer/setup-gh-auth.sh
+   ```
+
+2. Follow the prompts to authenticate via browser
+
+#### Option 3: Manual Authentication
+
+```bash
+gh auth login --git-protocol https --web
+```
+
+### Verifying Authentication
+
+```bash
+gh auth status
+```
+
+### Using GitHub CLI
+
+Once authenticated, you can use GitHub CLI commands:
+
+```bash
+# View CI/CD workflow runs
+gh run list
+
+# View specific workflow run logs
+gh run view <run-id> --log
+
+# View failed workflow details
+gh run view <run-id> --log --job <job-name>
+
+# List pull requests
+gh pr list
+
+# Create issues
+gh issue create
+```
+
+## Persistent Storage
+
+The following directories are persisted across container rebuilds:
+
+- `~/.config/gh` - GitHub CLI credentials (mounted from host)
+- `~/.gitconfig` - Git configuration (mounted from host)
+- `/tmp/target` - Rust build cache (Docker volume)
+- `/workspaces/semisearch/.models` - ML models cache (Docker volume)
+- `/workspaces/semisearch/.cache` - Application cache (Docker volume)
+
+## Troubleshooting
+
+### GitHub CLI Authentication Issues
+
+1. **"You are not logged into any GitHub hosts"**
+   - Run `.devcontainer/setup-gh-auth.sh`
+   - Or manually: `gh auth login`
+
+2. **Token authentication fails**
+   - Check if `GH_TOKEN` environment variable is set correctly
+   - Verify token has required scopes: `repo`, `read:org`, `gist`
+   - Token may be expired - generate a new one
+
+3. **Credentials lost after container rebuild**
+   - Ensure host directory `~/.config/gh` exists and has proper permissions
+   - Check devcontainer mounts are working correctly
+
+### Container Issues
+
+1. **Rebuild container**: Command Palette → "Dev Containers: Rebuild Container"
+2. **Check mounts**: Ensure host directories exist and are accessible
+3. **Permissions**: Run `chmod 700 ~/.config/gh` on host if needed
+
+## Development Workflow
+
+1. **First time setup**:
+   ```bash
+   # Authenticate with GitHub
+   .devcontainer/setup-gh-auth.sh
+   
+   # Verify setup
+   gh auth status
+   cargo test
+   ```
+
+2. **Check CI/CD status**:
+   ```bash
+   # View recent workflow runs
+   gh run list --limit 5
+   
+   # View specific failed run
+   gh run view <run-id> --log
+   ```
+
+3. **Development cycle**:
+   ```bash
+   # Make changes
+   cargo test
+   cargo clippy
+   cargo fmt
+   
+   # Commit and push
+   git add .
+   git commit -m "Your changes"
+   git push
+   
+   # Monitor CI
+   gh run watch
+   ``` 

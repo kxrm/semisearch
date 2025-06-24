@@ -93,13 +93,16 @@
     "RUST_LOG": "info",
     "CARGO_TARGET_DIR": "/tmp/target",
     "SEMISEARCH_MODELS_DIR": "/workspaces/semisearch/.models",
-    "SEMISEARCH_CACHE_DIR": "/workspaces/semisearch/.cache"
+    "SEMISEARCH_CACHE_DIR": "/workspaces/semisearch/.cache",
+    "GH_TOKEN": "${localEnv:GH_TOKEN}"
   },
 
   "mounts": [
     "source=semisearch-target,target=/tmp/target,type=volume",
     "source=semisearch-models,target=/workspaces/semisearch/.models,type=volume",
-    "source=semisearch-cache,target=/workspaces/semisearch/.cache,type=volume"
+    "source=semisearch-cache,target=/workspaces/semisearch/.cache,type=volume",
+    "source=${localEnv:HOME}/.config/gh,target=/home/vscode/.config/gh,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,consistency=cached"
   ],
 
   "forwardPorts": [
@@ -122,6 +125,8 @@
       "onAutoForward": "notify"
     }
   },
+
+  "postCreateCommand": "mkdir -p ~/.config/gh && chmod 700 ~/.config/gh || true",
 
   "remoteUser": "vscode"
 } 
