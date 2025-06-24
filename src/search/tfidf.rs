@@ -172,6 +172,7 @@ impl TfIdfSearch {
     }
 
     /// Check if window contains partial phrase match
+    #[allow(unknown_lints)]
     #[allow(clippy::manual_div_ceil)]
     fn is_partial_phrase_match(&self, query_tokens: &[String], window: &[String]) -> bool {
         let matches = query_tokens
