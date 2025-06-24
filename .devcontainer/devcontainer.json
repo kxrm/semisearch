@@ -101,9 +101,14 @@
     "source=semisearch-target,target=/tmp/target,type=volume",
     "source=semisearch-models,target=/workspaces/semisearch/.models,type=volume",
     "source=semisearch-cache,target=/workspaces/semisearch/.cache,type=volume",
-    "source=${localEnv:HOME}/.config/gh,target=/home/vscode/.config/gh,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,consistency=cached"
+    "source=semisearch-gh-config,target=/home/vscode/.config/gh,type=volume",
+    "source=semisearch-git-config,target=/home/vscode/.git-host-config,type=volume"
   ],
+
+  "onCreateCommand": {
+    "setup-git": "git config --global --add safe.directory /workspaces/search && if [ -f ~/.git-host-config/.gitconfig ]; then cp ~/.git-host-config/.gitconfig ~/.gitconfig; fi || true",
+    "setup-gh": "mkdir -p ~/.config/gh && chmod 700 ~/.config/gh && sudo chown -R vscode:vscode ~/.config/gh ~/.git-host-config || true"
+  },
 
   "forwardPorts": [
     3000,
@@ -126,7 +131,7 @@
     }
   },
 
-  "postCreateCommand": "mkdir -p ~/.config/gh && chmod 700 ~/.config/gh || true",
+  "postCreateCommand": "bash -c 'echo \"🚀 Semantic Search CLI Development Environment\" && rustc --version && cargo --version && rustup component add clippy rustfmt && mkdir -p ~/semisearch-dev && echo \"✅ Ready! Create project: cd ~/semisearch-dev && cargo new semisearch --bin\"'",
 
   "remoteUser": "vscode"
 } 
