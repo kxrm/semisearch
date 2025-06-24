@@ -31,7 +31,6 @@ multiple-versions = "warn"
 # Deny crates that are unmaintained
 deny = [
     # Known problematic crates
-    { name = "openssl", version = "*" },  # Prefer rustls
     { name = "git2", version = "*" },     # Large dependency for simple file ops
 ]
 
