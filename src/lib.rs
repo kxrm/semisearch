@@ -6,6 +6,10 @@ use ignore::WalkBuilder;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+// Phase 2: Core and Storage modules
+pub mod core;
+pub mod storage;
+
 // Phase 3: Text Processing modules
 pub mod search;
 pub mod text;
