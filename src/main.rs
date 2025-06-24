@@ -114,9 +114,7 @@ fn main() {
         }
 
         Commands::Index { path } => {
-            println!(
-                "Indexing functionality not yet implemented for path: {path}"
-            );
+            println!("Indexing functionality not yet implemented for path: {path}");
             println!("This will be added in Phase 2 (Persistent Index)");
         }
 
