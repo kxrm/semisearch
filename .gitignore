@@ -1,0 +1,82 @@
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# Development
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# ML Models (downloaded at runtime)
+models/
+*.onnx
+*.pt
+*.bin
+*.safetensors
+
+# Database and Index files
+*.db
+*.db-journal
+*.db-wal
+*.sqlite
+*.sqlite3
+semisearch-index/
+.semisearch/
+
+# Cache
+.cache/
+query_cache/
+embeddings_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python (for ML prototyping)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+.env
+
+# Test data
+test-data/
+benchmarks/
+*.test
+
+# Build artifacts
+dist/
+build/
+*.deb
+*.rpm
+*.AppImage
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Security - Never commit these
+*.pem
+*.key
+*.pfx
+*.p12
+id_rsa*
+.env*
+credentials*
+secrets*
+password* 

@@ -1,0 +1,33 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Rust files
+*.rs text eol=lf
+*.toml text eol=lf
+Cargo.lock text eol=lf
+
+# Scripts
+*.sh text eol=lf
+*.bash text eol=lf
+*.zsh text eol=lf
+
+# Documentation
+*.md text eol=lf
+*.txt text eol=lf
+README* text eol=lf
+LICENSE* text eol=lf
+
+# Configuration
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# Binary files
+*.onnx binary
+*.pt binary
+*.bin binary
+*.db binary
+*.sqlite binary
+*.sqlite3 binary 
