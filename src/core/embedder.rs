@@ -41,9 +41,9 @@ impl Default for EmbeddingConfig {
 /// System embedding capabilities
 #[derive(Debug, Clone, PartialEq)]
 pub enum EmbeddingCapability {
-    Full,      // Full neural embeddings
-    TfIdf,     // TF-IDF only
-    None,      // No embeddings
+    Full,  // Full neural embeddings
+    TfIdf, // TF-IDF only
+    None,  // No embeddings
 }
 
 /// Local embedding model for semantic search
@@ -71,7 +71,11 @@ impl LocalEmbedder {
     }
 
     /// Create embedder with pre-built vocabulary
-    pub fn with_vocabulary(config: EmbeddingConfig, vocabulary: HashMap<String, usize>, idf_scores: HashMap<String, f32>) -> Self {
+    pub fn with_vocabulary(
+        config: EmbeddingConfig,
+        vocabulary: HashMap<String, usize>,
+        idf_scores: HashMap<String, f32>,
+    ) -> Self {
         Self {
             config,
             vocabulary: Arc::new(vocabulary),
@@ -86,7 +90,9 @@ impl LocalEmbedder {
         let config = match capability {
             EmbeddingCapability::Full => EmbeddingConfig::default(),
             EmbeddingCapability::TfIdf => {
-                return Err(anyhow::anyhow!("TF-IDF mode not implemented in LocalEmbedder"));
+                return Err(anyhow::anyhow!(
+                    "TF-IDF mode not implemented in LocalEmbedder"
+                ));
             }
             EmbeddingCapability::None => {
                 return Err(anyhow::anyhow!("No embedding capability available"));
@@ -99,9 +105,7 @@ impl LocalEmbedder {
     /// Detect system embedding capabilities
     pub fn detect_capabilities() -> EmbeddingCapability {
         // Check available memory
-        let available_memory = sys_info::mem_info()
-            .map(|info| info.avail)
-            .unwrap_or(0);
+        let available_memory = sys_info::mem_info().map(|info| info.avail).unwrap_or(0);
 
         // Check CPU count
         let cpu_count = num_cpus::get();
@@ -125,7 +129,7 @@ impl LocalEmbedder {
 
         let tokens = self.tokenize_text(text);
         let embedding = self.create_tfidf_embedding(&tokens)?;
-        
+
         Ok(embedding)
     }
 
@@ -138,7 +142,7 @@ impl LocalEmbedder {
         for doc in documents {
             let tokens = self.tokenize_text(doc);
             let unique_tokens: std::collections::HashSet<_> = tokens.into_iter().collect();
-            
+
             for token in unique_tokens {
                 *word_counts.entry(token).or_insert(0) += 1;
             }
@@ -147,11 +151,11 @@ impl LocalEmbedder {
         // Build vocabulary and calculate IDF scores
         let mut vocabulary = HashMap::new();
         let mut idf_scores = HashMap::new();
-        
+
         for (word, doc_count) in word_counts {
             let word_id = vocabulary.len();
             vocabulary.insert(word.clone(), word_id);
-            
+
             // Calculate IDF: log(N / df) where N is total docs and df is document frequency
             let idf = (total_docs / doc_count as f32).ln();
             idf_scores.insert(word, idf);
@@ -169,12 +173,12 @@ impl LocalEmbedder {
 
         for chunk in texts.chunks(self.config.batch_size) {
             let mut batch_embeddings = Vec::new();
-            
+
             for text in chunk {
                 let embedding = self.embed(text)?;
                 batch_embeddings.push(embedding);
             }
-            
+
             results.extend(batch_embeddings);
         }
 
@@ -238,7 +242,9 @@ impl LocalEmbedder {
 
         // Calculate TF-IDF for each token
         for (token, count) in token_counts {
-            if let (Some(&word_id), Some(&idf)) = (self.vocabulary.get(&token), self.idf_scores.get(&token)) {
+            if let (Some(&word_id), Some(&idf)) =
+                (self.vocabulary.get(&token), self.idf_scores.get(&token))
+            {
                 let tf = count as f32 / total_tokens;
                 let tfidf = tf * idf;
                 embedding[word_id] = tfidf;
@@ -272,8 +278,10 @@ impl LocalEmbedder {
         let data = std::fs::read_to_string(path)?;
         let parsed: serde_json::Value = serde_json::from_str(&data)?;
 
-        let vocabulary: HashMap<String, usize> = serde_json::from_value(parsed["vocabulary"].clone())?;
-        let idf_scores: HashMap<String, f32> = serde_json::from_value(parsed["idf_scores"].clone())?;
+        let vocabulary: HashMap<String, usize> =
+            serde_json::from_value(parsed["vocabulary"].clone())?;
+        let idf_scores: HashMap<String, f32> =
+            serde_json::from_value(parsed["idf_scores"].clone())?;
 
         self.vocabulary = Arc::new(vocabulary);
         self.idf_scores = Arc::new(idf_scores);
@@ -297,7 +305,7 @@ mod sys_info {
     pub struct MemInfo {
         pub avail: u64,
     }
-    
+
     pub fn mem_info() -> Option<MemInfo> {
         // Simplified memory detection
         Some(MemInfo { avail: 4_000_000 }) // Assume 4GB available
@@ -371,7 +379,7 @@ mod tests {
     async fn test_embedder_creation() {
         let config = EmbeddingConfig::default();
         let embedder = LocalEmbedder::new(config).await.unwrap();
-        
+
         assert_eq!(embedder.vocabulary_size(), 0);
         assert!(!embedder.has_vocabulary());
     }
@@ -388,7 +396,7 @@ mod tests {
         ];
 
         embedder.build_vocabulary(&documents).unwrap();
-        
+
         assert!(embedder.has_vocabulary());
         assert!(embedder.vocabulary_size() > 0);
     }
@@ -400,16 +408,22 @@ mod tests {
             ("quick".to_string(), 0),
             ("brown".to_string(), 1),
             ("fox".to_string(), 2),
-        ].iter().cloned().collect();
-        
+        ]
+        .iter()
+        .cloned()
+        .collect();
+
         let idf_scores = [
             ("quick".to_string(), 1.0),
             ("brown".to_string(), 1.5),
             ("fox".to_string(), 2.0),
-        ].iter().cloned().collect();
+        ]
+        .iter()
+        .cloned()
+        .collect();
 
         let embedder = LocalEmbedder::with_vocabulary(config, vocabulary, idf_scores);
-        
+
         let embedding = embedder.embed("quick brown fox").unwrap();
         assert_eq!(embedding.len(), 3);
         assert!(embedding.iter().any(|&x| x > 0.0)); // Should have non-zero values
@@ -419,7 +433,7 @@ mod tests {
     fn test_tokenization() {
         let config = EmbeddingConfig::default();
         let embedder = LocalEmbedder::with_vocabulary(config, HashMap::new(), HashMap::new());
-        
+
         let tokens = embedder.tokenize_text("Hello, World! This is a test.");
         assert!(tokens.contains(&"hello".to_string()));
         assert!(tokens.contains(&"world".to_string()));
@@ -431,13 +445,13 @@ mod tests {
     async fn test_vocabulary_persistence() {
         let temp_dir = TempDir::new().unwrap();
         let vocab_path = temp_dir.path().join("vocab.json");
-        
+
         let config = EmbeddingConfig::default();
         let mut embedder = LocalEmbedder::new(config.clone()).await.unwrap();
 
         let documents = vec!["test document".to_string()];
         embedder.build_vocabulary(&documents).unwrap();
-        
+
         // Save vocabulary
         embedder.save_vocabulary(&vocab_path).unwrap();
         assert!(vocab_path.exists());
@@ -445,11 +459,11 @@ mod tests {
         // Load vocabulary in new embedder
         let mut new_embedder = LocalEmbedder::new(config).await.unwrap();
         new_embedder.load_vocabulary(&vocab_path).unwrap();
-        
+
         assert_eq!(embedder.vocabulary_size(), new_embedder.vocabulary_size());
     }
 
-    #[test] 
+    #[test]
     fn test_embedding_device_serialization() {
         let devices = vec![
             EmbeddingDevice::Cpu,
@@ -462,10 +476,10 @@ mod tests {
             let deserialized: EmbeddingDevice = serde_json::from_str(&json).unwrap();
             assert!(matches!(
                 (device, deserialized),
-                (EmbeddingDevice::Cpu, EmbeddingDevice::Cpu) |
-                (EmbeddingDevice::Cuda, EmbeddingDevice::Cuda) |
-                (EmbeddingDevice::Metal, EmbeddingDevice::Metal)
+                (EmbeddingDevice::Cpu, EmbeddingDevice::Cpu)
+                    | (EmbeddingDevice::Cuda, EmbeddingDevice::Cuda)
+                    | (EmbeddingDevice::Metal, EmbeddingDevice::Metal)
             ));
         }
     }
-} 
+}

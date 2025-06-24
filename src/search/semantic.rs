@@ -37,7 +37,12 @@ impl SemanticSearch {
     }
 
     /// Search semantically similar chunks
-    pub fn search(&self, query: &str, chunks: &[ChunkRecord], max_results: usize) -> Result<Vec<SemanticSearchResult>> {
+    pub fn search(
+        &self,
+        query: &str,
+        chunks: &[ChunkRecord],
+        max_results: usize,
+    ) -> Result<Vec<SemanticSearchResult>> {
         if !self.embedder.has_vocabulary() {
             return Err(anyhow::anyhow!("Embedder vocabulary not built"));
         }
@@ -50,7 +55,7 @@ impl SemanticSearch {
         for chunk in chunks {
             if let Some(ref embedding_data) = chunk.embedding {
                 let similarity = LocalEmbedder::similarity(&query_embedding, embedding_data);
-                
+
                 if similarity >= self.similarity_threshold {
                     results.push(SemanticSearchResult {
                         chunk: chunk.clone(),
@@ -86,7 +91,8 @@ impl SemanticSearch {
         }
 
         // Re-sort and limit
-        initial_results.sort_by(|a, b| b.similarity_score.partial_cmp(&a.similarity_score).unwrap());
+        initial_results
+            .sort_by(|a, b| b.similarity_score.partial_cmp(&a.similarity_score).unwrap());
         initial_results.truncate(max_results);
 
         Ok(initial_results)
@@ -158,25 +164,26 @@ impl SemanticReranker {
     pub fn boost_exact_matches(result: &SemanticSearchResult, query: &str) -> f32 {
         let query_lower = query.to_lowercase();
         let content_lower = result.chunk.content.to_lowercase();
-        
+
         let mut boosted_score = result.similarity_score;
-        
+
         // Boost for exact phrase match
         if content_lower.contains(&query_lower) {
             boosted_score *= 1.2;
         }
-        
+
         // Boost for individual word matches
         let query_words: Vec<&str> = query_lower.split_whitespace().collect();
-        let matching_words = query_words.iter()
+        let matching_words = query_words
+            .iter()
             .filter(|&&word| content_lower.contains(word))
             .count();
-        
+
         if matching_words > 0 {
             let match_ratio = matching_words as f32 / query_words.len() as f32;
             boosted_score *= 1.0 + (match_ratio * 0.1);
         }
-        
+
         boosted_score.min(1.0)
     }
 
@@ -191,7 +198,7 @@ impl SemanticReranker {
     pub fn combined_reranking(result: &SemanticSearchResult, query: &str) -> f32 {
         let exact_boosted = Self::boost_exact_matches(result, query);
         let recent_boosted = Self::boost_recent_files(result, query);
-        
+
         // Combine boosts (taking maximum)
         exact_boosted.max(recent_boosted)
     }
@@ -203,7 +210,6 @@ mod tests {
     use crate::core::EmbeddingConfig;
     use crate::storage::ChunkRecord;
     use crate::text::TextChunk;
-
 
     async fn create_test_embedder() -> Arc<LocalEmbedder> {
         let config = EmbeddingConfig::default();
@@ -259,7 +265,7 @@ mod tests {
     async fn test_semantic_search_creation() {
         let embedder = create_test_embedder().await;
         let semantic_search = SemanticSearch::new(embedder);
-        
+
         assert_eq!(semantic_search.similarity_threshold(), 0.7);
         assert!(semantic_search.is_ready());
     }
@@ -268,7 +274,7 @@ mod tests {
     async fn test_semantic_search_with_threshold() {
         let embedder = create_test_embedder().await;
         let semantic_search = SemanticSearch::with_threshold(embedder, 0.5);
-        
+
         assert_eq!(semantic_search.similarity_threshold(), 0.5);
     }
 
@@ -278,24 +284,28 @@ mod tests {
         let semantic_search = SemanticSearch::with_threshold(embedder, 0.0); // Low threshold for testing
         let chunks = create_test_chunks();
 
-        let results = semantic_search.search("machine learning", &chunks, 10).unwrap();
-        
+        let results = semantic_search
+            .search("machine learning", &chunks, 10)
+            .unwrap();
+
         assert!(!results.is_empty());
         assert!(results[0].similarity_score >= 0.0);
         assert!(results[0].similarity_score <= 1.0);
     }
 
-    #[tokio::test] 
+    #[tokio::test]
     async fn test_semantic_search_sorting() {
         let embedder = create_test_embedder().await;
         let semantic_search = SemanticSearch::with_threshold(embedder, 0.0);
         let chunks = create_test_chunks();
 
-        let results = semantic_search.search("artificial intelligence", &chunks, 10).unwrap();
-        
+        let results = semantic_search
+            .search("artificial intelligence", &chunks, 10)
+            .unwrap();
+
         // Results should be sorted by similarity score (descending)
         for i in 1..results.len() {
-            assert!(results[i-1].similarity_score >= results[i].similarity_score);
+            assert!(results[i - 1].similarity_score >= results[i].similarity_score);
         }
     }
 
@@ -303,7 +313,7 @@ mod tests {
     async fn test_embed_chunk() {
         let embedder = create_test_embedder().await;
         let semantic_search = SemanticSearch::new(embedder);
-        
+
         let chunk = TextChunk {
             line_number: 1,
             content: "machine learning algorithms".to_string(),
@@ -349,11 +359,11 @@ mod tests {
         assert!(options.boost_exact_matches);
     }
 
-    #[tokio::test] 
+    #[tokio::test]
     async fn test_embedding_dimension() {
         let embedder = create_test_embedder().await;
         let semantic_search = SemanticSearch::new(embedder);
-        
+
         let dim = semantic_search.embedding_dimension();
         assert!(dim > 0);
     }
@@ -362,11 +372,11 @@ mod tests {
     async fn test_threshold_clamping() {
         let embedder = create_test_embedder().await;
         let mut semantic_search = SemanticSearch::new(embedder);
-        
+
         semantic_search.set_similarity_threshold(-0.5);
         assert_eq!(semantic_search.similarity_threshold(), 0.0);
-        
+
         semantic_search.set_similarity_threshold(1.5);
         assert_eq!(semantic_search.similarity_threshold(), 1.0);
     }
-} 
+}

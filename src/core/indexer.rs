@@ -118,7 +118,11 @@ impl FileIndexer {
     }
 
     /// Create indexer with embeddings support
-    pub fn with_embedder(database: Database, config: IndexerConfig, embedder: LocalEmbedder) -> Self {
+    pub fn with_embedder(
+        database: Database,
+        config: IndexerConfig,
+        embedder: LocalEmbedder,
+    ) -> Self {
         Self {
             database,
             text_processor: TextProcessor::with_config(config.chunk_size, config.chunk_size * 2),
