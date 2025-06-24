@@ -1,12 +1,7 @@
-name: Auto-merge PR
+name: Auto-merge PR (Team Mode - Disabled)
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-  pull_request_review:
-    types: [submitted]
-  check_suite:
-    types: [completed]
+  workflow_dispatch:  # Manual trigger only - disabled for solo development
 
 jobs:
   auto-merge:
