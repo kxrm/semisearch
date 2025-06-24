@@ -1,0 +1,22 @@
+# CODEOWNERS file for semisearch repository
+# This file defines who has write access and can approve PRs for different parts of the codebase
+
+# Global ownership - these users can approve any changes
+* @kxrm
+
+# Source code requires review from maintainers
+src/ @kxrm
+tests/ @kxrm
+
+# CI/CD and infrastructure changes require admin review
+.github/ @kxrm
+Cargo.toml @kxrm
+Cargo.lock @kxrm
+deny.toml @kxrm
+
+# Documentation can be approved by maintainers
+docs/ @kxrm
+README.md @kxrm
+
+# Architecture and design documents require careful review
+docs/SEMANTIC_SEARCH_ARCHITECTURE_PLAN.md @kxrm 
