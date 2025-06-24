@@ -49,7 +49,7 @@ async fn test_phase4_end_to_end_embeddings() {
             let chunk_record = ChunkRecord {
                 id: (i * 10 + text_chunk.line_number) as i64,
                 file_id: i as i64,
-                file_path: format!("doc_{}.txt", i),
+                file_path: format!("doc_{i}.txt"),
                 line_number: text_chunk.line_number,
                 start_char: text_chunk.start_char,
                 end_char: text_chunk.end_char,
