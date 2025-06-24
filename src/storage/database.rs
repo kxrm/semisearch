@@ -113,10 +113,12 @@ impl Database {
             .conn
             .prepare_cached("SELECT hash FROM files WHERE path = ?1")?;
 
-        match stmt.query_row(params![path], |row| {
+        let hash_query = |row: &rusqlite::Row| {
             let stored_hash: String = row.get(0)?;
             Ok(stored_hash)
-        }) {
+        };
+
+        match stmt.query_row(params![path], hash_query) {
             Ok(stored_hash) => Ok(stored_hash != current_hash),
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(true), // File not indexed yet
             Err(e) => Err(e.into()),
