@@ -46,6 +46,18 @@ cd "$(dirname "$0")/.."
 log_info "Building optimized version..."
 cargo build --release --quiet
 
+# Determine binary path
+if [ -f "./target/release/semisearch" ]; then
+    BINARY_PATH="./target/release/semisearch"
+elif [ -f "/tmp/target/release/semisearch" ]; then
+    BINARY_PATH="/tmp/target/release/semisearch"
+else
+    log_error "Could not find semisearch binary"
+    exit 1
+fi
+
+log_info "Using binary: $BINARY_PATH"
+
 # Create test data directory
 TEST_DATA_DIR="test-perf-data"
 rm -rf "$TEST_DATA_DIR"
@@ -76,7 +88,7 @@ done
 
 log_info "Testing small dataset performance..."
 start_time=$(date +%s.%N)
-./target/release/semisearch search "TODO" "$TEST_DATA_DIR" --limit 50 > /dev/null 2>&1
+$BINARY_PATH search "TODO" --path "$TEST_DATA_DIR" --limit 50 > /dev/null 2>&1
 end_time=$(date +%s.%N)
 
 if [ "$CALC_AVAILABLE" = true ]; then
@@ -114,7 +126,7 @@ done
 
 log_info "Testing medium dataset performance..."
 start_time=$(date +%s.%N)
-./target/release/semisearch search "TODO" "$TEST_DATA_DIR" --limit 100 > /dev/null 2>&1
+$BINARY_PATH search "TODO" --path "$TEST_DATA_DIR" --limit 100 > /dev/null 2>&1
 end_time=$(date +%s.%N)
 
 if [ "$CALC_AVAILABLE" = true ]; then
@@ -139,7 +151,7 @@ sync
 echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
 
 start_time=$(date +%s.%N)
-./target/release/semisearch search "TODO" "$TEST_DATA_DIR" --limit 10 > /dev/null 2>&1
+$BINARY_PATH search "TODO" --path "$TEST_DATA_DIR" --limit 10 > /dev/null 2>&1
 end_time=$(date +%s.%N)
 
 if [ "$CALC_AVAILABLE" = true ]; then
@@ -162,7 +174,7 @@ log_info "Testing different search modes..."
 
 # Basic search
 start_time=$(date +%s.%N)
-./target/release/semisearch search "TODO" "$TEST_DATA_DIR" --limit 20 > /dev/null 2>&1
+$BINARY_PATH search "TODO" --path "$TEST_DATA_DIR" --limit 20 > /dev/null 2>&1
 end_time=$(date +%s.%N)
 if [ "$CALC_AVAILABLE" = true ]; then
     basic_duration=$(echo "$end_time - $start_time" | bc -l)
@@ -171,7 +183,7 @@ fi
 
 # Fuzzy search
 start_time=$(date +%s.%N)
-./target/release/semisearch search "TODO" "$TEST_DATA_DIR" --fuzzy --limit 20 > /dev/null 2>&1
+$BINARY_PATH search "TODO" --path "$TEST_DATA_DIR" --fuzzy --limit 20 > /dev/null 2>&1
 end_time=$(date +%s.%N)
 if [ "$CALC_AVAILABLE" = true ]; then
     fuzzy_duration=$(echo "$end_time - $start_time" | bc -l)
@@ -180,7 +192,7 @@ fi
 
 # Regex search
 start_time=$(date +%s.%N)
-./target/release/semisearch search "TODO.*:" "$TEST_DATA_DIR" --regex --limit 20 > /dev/null 2>&1
+$BINARY_PATH search "TODO.*:" --path "$TEST_DATA_DIR" --regex --limit 20 > /dev/null 2>&1
 end_time=$(date +%s.%N)
 if [ "$CALC_AVAILABLE" = true ]; then
     regex_duration=$(echo "$end_time - $start_time" | bc -l)
@@ -190,7 +202,7 @@ fi
 # Test 5: Memory usage (if available)
 if command -v ps &> /dev/null; then
     log_info "Testing memory usage..."
-    ./target/release/semisearch search "TODO" "$TEST_DATA_DIR" --limit 50 &
+    $BINARY_PATH search "TODO" --path "$TEST_DATA_DIR" --limit 50 &
     SEARCH_PID=$!
     sleep 0.5  # Give it time to start
     
