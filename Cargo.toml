@@ -16,6 +16,13 @@ ignore = "0.4"
 fuzzy-matcher = "0.3"
 regex = "1.0"
 edit-distance = "2.1"
+# Phase 3: Text Processing dependencies
+unicode-segmentation = "1.10"
+thiserror = "1.0"
+rayon = "1.7"
+rustc-hash = "1.1"
 
 [dev-dependencies]
-tempfile = "3.0" 
+tempfile = "3.0"
+criterion = { version = "0.3.6", features = ["html_reports"] }
+proptest = "1.0" 
