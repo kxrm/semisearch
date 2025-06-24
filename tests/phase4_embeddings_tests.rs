@@ -89,7 +89,7 @@ async fn test_phase4_end_to_end_embeddings() {
     if results.len() >= 2 {
         let sim =
             LocalEmbedder::similarity(&results[0].query_embedding, &results[0].chunk_embedding);
-        assert!(sim >= 0.0 && sim <= 1.0);
+        assert!((0.0..=1.0).contains(&sim));
     }
 }
 

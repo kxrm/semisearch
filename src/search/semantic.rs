@@ -324,7 +324,7 @@ mod tests {
         };
 
         let embedding = semantic_search.embed_chunk(&chunk).unwrap();
-        assert!(embedding.len() > 0);
+        assert!(!embedding.is_empty());
     }
 
     #[test]
