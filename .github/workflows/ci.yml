@@ -109,8 +109,8 @@ jobs:
     - name: Run comprehensive test suite
       run: timeout 300 bash tests/run-all.sh
 
-    - name: Test Phase 2 features specifically
-      run: bash tests/test_phase2_features.sh
+    - name: Test Phase 3 features specifically
+      run: bash tests/test_phase3_features.sh
 
     - name: Test search functionality
       run: bash tests/test-search.sh "TODO"
