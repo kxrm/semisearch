@@ -85,7 +85,7 @@ impl RegexSearch {
             // Convert plain text to regex pattern
             let escaped_query = regex::escape(query);
             let pattern = if options.whole_words {
-                format!(r"\b{}\b", escaped_query)
+                format!(r"\b{escaped_query}\b")
             } else {
                 escaped_query
             };

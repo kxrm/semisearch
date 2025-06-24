@@ -127,10 +127,7 @@ impl SearchHelper {
         let matched = &content[start..end.min(content.len())];
         let after = &content[end.min(content.len())..];
 
-        format!(
-            "{}<{}>{}</{}>{}",
-            before, highlight_tag, matched, highlight_tag, after
-        )
+        format!("{before}<{highlight_tag}>{matched}</{highlight_tag}>{after}")
     }
 }
 
