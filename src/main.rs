@@ -557,20 +557,21 @@ async fn run_doctor() -> Result<()> {
 
     // Show fallback recommendations
     match capability {
-        EmbeddingCapability::TfIdf | EmbeddingCapability::Full => {
-            let recommendations = vec![
-                "Use 'semisearch search --semantic' for best results.",
-                "Run 'semisearch index --semantic <dir>' to build a semantic index.",
-                "Keyword and fuzzy search also work well on this system.",
-            ];
+        #[cfg(feature = "neural-embeddings")]
+        EmbeddingCapability::Full => {
             println!("Recommendations:");
-            for recommendation in recommendations {
-                println!("   • {recommendation}");
-            }
+            println!("   • Use 'semisearch search --semantic' for best results.");
+            println!("   • Run 'semisearch index --semantic <dir>' to build a semantic index.");
+        }
+        EmbeddingCapability::TfIdf => {
+            println!("Recommendations:");
+            println!("   • Use 'semisearch search --mode tfidf' for statistical search.");
+            println!("   • For full semantic search, recompile with the 'neural-embeddings' feature flag.");
         }
         EmbeddingCapability::None => {
-            println!("   • Use 'semisearch search --mode keyword' for basic search");
-            println!("   • Consider using regex mode for pattern matching");
+            println!("Recommendations:");
+            println!("   • Use 'semisearch search --mode keyword' for basic search.");
+            println!("   • Consider using regex mode for pattern matching.");
         }
     }
 
