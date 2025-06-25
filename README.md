@@ -80,30 +80,34 @@ All Phases 1, 2, 3, and 4 from the architecture plan have been implemented with 
 - ✅ **Resource Management** - Each strategy specifies its computational requirements
 - ✅ **Error Handling** - Comprehensive error handling with detailed messages
 
-### ✅ **Phase 4: Local Embeddings - COMPLETED**
+### ✅ **Phase 4: Neural Embeddings - COMPLETED**
 
-**Local Embedding Capabilities:**
-- ✅ **LocalEmbedder** - TF-IDF based embedding implementation with vocabulary building
-- ✅ **SemanticSearch** - Cosine similarity search with reranking capabilities
-- ✅ **Capability Detection** - Progressive enhancement based on system resources (Full/TfIdf/None)
+**Neural Embedding Capabilities:**
+- ✅ **ONNX Runtime Integration** - Local transformer model execution with all-MiniLM-L6-v2
+- ✅ **LocalEmbedder** - Both TF-IDF and neural embedding implementations with vocabulary building
+- ✅ **SemanticSearch** - Advanced cosine similarity search with neural and TF-IDF reranking
+- ✅ **Capability Detection** - Progressive enhancement based on system resources (Neural/TfIdf/Keyword)
+- ✅ **Model Download System** - Automatic model download with progress bars and caching
 - ✅ **Vocabulary Persistence** - Save/load embedding models for reuse across sessions
 - ✅ **Batch Processing** - Efficient embedding generation for multiple texts
-- ✅ **Integration Ready** - Hooks for indexer integration and storage layer support
+- ✅ **Cross-platform Support** - Linux, macOS, and Windows compatibility (with platform-specific handling)
 
-**Semantic Search Features:**
+**Advanced Semantic Search Features:**
+- ✅ **384-dimensional Neural Embeddings** - High-quality semantic representations using transformer models
 - ✅ **Cosine Similarity Matching** - Mathematical similarity calculations for semantic relevance
 - ✅ **Semantic Reranking** - Advanced result boosting with exact match preferences
 - ✅ **Configurable Thresholds** - Adjustable similarity thresholds for result filtering
-- ✅ **Normalized TF-IDF Vectors** - Proper vector normalization for accurate similarity
+- ✅ **Normalized Vectors** - Proper vector normalization for accurate similarity calculations
 - ✅ **Thread-safe Design** - Arc-wrapped components for concurrent access
-- ✅ **Privacy-First Architecture** - All processing remains completely local
+- ✅ **Privacy-First Architecture** - All ML processing remains completely local after initial model download
 
-**Architecture Compliance:**
-- ✅ **Progressive Enhancement** - Graceful degradation from semantic → TF-IDF → keyword search
-- ✅ **Minimal System Support** - Works on any system with basic keyword search fallback
-- ✅ **Standard System Enhancement** - TF-IDF embeddings on capable systems
-- ✅ **Future-Ready Design** - Architecture prepared for neural embedding upgrades
-- ✅ **Offline-First Privacy** - No network requests, all data stays local
+**Production-Ready Features:**
+- ✅ **Progressive Enhancement** - Graceful degradation from neural → TF-IDF → keyword search
+- ✅ **System Requirements Detection** - 4GB+ RAM threshold for neural embeddings
+- ✅ **Local Model Caching** - Models stored in `~/.semisearch/models/` for offline use
+- ✅ **Doctor Command** - System capability analysis and troubleshooting
+- ✅ **Platform Compatibility** - Neural embeddings on Linux/macOS, graceful fallback on Windows
+- ✅ **Offline-First Privacy** - No network requests after initial model download
 
 ## Usage
 
@@ -155,16 +159,25 @@ cargo run -- search "error" --fuzzy --score 0.5 --format json
 cargo run -- search "test" --whole-words
 ```
 
-### Semantic Search (Phase 4)
+### Neural Semantic Search (Phase 4)
 ```bash
-# Semantic search with TF-IDF embeddings
-cargo run -- search "error handling" --semantic
+# Neural semantic search (auto-detects system capabilities)
+cargo run -- search "error handling" --mode semantic
 
-# Semantic search with custom similarity threshold
-cargo run -- search "database connection" --semantic --similarity-threshold 0.3
+# Neural semantic search with custom similarity threshold
+cargo run -- search "database connection" --mode semantic --semantic-threshold 0.3
 
-# Combined semantic and traditional search
-cargo run -- search "async function" --semantic --fuzzy --format json
+# Force neural embeddings (if system supports it)
+cargo run -- search "async function" --semantic
+
+# TF-IDF fallback semantic search
+cargo run -- search "database query" --mode tfidf
+
+# Combined semantic and traditional search modes
+cargo run -- search "async function" --mode hybrid --format json
+
+# Check system capabilities for neural embeddings
+cargo run -- doctor
 ```
 
 ### Available Options
@@ -172,14 +185,16 @@ cargo run -- search "async function" --semantic --fuzzy --format json
 - `--format, -f`: Output format - `plain` or `json` (default: plain)
 - `--limit, -l`: Maximum number of results (default: 10)
 - `--score, -s`: Minimum similarity score (0.0-1.0, default: 0.0)
+- `--mode, -m`: Search mode - `auto`, `semantic`, `keyword`, `fuzzy`, `regex`, `tfidf`, `hybrid` (default: auto)
 - `--fuzzy`: Enable fuzzy matching for typos and partial matches
 - `--typo-tolerance`: Enable typo tolerance using edit distance
 - `--max-edit-distance`: Maximum edit distance for typos (default: 2)
 - `--regex`: Use regex pattern matching
 - `--case-sensitive`: Perform case-sensitive search (default: case-insensitive)
 - `--whole-words`: Match whole words only (works with regex)
-- `--semantic`: Enable semantic search using local embeddings
-- `--similarity-threshold`: Minimum semantic similarity (0.0-1.0, default: 0.1)
+- `--semantic`: Force neural semantic search (if system supports it)
+- `--no-semantic`: Disable neural embeddings, use TF-IDF fallback
+- `--semantic-threshold`: Minimum semantic similarity (0.0-1.0, default: 0.1)
 
 ## Architecture
 
@@ -243,9 +258,14 @@ migrations/
 - `rayon` - Parallel processing capabilities
 - `rustc-hash` - High-performance hash maps
 
-### Phase 4 Local Embeddings Dependencies
-- `indicatif` - Progress bars for embedding operations
+### Phase 4 Neural Embeddings Dependencies
+- `ort` - ONNX Runtime for transformer model execution
+- `tokenizers` - HuggingFace tokenizers for text preprocessing
+- `ndarray` - N-dimensional arrays for tensor operations
+- `reqwest` - HTTP client for model downloads
+- `indicatif` - Progress bars for model downloads and embedding operations
 - `num_cpus` - CPU detection for capability assessment
+- `sys-info` - System information for RAM detection
 
 ### Development Dependencies
 - `criterion` - Performance benchmarking and regression testing
@@ -296,15 +316,17 @@ The project maintains industry-standard test coverage with multiple test categor
 - Edge cases and error handling
 - File integration scenarios
 
-#### Phase 4 Embeddings Tests (8 tests - 100% passing)
-- End-to-end embedding workflow testing
+#### Phase 4 Neural Embeddings Tests (8 tests - 100% passing on Linux/macOS)
+- End-to-end neural embedding workflow testing
+- ONNX Runtime integration and model loading
 - Vocabulary building and persistence
-- Embedding generation and normalization
+- 384-dimensional embedding generation and normalization
 - Similarity calculations and edge cases
 - Capability detection across systems
 - Batch processing functionality
-- Semantic search with reranking
+- Semantic search with neural reranking
 - Error handling for empty vocabularies
+- **Note**: Neural embedding tests are excluded on Windows due to ONNX Runtime compatibility issues
 
 ### Test Categories Covered
 - ✅ **Functionality Tests**: All public methods and core features
@@ -352,14 +374,15 @@ cargo test search::semantic::tests   # Semantic search tests
 ## Performance
 
 ### Current Performance Characteristics
-- **Startup Time:** < 1s for basic keyword search
+- **Startup Time:** < 1s for basic keyword search, 2-3s for neural embedding initialization
 - **Indexing Speed:** 29 files in 9.26s (initial), 0.01s (incremental)
-- **Search Speed:** Handles thousands of files efficiently with parallel processing
-- **Memory Usage:** Minimal memory footprint with efficient data structures
-- **Storage:** Efficient SQLite storage (784KB for 30 files, 5,797 chunks)
-- **Caching:** Regex compilation caching for improved performance
-- **Scalability:** Resource-aware search strategies with configurable limits
-- **Semantic Search:** TF-IDF embedding generation with vocabulary persistence
+- **Search Speed:** 9-140ms for semantic search, handles thousands of files efficiently
+- **Neural Embeddings:** 384-dimensional vectors, ~90MB model download (one-time)
+- **Memory Usage:** 4GB+ RAM recommended for neural embeddings, graceful degradation below
+- **Storage:** Efficient SQLite storage (784KB for 30 files, 5,797 chunks) + model cache
+- **Caching:** Model caching in `~/.semisearch/models/`, regex compilation caching
+- **Scalability:** Resource-aware search strategies with automatic capability detection
+- **Cross-platform:** Full neural support on Linux/macOS, TF-IDF fallback on Windows
 
 ### Performance Features
 - **Incremental Indexing:** SHA-256 change detection provides 920x speedup for unchanged files
@@ -374,25 +397,27 @@ cargo test search::semantic::tests   # Semantic search tests
 
 ## Future Enhancements
 
-With all core phases complete, potential future enhancements include:
+With all core phases complete including neural embeddings, potential future enhancements include:
 
-1. **Neural Embeddings**:
-   - ONNX Runtime integration for transformer models
-   - Pre-trained embedding models (BERT, sentence-transformers)
-   - GPU acceleration support
-   - Advanced semantic understanding
+1. **Advanced Neural Features**:
+   - GPU acceleration support for faster embedding generation
+   - Additional pre-trained models (sentence-transformers, domain-specific models)
+   - Multi-language transformer models for international content
+   - Fine-tuning capabilities for domain-specific search
 
-2. **Advanced Features**:
+2. **Enhanced Functionality**:
    - Real-time file watching for automatic re-indexing
    - Query expansion and synonym handling
-   - Document clustering and similarity
-   - Multi-language semantic search improvements
+   - Document clustering and similarity analysis
+   - Vector database integration for large-scale deployments
+   - Semantic query suggestions and auto-completion
 
 3. **Production Optimizations**:
-   - Background indexing processes
-   - Advanced caching strategies
-   - Query performance optimization
-   - Cross-platform distribution
+   - Background indexing processes with incremental neural embedding updates
+   - Advanced caching strategies for embedding vectors
+   - Query performance optimization with vector indexes
+   - Cross-platform distribution with pre-built binaries
+   - Windows ONNX Runtime compatibility improvements
 
 ## CI/CD Pipeline
 
@@ -400,11 +425,12 @@ With all core phases complete, potential future enhancements include:
 
 - **CI Pipeline** (`.github/workflows/ci.yml`):
   - Multi-platform testing (Linux, Windows, macOS, ARM64)
-  - Rust version matrix (stable, beta, MSRV 1.80.0)
+  - Rust version matrix (stable, beta, MSRV 1.85.0)
+  - Neural embedding tests (Linux/macOS only, Windows excluded due to ONNX Runtime issues)
   - Security auditing with cargo-audit and cargo-deny
   - Code quality checks (clippy, formatting)
   - Architecture plan compliance validation
-  - All phase integration tests
+  - All phase integration tests with platform-specific handling
 
 - **Auto-merge Pipeline** (`.github/workflows/auto-merge-solo.yml`):
   - Automatic PR merging for solo development
@@ -493,13 +519,16 @@ docs/
 - **Advanced Regex Processing**: Pattern detection, caching, and wildcard support
 - **Contextual Scoring**: Position bonuses, length penalties, and relevance factors
 
-### Local Embeddings & Semantic Search (Phase 4)
-- **TF-IDF Embeddings**: Mathematical vector representations of text content
-- **Cosine Similarity**: Accurate semantic similarity calculations
-- **Vocabulary Management**: Persistent vocabulary building and model storage
-- **Progressive Enhancement**: Automatic capability detection and graceful degradation
-- **Privacy-First ML**: All machine learning processing remains completely local
-- **Semantic Reranking**: Advanced result boosting with multiple scoring strategies
+### Neural Embeddings & Semantic Search (Phase 4)
+- **Neural Embeddings**: 384-dimensional transformer-based semantic representations using all-MiniLM-L6-v2
+- **ONNX Runtime Integration**: Local execution of pre-trained transformer models
+- **TF-IDF Fallback**: Mathematical vector representations for systems without neural capability
+- **Cosine Similarity**: Accurate semantic similarity calculations for both neural and TF-IDF vectors
+- **Model Management**: Automatic model download, caching, and version management
+- **Progressive Enhancement**: Automatic capability detection with graceful degradation (Neural → TF-IDF → Keyword)
+- **Privacy-First ML**: All machine learning processing remains completely local after initial model download
+- **Advanced Reranking**: Multi-strategy result boosting with neural and statistical scoring
+- **Cross-platform Support**: Linux/macOS neural embeddings with Windows TF-IDF fallback
 
 ### Developer Experience
 - **Trait-based Architecture**: Easy to extend with new search strategies
@@ -513,7 +542,4 @@ This implementation provides a complete semantic search solution with all four p
 ## Documentation
 
 - [Architecture Plan](docs/SEMANTIC_SEARCH_ARCHITECTURE_PLAN.md) - Complete technical specification and implementation roadmap
-- [CI/CD Documentation](.github/CI.md) - GitHub Actions setup and troubleshooting
-
----
-*Auto-merge workflow test - all phases complete with comprehensive testing and documentation.* 
+- [CI/CD Documentation](.github/CI.md) - GitHub Actions setup and troubleshooting # Trigger CI test

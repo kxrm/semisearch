@@ -1,5 +1,5 @@
-use semisearch::core::{FileIndexer, IndexerConfig};
-use semisearch::storage::Database;
+use search::core::{FileIndexer, IndexerConfig};
+use search::storage::Database;
 use std::collections::HashSet;
 use std::fs;
 use tempfile::{NamedTempFile, TempDir};

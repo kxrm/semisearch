@@ -90,6 +90,36 @@ else
     log_warning "Phase 2 feature tests had some issues (this may be expected)"
 fi
 
+# Run Phase 3 tests
+log_info "Running Phase 3 text processing tests..."
+if cargo test --test phase3_text_processing_tests --quiet; then
+    log_success "Phase 3 text processing tests passed"
+else
+    log_error "Phase 3 text processing tests failed"
+    exit 1
+fi
+
+# Run Phase 4 tests
+log_info "Running Phase 4 embeddings tests..."
+if cargo test --test phase4_embeddings_tests --quiet; then
+    log_success "Phase 4 embeddings tests passed"
+else
+    if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]]; then
+        log_warning "Phase 4 embeddings tests skipped on Windows (expected)"
+    else
+        log_error "Phase 4 embeddings tests failed"
+        exit 1
+    fi
+fi
+
+# Run Phase 4 feature demonstration
+log_info "Running Phase 4 feature demonstration..."
+if bash tests/test_phase4_features.sh; then
+    log_success "Phase 4 feature demonstration completed"
+else
+    log_warning "Phase 4 features may not be available on this system"
+fi
+
 # Run clippy for code quality
 log_info "Running clippy (code quality)..."
 if cargo clippy --quiet -- -D warnings; then

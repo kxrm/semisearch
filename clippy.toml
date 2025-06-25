@@ -1,0 +1,19 @@
+# Professional Clippy Configuration
+# Allows reasonable patterns while catching serious issues
+
+# Allow some pedantic lints that are overly strict for production code
+avoid-breaking-exported-api = false
+msrv = "1.85.0"
+
+# Allow reasonable complexity
+cognitive-complexity-threshold = 30
+too-many-arguments-threshold = 8
+too-many-lines-threshold = 150
+type-complexity-threshold = 500
+
+# Allow reasonable struct patterns
+max-struct-bools = 5
+
+# Performance tuning
+vec-box-size-threshold = 4096
+trivial-copy-size-limit = 128 

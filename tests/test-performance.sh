@@ -183,7 +183,7 @@ fi
 
 # Fuzzy search
 start_time=$(date +%s.%N)
-$BINARY_PATH search "TODO" --path "$TEST_DATA_DIR" --fuzzy --limit 20 > /dev/null 2>&1
+$BINARY_PATH search "TODO" --path "$TEST_DATA_DIR" --mode fuzzy --limit 20 > /dev/null 2>&1
 end_time=$(date +%s.%N)
 if [ "$CALC_AVAILABLE" = true ]; then
     fuzzy_duration=$(echo "$end_time - $start_time" | bc -l)
@@ -192,11 +192,23 @@ fi
 
 # Regex search
 start_time=$(date +%s.%N)
-$BINARY_PATH search "TODO.*:" --path "$TEST_DATA_DIR" --regex --limit 20 > /dev/null 2>&1
+$BINARY_PATH search "TODO.*:" --path "$TEST_DATA_DIR" --mode regex --limit 20 > /dev/null 2>&1
 end_time=$(date +%s.%N)
 if [ "$CALC_AVAILABLE" = true ]; then
     regex_duration=$(echo "$end_time - $start_time" | bc -l)
     echo "Regex search: ${regex_duration}s"
+fi
+
+# Semantic search (if available)
+start_time=$(date +%s.%N)
+if $BINARY_PATH search "TODO implementation" --path "$TEST_DATA_DIR" --mode semantic --limit 20 > /dev/null 2>&1; then
+    end_time=$(date +%s.%N)
+    if [ "$CALC_AVAILABLE" = true ]; then
+        semantic_duration=$(echo "$end_time - $start_time" | bc -l)
+        echo "Semantic search: ${semantic_duration}s"
+    fi
+else
+    echo "Semantic search: Not available on this system"
 fi
 
 # Test 5: Memory usage (if available)

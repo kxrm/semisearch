@@ -41,9 +41,35 @@ impl Database {
         // Enable foreign key constraints
         conn.execute("PRAGMA foreign_keys = ON", [])?;
 
-        // Load schema
-        let schema = include_str!("../../migrations/001_initial.sql");
-        conn.execute_batch(schema)?;
+        // Create tables if they don't exist
+        conn.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                path TEXT UNIQUE NOT NULL,
+                hash TEXT NOT NULL,
+                modified_at INTEGER NOT NULL,
+                size_bytes INTEGER NOT NULL,
+                indexed_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS chunks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_id INTEGER NOT NULL,
+                line_number INTEGER NOT NULL,
+                start_char INTEGER NOT NULL,
+                end_char INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                embedding BLOB,
+                FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_files_path ON files(path);
+            CREATE INDEX IF NOT EXISTS idx_files_hash ON files(hash);
+            CREATE INDEX IF NOT EXISTS idx_chunks_file_id ON chunks(file_id);
+            CREATE INDEX IF NOT EXISTS idx_chunks_content ON chunks(content);
+            "#,
+        )?;
 
         Ok(Self { conn })
     }
@@ -270,6 +296,45 @@ impl Database {
 
         stmt.execute(params![max_entries])?;
         Ok(())
+    }
+
+    /// Get all chunks that have embeddings
+    pub fn get_chunks_with_embeddings(&self) -> Result<Vec<ChunkRecord>> {
+        let mut stmt = self.conn.prepare_cached(
+            "SELECT c.id, c.file_id, f.path, c.line_number, c.start_char, c.end_char, c.content, c.embedding
+             FROM chunks c
+             JOIN files f ON c.file_id = f.id
+             WHERE c.embedding IS NOT NULL
+             ORDER BY c.id"
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            let embedding_bytes: Option<Vec<u8>> = row.get(7)?;
+            let embedding = embedding_bytes.map(|bytes| {
+                bytes
+                    .chunks(4)
+                    .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+                    .collect()
+            });
+
+            Ok(ChunkRecord {
+                id: row.get(0)?,
+                file_id: row.get(1)?,
+                file_path: row.get(2)?,
+                line_number: row.get::<_, i64>(3)? as usize,
+                start_char: row.get::<_, i64>(4)? as usize,
+                end_char: row.get::<_, i64>(5)? as usize,
+                content: row.get(6)?,
+                embedding,
+            })
+        })?;
+
+        let mut chunks = Vec::new();
+        for row in rows {
+            chunks.push(row?);
+        }
+
+        Ok(chunks)
     }
 }
 

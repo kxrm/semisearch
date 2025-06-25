@@ -37,7 +37,7 @@ jobs:
         rust: [stable, beta]
         include:
           - os: ubuntu-latest
-            rust: 1.80.0  # MSRV (Minimum Supported Rust Version)
+            rust: 1.85.0  # MSRV (Minimum Supported Rust Version)
     
     steps:
     - name: Checkout code
@@ -67,16 +67,40 @@ jobs:
       run: cargo fmt --all -- --check
 
     - name: Run Clippy (code quality)
-      run: cargo clippy --all-targets --all-features -- -D warnings
+      run: |
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          cargo clippy --all-targets --features tfidf-only -- -D warnings
+        else
+          cargo clippy --all-targets --features neural-embeddings -- -D warnings
+        fi
+      shell: bash
 
     - name: Build project
-      run: cargo build --verbose
+      run: |
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          cargo build --verbose --features tfidf-only
+        else
+          cargo build --verbose --features neural-embeddings
+        fi
+      shell: bash
 
     - name: Run unit tests
-      run: cargo test --lib --verbose
+      run: |
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          cargo test --lib --verbose --features tfidf-only
+        else
+          cargo test --lib --verbose --features neural-embeddings
+        fi
+      shell: bash
 
     - name: Run integration tests
-      run: cargo test --test integration_tests --verbose
+      run: |
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          cargo test --test integration_tests --verbose --features tfidf-only
+        else
+          cargo test --test integration_tests --verbose --features neural-embeddings
+        fi
+      shell: bash
 
     - name: Run all tests with coverage (Ubuntu only)
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
@@ -116,7 +140,7 @@ jobs:
         key: ubuntu-cargo-stable-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Build optimized binary
-      run: cargo build --release
+      run: cargo build --release --features neural-embeddings
 
     - name: Make test scripts executable
       run: chmod +x tests/*.sh
@@ -141,6 +165,9 @@ jobs:
     - name: Run performance tests
       run: bash tests/test-performance.sh
 
+    - name: Test Phase 4 neural embeddings
+      run: bash tests/test_phase4_features.sh
+
   # Security and Audit
   security:
     name: Security Audit
@@ -160,7 +187,12 @@ jobs:
       run: cargo audit
 
     - name: Run cargo deny (licenses and advisories)
-      uses: EmbarkStudios/cargo-deny-action@v1
+      uses: EmbarkStudios/cargo-deny-action@v2
+      with:
+        command: check
+        arguments: --all-features
+        manifest-path: ./Cargo.toml
+        log-level: warn
 
   # Documentation
   docs:
@@ -175,7 +207,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
 
     - name: Generate documentation
-      run: cargo doc --no-deps --all-features
+      run: cargo doc --no-deps --features neural-embeddings
 
     - name: Check for broken links in docs
       run: |
@@ -218,22 +250,24 @@ jobs:
       with:
         targets: ${{ matrix.target }}
 
-    - name: Install cross (for cross-compilation)
+    - name: Install cross-compilation tools
       if: matrix.target == 'aarch64-unknown-linux-gnu'
-      run: cargo install cross
+      run: |
+        # Install cross for cross-compilation
+        cargo install cross
 
     - name: Build release binary (Linux/macOS)
       if: runner.os != 'Windows'
       run: |
         if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
-          cross build --release --target ${{ matrix.target }}
+          cross build --release --target ${{ matrix.target }} --features neural-embeddings
         else
-          cargo build --release --target ${{ matrix.target }}
+          cargo build --release --target ${{ matrix.target }} --features neural-embeddings
         fi
 
     - name: Build release binary (Windows)
       if: runner.os == 'Windows'
-      run: cargo build --release --target ${{ matrix.target }}
+      run: cargo build --release --target ${{ matrix.target }} --features tfidf-only
 
     - name: Upload binary artifact
       uses: actions/upload-artifact@v4
@@ -254,6 +288,73 @@ jobs:
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
+
+    - name: Install ONNX Runtime and verify MVP features
+      run: |
+        echo "Installing ONNX Runtime for neural embeddings testing..."
+        
+        # Download and install ONNX Runtime
+        ONNX_VERSION="1.16.0"
+        wget -q https://github.com/microsoft/onnxruntime/releases/download/v${ONNX_VERSION}/onnxruntime-linux-x64-${ONNX_VERSION}.tgz
+        tar -xzf onnxruntime-linux-x64-${ONNX_VERSION}.tgz
+        
+        # Set up environment variables
+        export LD_LIBRARY_PATH="$PWD/onnxruntime-linux-x64-${ONNX_VERSION}/lib"
+        echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
+        
+        # Verify installation and debug
+        echo "=== ONNX Runtime Installation Debug ==="
+        ls -la onnxruntime-linux-x64-${ONNX_VERSION}/lib/
+        echo "Current LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
+        echo "PWD: $PWD"
+        echo "ONNX Runtime installed successfully"
+        
+        echo "Checking MVP feature implementation..."
+        
+        # Build and test basic functionality with neural embeddings
+        cargo build --release --features neural-embeddings
+        
+        # Copy ONNX Runtime library to target directory for binary to find
+        cp onnxruntime-linux-x64-${ONNX_VERSION}/lib/libonnxruntime.so* target/release/
+        
+        # Debug binary and library path
+        echo "=== Binary Debug ==="
+        ls -la target/release/semisearch
+        echo "ONNX Runtime libraries in target/release/:"
+        ls -la target/release/libonnxruntime.so*
+        echo "LD_LIBRARY_PATH after build: $LD_LIBRARY_PATH"
+        
+        # Test if binary can find library
+        echo "=== Library Loading Test ==="
+        ldd target/release/semisearch | grep onnx || echo "No ONNX dependencies found in ldd output"
+        
+        # Test CLI interface
+        echo "=== Testing CLI Interface ==="
+        ./target/release/semisearch --help | grep -q "search" || (echo "❌ Search command missing" && exit 1)
+        ./target/release/semisearch --help | grep -q "index" || (echo "❌ Index command missing" && exit 1)
+        ./target/release/semisearch --help | grep -q "config" || (echo "❌ Config command missing" && exit 1)
+        ./target/release/semisearch --help | grep -q "status" || (echo "❌ Status command missing" && exit 1)
+        ./target/release/semisearch --help | grep -q "doctor" || (echo "❌ Doctor command missing" && exit 1)
+        
+        # Create test file for functionality verification
+        echo "TODO: Test item" > test_mvp.txt
+        
+        # Test basic search functionality
+        ./target/release/semisearch search "TODO" --path ./test_mvp.txt | grep -q "TODO: Test item" || (echo "❌ Basic search not working" && exit 1)
+        
+        # Test JSON output
+        ./target/release/semisearch search "TODO" --path ./test_mvp.txt --format json | jq . > /dev/null || (echo "❌ JSON output not working" && exit 1)
+        
+        # Test regex mode
+        ./target/release/semisearch search "TODO.*:" --path ./test_mvp.txt --mode regex | wc -l | grep -q -v "^0$" || (echo "❌ Regex search not working" && exit 1)
+        
+        # Test fuzzy mode (includes typo tolerance)
+        ./target/release/semisearch search "TODO" --path ./test_mvp.txt --mode fuzzy | wc -l | grep -q -v "^0$" || (echo "❌ Fuzzy search not working" && exit 1)
+        
+        # Cleanup
+        rm test_mvp.txt
+        
+        echo "✅ All MVP features are working correctly"
 
     - name: Verify project structure matches plan
       run: |
@@ -276,38 +377,6 @@ jobs:
         test -x tests/test-performance.sh || (echo "❌ test-performance.sh not executable" && exit 1)
         
         echo "✅ Project structure complies with architecture plan"
-
-    - name: Verify MVP features are implemented
-      run: |
-        echo "Checking MVP feature implementation..."
-        
-        # Build and test basic functionality
-        cargo build --release
-        
-        # Test CLI interface
-        ./target/release/semisearch --help | grep -q "search" || (echo "❌ Search command missing" && exit 1)
-        ./target/release/semisearch --help | grep -q "index" || (echo "❌ Index command missing" && exit 1)
-        ./target/release/semisearch --help | grep -q "config" || (echo "❌ Config command missing" && exit 1)
-        
-        # Create test file for functionality verification
-        echo "TODO: Test item" > test_mvp.txt
-        
-        # Test basic search functionality
-        ./target/release/semisearch search "TODO" --path ./test_mvp.txt | grep -q "TODO: Test item" || (echo "❌ Basic search not working" && exit 1)
-        
-        # Test JSON output
-        ./target/release/semisearch search "TODO" --path ./test_mvp.txt --format json | jq . > /dev/null || (echo "❌ JSON output not working" && exit 1)
-        
-        # Test regex (this will work)
-        ./target/release/semisearch search "TODO.*:" --path ./test_mvp.txt --regex | wc -l | grep -q -v "^0$" || (echo "❌ Regex search not working" && exit 1)
-        
-        # Test typo tolerance (this will work)
-        ./target/release/semisearch search "TODO" --path ./test_mvp.txt --typo-tolerance | wc -l | grep -q -v "^0$" || (echo "❌ Typo tolerance not working" && exit 1)
-        
-        # Cleanup
-        rm test_mvp.txt
-        
-        echo "✅ All MVP features are working correctly"
 
     - name: Verify Phase 2 completion
       run: |

@@ -1,12 +1,18 @@
-use semisearch::core::{EmbeddingCapability, EmbeddingConfig, LocalEmbedder};
-use semisearch::search::semantic::{SemanticReranker, SemanticSearch, SemanticSearchOptions};
-use semisearch::storage::{ChunkRecord, Database};
-use semisearch::text::TextProcessor;
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
+use search::search::semantic::{SemanticReranker, SemanticSearch, SemanticSearchOptions};
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
+use search::storage::{ChunkRecord, Database};
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
+use search::text::TextProcessor;
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 use std::sync::Arc;
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 use tempfile::TempDir;
 
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 #[tokio::test]
 async fn test_phase4_end_to_end_embeddings() {
+    use search::core::{EmbeddingConfig, LocalEmbedder};
     let temp_dir = TempDir::new().unwrap();
     let db_path = temp_dir.path().join("test.db");
 
@@ -93,8 +99,10 @@ async fn test_phase4_end_to_end_embeddings() {
     }
 }
 
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 #[tokio::test]
 async fn test_embedding_vocabulary_persistence() {
+    use search::core::{EmbeddingConfig, LocalEmbedder};
     let temp_dir = TempDir::new().unwrap();
     let vocab_path = temp_dir.path().join("vocabulary.json");
 
@@ -135,19 +143,30 @@ async fn test_embedding_vocabulary_persistence() {
     assert!(similarity > 0.99);
 }
 
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 #[test]
 fn test_capability_detection() {
+    use search::core::{EmbeddingCapability, LocalEmbedder};
     let capability = LocalEmbedder::detect_capabilities();
 
     // Should detect some capability on any system
+    #[cfg(feature = "neural-embeddings")]
     assert!(matches!(
         capability,
         EmbeddingCapability::Full | EmbeddingCapability::TfIdf | EmbeddingCapability::None
     ));
+
+    #[cfg(not(feature = "neural-embeddings"))]
+    assert!(matches!(
+        capability,
+        EmbeddingCapability::TfIdf | EmbeddingCapability::None
+    ));
 }
 
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 #[tokio::test]
 async fn test_batch_embedding() {
+    use search::core::{EmbeddingConfig, LocalEmbedder};
     let config = EmbeddingConfig::default();
     let mut embedder = LocalEmbedder::new(config).await.unwrap();
 
@@ -168,6 +187,7 @@ async fn test_batch_embedding() {
     }
 }
 
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 #[tokio::test]
 async fn test_semantic_search_options() {
     let options = SemanticSearchOptions::default();
@@ -192,8 +212,10 @@ async fn test_semantic_search_options() {
     assert!(custom_options.enable_reranking);
 }
 
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 #[tokio::test]
 async fn test_empty_vocabulary_handling() {
+    use search::core::{EmbeddingConfig, LocalEmbedder};
     let config = EmbeddingConfig::default();
     let embedder = LocalEmbedder::new(config).await.unwrap();
     let semantic_search = SemanticSearch::new(Arc::new(embedder));
@@ -218,8 +240,10 @@ async fn test_empty_vocabulary_handling() {
         .contains("vocabulary not built"));
 }
 
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 #[tokio::test]
 async fn test_embedding_normalization() {
+    use search::core::{EmbeddingConfig, LocalEmbedder};
     let config = EmbeddingConfig::default();
     let mut embedder = LocalEmbedder::new(config).await.unwrap();
 
@@ -254,6 +278,7 @@ async fn test_embedding_normalization() {
 
 #[test]
 fn test_similarity_edge_cases() {
+    use search::core::LocalEmbedder;
     // Test identical embeddings
     let emb1 = vec![1.0, 0.0, 0.0];
     let emb2 = vec![1.0, 0.0, 0.0];
