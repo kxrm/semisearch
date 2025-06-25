@@ -50,7 +50,7 @@ impl Default for EmbeddingConfig {
 #[derive(Debug, Clone, PartialEq)]
 pub enum EmbeddingCapability {
     #[cfg(feature = "neural-embeddings")]
-    Full,  // Full neural embeddings
+    Full, // Full neural embeddings
     TfIdf, // TF-IDF only
     None,  // No embeddings
 }
