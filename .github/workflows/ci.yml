@@ -300,8 +300,11 @@ jobs:
         export LD_LIBRARY_PATH="$PWD/onnxruntime-linux-x64-${ONNX_VERSION}/lib:$LD_LIBRARY_PATH"
         echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
         
-        # Verify installation
+        # Verify installation and debug
+        echo "=== ONNX Runtime Installation Debug ==="
         ls -la onnxruntime-linux-x64-${ONNX_VERSION}/lib/
+        echo "Current LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
+        echo "PWD: $PWD"
         echo "ONNX Runtime installed successfully"
         
         echo "Checking MVP feature implementation..."
@@ -309,7 +312,17 @@ jobs:
         # Build and test basic functionality with neural embeddings
         cargo build --release --features neural-embeddings
         
+        # Copy ONNX Runtime library to target directory for binary to find
+        cp onnxruntime-linux-x64-${ONNX_VERSION}/lib/libonnxruntime.so* target/release/
+        
+        # Debug binary and library path
+        echo "=== Binary Debug ==="
+        ls -la target/release/semisearch
+        ls -la target/release/libonnxruntime.so*
+        echo "LD_LIBRARY_PATH after build: $LD_LIBRARY_PATH"
+        
         # Test CLI interface
+        echo "=== Testing CLI Interface ==="
         ./target/release/semisearch --help | grep -q "search" || (echo "❌ Search command missing" && exit 1)
         ./target/release/semisearch --help | grep -q "index" || (echo "❌ Index command missing" && exit 1)
         ./target/release/semisearch --help | grep -q "config" || (echo "❌ Config command missing" && exit 1)
