@@ -207,13 +207,12 @@ impl SemanticReranker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::EmbeddingConfig;
-    use crate::storage::ChunkRecord;
     #[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
     use crate::text::TextChunk;
 
     #[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
     async fn create_test_embedder() -> Arc<LocalEmbedder> {
+        use crate::core::EmbeddingConfig;
         let config = EmbeddingConfig::default();
         let mut embedder = LocalEmbedder::new(config).await.unwrap();
 
