@@ -109,6 +109,61 @@ All Phases 1, 2, 3, and 4 from the architecture plan have been implemented with 
 - ✅ **Platform Compatibility** - Neural embeddings on Linux/macOS, graceful fallback on Windows
 - ✅ **Offline-First Privacy** - No network requests after initial model download
 
+## Progressive Enhancement and Neural Embeddings
+
+SemiSearch is built with progressive enhancement in mind. The release binaries work out of the box without any external dependencies, providing TF-IDF based search capabilities.
+
+### Default Behavior (No External Dependencies)
+
+The pre-built binaries from GitHub releases:
+- Work immediately without ONNX Runtime
+- Provide TF-IDF based semantic search
+- Support all search modes (keyword, fuzzy, regex, tfidf)
+- Have no external library dependencies
+
+### Enabling Neural Embeddings
+
+For advanced neural embedding support, you have two options:
+
+#### Option 1: Build from Source
+```bash
+# Clone the repository
+git clone https://github.com/kxrm/semisearch
+cd semisearch
+
+# Build with neural embeddings support
+cargo build --release --features neural-embeddings
+
+# Install ONNX Runtime (required for neural embeddings)
+# Linux:
+wget https://github.com/microsoft/onnxruntime/releases/download/v1.16.0/onnxruntime-linux-x64-1.16.0.tgz
+tar xzf onnxruntime-linux-x64-1.16.0.tgz
+export LD_LIBRARY_PATH=$PWD/onnxruntime-linux-x64-1.16.0/lib:$LD_LIBRARY_PATH
+
+# macOS:
+wget https://github.com/microsoft/onnxruntime/releases/download/v1.16.0/onnxruntime-osx-x64-1.16.0.tgz
+tar xzf onnxruntime-osx-x64-1.16.0.tgz
+export DYLD_LIBRARY_PATH=$PWD/onnxruntime-osx-x64-1.16.0/lib:$DYLD_LIBRARY_PATH
+```
+
+#### Option 2: Use Docker (Coming Soon)
+A Docker image with neural embeddings pre-configured will be available soon.
+
+### Checking Capabilities
+
+Use the `doctor` command to check your system's capabilities:
+
+```bash
+semisearch doctor
+```
+
+This will show:
+- Available memory and CPU cores
+- ONNX Runtime availability (if built with neural-embeddings)
+- Neural model status
+- Current embedding capability (TfIdf or Full)
+- Recommendations for your system
+
 ## Usage
 
 ### Storage & Indexing Commands
