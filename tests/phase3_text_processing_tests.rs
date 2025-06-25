@@ -1,5 +1,5 @@
-use semisearch::search::{MatchType, SearchEngine, SearchOptions, SearchResult};
-use semisearch::text::TextProcessor;
+use search::search::{MatchType, SearchEngine, SearchOptions, SearchResult};
+use search::text::TextProcessor;
 use std::collections::HashMap;
 use std::fs;
 use tempfile::TempDir;
@@ -50,19 +50,19 @@ impl TestSearchEngine {
             // Get the specific strategy and search chunks
             let search_results = match strategy_name {
                 "keyword" => {
-                    let keyword_search = semisearch::search::keyword::KeywordSearch::new();
+                    let keyword_search = search::search::keyword::KeywordSearch::new();
                     keyword_search.search_chunks(query, &chunks, options)?
                 }
                 "fuzzy" => {
-                    let fuzzy_search = semisearch::search::fuzzy::FuzzySearch::new();
+                    let fuzzy_search = search::search::fuzzy::FuzzySearch::new();
                     fuzzy_search.search_chunks(query, &chunks, options)?
                 }
                 "regex" => {
-                    let regex_search = semisearch::search::regex_search::RegexSearch::new();
+                    let regex_search = search::search::regex_search::RegexSearch::new();
                     regex_search.search_chunks(query, &chunks, options)?
                 }
                 "tfidf" => {
-                    let tfidf_search = semisearch::search::tfidf::TfIdfSearch::new();
+                    let tfidf_search = search::search::tfidf::TfIdfSearch::new();
                     tfidf_search.search_chunks(query, &chunks, options)?
                 }
                 _ => return Err(anyhow::anyhow!("Unknown strategy: {strategy_name}")),

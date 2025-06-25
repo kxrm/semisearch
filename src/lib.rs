@@ -31,6 +31,8 @@ pub enum MatchType {
     Fuzzy,
     Regex,
     EditDistance,
+    Semantic,
+    Hybrid,
 }
 
 #[derive(Debug, Clone)]

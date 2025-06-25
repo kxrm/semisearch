@@ -1,4 +1,4 @@
-use semisearch::*;
+use search::{search_files, MatchType, SearchOptions};
 use std::fs;
 use tempfile::TempDir;
 

@@ -10,8 +10,10 @@ allow = [
     "BSD-2-Clause",
     "BSD-3-Clause",
     "ISC",
-    "Unicode-DFS-2016",
     "Unicode-3.0",
+    "CC0-1.0",                   # Creative Commons Zero (public domain)
+    "MPL-2.0",                   # Mozilla Public License 2.0
+    "CDLA-Permissive-2.0",      # Community Data License Agreement Permissive 2.0
 ]
 
 # Confidence threshold for detecting a license from a license text.
@@ -48,10 +50,10 @@ db-path = "~/.cargo/advisory-db"
 # The url(s) of the advisory databases to use
 db-urls = ["https://github.com/rustsec/advisory-db"]
 
-# A list of advisory IDs to ignore
+# A list of advisory IDs to ignore - including allowed unmaintained dependencies
 ignore = [
-    # Ignore specific advisories if needed
-    # "RUSTSEC-2020-0001",
+    # paste crate unmaintained - transitive dependency from tokenizers, low risk for proc-macro
+    "RUSTSEC-2024-0436",
 ]
 
 [sources]

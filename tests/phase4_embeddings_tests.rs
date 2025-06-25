@@ -1,7 +1,7 @@
-use semisearch::core::{EmbeddingCapability, EmbeddingConfig, LocalEmbedder};
-use semisearch::search::semantic::{SemanticReranker, SemanticSearch, SemanticSearchOptions};
-use semisearch::storage::{ChunkRecord, Database};
-use semisearch::text::TextProcessor;
+use search::core::{EmbeddingCapability, EmbeddingConfig, LocalEmbedder};
+use search::search::semantic::{SemanticReranker, SemanticSearch, SemanticSearchOptions};
+use search::storage::{ChunkRecord, Database};
+use search::text::TextProcessor;
 use std::sync::Arc;
 use tempfile::TempDir;
 
