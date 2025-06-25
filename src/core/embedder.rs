@@ -772,6 +772,7 @@ mod tests {
                 );
 
                 // Test embedding generation
+                #[cfg(feature = "neural-embeddings")]
                 if embedder.capability() == EmbeddingCapability::Full {
                     println!("🚀 Testing neural embedding generation...");
                     match embedder.embed("artificial intelligence machine learning") {
@@ -892,6 +893,7 @@ mod tests {
         println!("   📊 Detected capability: {capability:?}");
 
         match capability {
+            #[cfg(feature = "neural-embeddings")]
             EmbeddingCapability::Full => {
                 println!("   ✅ System supports full neural embeddings");
                 println!("   🧠 ONNX Runtime integration available");
@@ -914,6 +916,7 @@ mod tests {
                 println!("   📐 Embedding dimension: {}", embedder.embedding_dim());
                 println!("   🧮 Has vocabulary: {}", embedder.has_vocabulary());
 
+                #[cfg(feature = "neural-embeddings")]
                 if embedder.capability() == EmbeddingCapability::Full {
                     println!("\n🧠 Neural Embedding Architecture:");
                     println!("   🎯 Model: sentence-transformers/all-MiniLM-L6-v2");
