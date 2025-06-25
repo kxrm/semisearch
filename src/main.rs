@@ -273,6 +273,8 @@ async fn determine_search_mode(
             match LocalEmbedder::detect_capabilities() {
                 #[cfg(feature = "neural-embeddings")]
                 EmbeddingCapability::Full => Ok(SearchMode::Hybrid),
+                #[cfg(not(feature = "neural-embeddings"))]
+                EmbeddingCapability::Full => Ok(SearchMode::Tfidf), // Fallback when neural-embeddings disabled
                 EmbeddingCapability::TfIdf => Ok(SearchMode::Tfidf),
                 EmbeddingCapability::None => Ok(SearchMode::Keyword),
             }
@@ -431,6 +433,11 @@ async fn run_doctor() -> Result<()> {
                 Err(e) => println!("❌ Failed: {e}"),
             }
         }
+        #[cfg(not(feature = "neural-embeddings"))]
+        EmbeddingCapability::Full => {
+            println!("⚠️  Neural embeddings disabled at compile time");
+            println!("   Rebuild with --features neural-embeddings for full functionality");
+        }
         EmbeddingCapability::TfIdf => {
             println!("⚠️  Limited system - TF-IDF embeddings only");
             println!("   Consider upgrading RAM for neural embeddings");
@@ -464,6 +471,11 @@ async fn run_doctor() -> Result<()> {
         EmbeddingCapability::Full => {
             println!("   • Use 'semisearch search --semantic' for best results");
             println!("   • Run 'semisearch index --semantic <dir>' to build semantic index");
+        }
+        #[cfg(not(feature = "neural-embeddings"))]
+        EmbeddingCapability::Full => {
+            println!("   • Neural embeddings disabled at compile time");
+            println!("   • Use 'semisearch search --mode tfidf' for statistical search");
         }
         EmbeddingCapability::TfIdf => {
             println!("   • Use 'semisearch search --mode tfidf' for statistical search");
