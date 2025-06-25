@@ -73,6 +73,7 @@ jobs:
         else
           cargo clippy --all-targets --features neural-embeddings -- -D warnings
         fi
+      shell: bash
 
     - name: Build project
       run: |
@@ -81,6 +82,7 @@ jobs:
         else
           cargo build --verbose --features neural-embeddings
         fi
+      shell: bash
 
     - name: Run unit tests
       run: |
@@ -89,6 +91,7 @@ jobs:
         else
           cargo test --lib --verbose --features neural-embeddings
         fi
+      shell: bash
 
     - name: Run integration tests
       run: |
@@ -97,6 +100,7 @@ jobs:
         else
           cargo test --test integration_tests --verbose --features neural-embeddings
         fi
+      shell: bash
 
     - name: Run all tests with coverage (Ubuntu only)
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
