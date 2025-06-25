@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand, ValueEnum};
+use search::capability_detector::CapabilityDetector;
 use search::core::embedder::{EmbeddingCapability, EmbeddingConfig, LocalEmbedder};
 use search::core::indexer::FileIndexer;
 use search::search::strategy::SearchEngine;
@@ -407,17 +408,49 @@ async fn run_doctor() -> Result<()> {
     println!("🏥 Semisearch System Check");
     println!("=========================");
 
+    // Use the new capability detector for detailed diagnostics
+    let details = CapabilityDetector::get_capability_details();
+
     // Check system resources
-    if let Ok(mem_info) = sys_info::mem_info() {
-        println!("💾 Available memory: {} MB", mem_info.avail / 1024);
-        println!("💾 Total memory: {} MB", mem_info.total / 1024);
+    if let Some(ref mem_info) = details.memory_info {
+        println!("💾 Available memory: {} MB", mem_info.avail / 1024 / 1024);
+        println!("💾 Total memory: {} MB", mem_info.total / 1024 / 1024);
+    } else {
+        println!("💾 Memory: Unable to detect");
     }
 
-    println!("🖥️  CPU cores: {}", num_cpus::get());
+    println!("🖥️  CPU cores: {}", details.cpu_count);
 
-    // Check embedding capabilities
+    // Check neural capability components
+    println!("🧠 Neural Embedding Components:");
+    println!(
+        "   ONNX Runtime: {}",
+        if details.onnx_available {
+            "✅ Available"
+        } else {
+            "❌ Not found"
+        }
+    );
+    println!(
+        "   System Resources: {}",
+        if details.resources_adequate {
+            "✅ Adequate"
+        } else {
+            "❌ Insufficient"
+        }
+    );
+    println!(
+        "   Neural Model: {}",
+        if details.model_available {
+            "✅ Downloaded"
+        } else {
+            "❌ Missing"
+        }
+    );
+
+    // Determine overall capability
     let capability = LocalEmbedder::detect_capabilities();
-    println!("🧠 Detected capability: {capability:?}");
+    println!("🧠 Detected capability: {}", details.get_status());
 
     match capability {
         #[cfg(feature = "neural-embeddings")]
@@ -432,8 +465,14 @@ async fn run_doctor() -> Result<()> {
             }
         }
         EmbeddingCapability::TfIdf => {
-            println!("⚠️  Limited system - TF-IDF embeddings only");
-            println!("   Consider upgrading RAM for neural embeddings");
+            println!("📊 Using TF-IDF embeddings (enhanced statistical search)");
+
+            // Test TF-IDF embedder
+            print!("🧪 Testing TF-IDF embedder... ");
+            match create_embedder().await {
+                Ok(_) => println!("✅ Success"),
+                Err(e) => println!("❌ Failed: {e}"),
+            }
         }
         EmbeddingCapability::None => {
             println!("❌ System too limited for embeddings");
@@ -450,21 +489,36 @@ async fn run_doctor() -> Result<()> {
 
     // Check network connectivity (for model downloads)
     print!("🌐 Testing network connectivity... ");
-    match reqwest::get("https://huggingface.co").await {
-        Ok(response) if response.status().is_success() => println!("✅ Success"),
-        Ok(_) => println!("⚠️  Limited connectivity"),
-        Err(_) => println!("❌ No network access"),
+    #[cfg(feature = "neural-embeddings")]
+    {
+        match reqwest::get("https://huggingface.co").await {
+            Ok(response) if response.status().is_success() => println!("✅ Success"),
+            Ok(_) => println!("⚠️  Limited connectivity"),
+            Err(_) => println!("❌ No network access"),
+        }
+    }
+    #[cfg(not(feature = "neural-embeddings"))]
+    {
+        println!("⏭️  Skipped (neural features not enabled)");
     }
 
     println!();
     println!("🎯 Recommendations:");
 
-    match capability {
-        #[cfg(feature = "neural-embeddings")]
-        EmbeddingCapability::Full => {
-            println!("   • Use 'semisearch search --semantic' for best results");
-            println!("   • Run 'semisearch index --semantic <dir>' to build semantic index");
+    // Show specific recommendations based on capability details
+    let recommendations = details.get_recommendations();
+    if recommendations.is_empty() {
+        println!("   • System is fully capable for neural embeddings");
+        println!("   • Use 'semisearch search --semantic' for best results");
+        println!("   • Run 'semisearch index --semantic <dir>' to build semantic index");
+    } else {
+        for recommendation in recommendations {
+            println!("   • {}", recommendation);
         }
+    }
+
+    // Show fallback recommendations
+    match capability {
         EmbeddingCapability::TfIdf => {
             println!("   • Use 'semisearch search --mode tfidf' for statistical search");
             println!("   • Keyword and fuzzy search work well on this system");
@@ -472,6 +526,11 @@ async fn run_doctor() -> Result<()> {
         EmbeddingCapability::None => {
             println!("   • Use 'semisearch search --mode keyword' for basic search");
             println!("   • Consider using regex mode for pattern matching");
+        }
+        #[cfg(feature = "neural-embeddings")]
+        EmbeddingCapability::Full => {
+            println!("   • Use 'semisearch search --semantic' for best results");
+            println!("   • Run 'semisearch index --semantic <dir>' to build semantic index");
         }
     }
 
