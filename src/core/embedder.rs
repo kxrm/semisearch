@@ -267,15 +267,11 @@ impl LocalEmbedder {
                     EmbeddingCapability::Full
                 }
                 crate::capability_detector::NeuralCapability::Unavailable(reason) => {
-                    eprintln!(
-                        "📊 Neural embeddings unavailable: {reason} (using TF-IDF)"
-                    );
+                    eprintln!("📊 Neural embeddings unavailable: {reason} (using TF-IDF)");
                     EmbeddingCapability::TfIdf
                 }
                 crate::capability_detector::NeuralCapability::Insufficient(reason) => {
-                    eprintln!(
-                        "📊 Neural embeddings insufficient: {reason} (using TF-IDF)"
-                    );
+                    eprintln!("📊 Neural embeddings insufficient: {reason} (using TF-IDF)");
                     EmbeddingCapability::TfIdf
                 }
                 crate::capability_detector::NeuralCapability::NoModel(reason) => {
