@@ -287,6 +287,23 @@ jobs:
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
 
+    - name: Install ONNX Runtime for neural embeddings testing
+      run: |
+        echo "Installing ONNX Runtime for neural embeddings testing..."
+        
+        # Download and install ONNX Runtime
+        ONNX_VERSION="1.16.3"
+        wget -q https://github.com/microsoft/onnxruntime/releases/download/v${ONNX_VERSION}/onnxruntime-linux-x64-${ONNX_VERSION}.tgz
+        tar -xzf onnxruntime-linux-x64-${ONNX_VERSION}.tgz
+        
+        # Set up environment variables
+        export LD_LIBRARY_PATH="$PWD/onnxruntime-linux-x64-${ONNX_VERSION}/lib:$LD_LIBRARY_PATH"
+        echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
+        
+        # Verify installation
+        ls -la onnxruntime-linux-x64-${ONNX_VERSION}/lib/
+        echo "ONNX Runtime installed successfully"
+
     - name: Verify project structure matches plan
       run: |
         echo "Checking project structure compliance..."
@@ -313,7 +330,7 @@ jobs:
       run: |
         echo "Checking MVP feature implementation..."
         
-        # Build and test basic functionality
+        # Build and test basic functionality with neural embeddings
         cargo build --release --features neural-embeddings
         
         # Test CLI interface
