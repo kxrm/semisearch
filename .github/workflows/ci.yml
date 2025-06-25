@@ -67,16 +67,36 @@ jobs:
       run: cargo fmt --all -- --check
 
     - name: Run Clippy (code quality)
-      run: cargo clippy --all-targets --all-features -- -D warnings
+      run: |
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          cargo clippy --all-targets --features tfidf-only -- -D warnings
+        else
+          cargo clippy --all-targets --features neural-embeddings -- -D warnings
+        fi
 
     - name: Build project
-      run: cargo build --verbose
+      run: |
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          cargo build --verbose --features tfidf-only
+        else
+          cargo build --verbose --features neural-embeddings
+        fi
 
     - name: Run unit tests
-      run: cargo test --lib --verbose
+      run: |
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          cargo test --lib --verbose --features tfidf-only
+        else
+          cargo test --lib --verbose --features neural-embeddings
+        fi
 
     - name: Run integration tests
-      run: cargo test --test integration_tests --verbose
+      run: |
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          cargo test --test integration_tests --verbose --features tfidf-only
+        else
+          cargo test --test integration_tests --verbose --features neural-embeddings
+        fi
 
     - name: Run all tests with coverage (Ubuntu only)
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
@@ -116,7 +136,7 @@ jobs:
         key: ubuntu-cargo-stable-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Build optimized binary
-      run: cargo build --release
+      run: cargo build --release --features neural-embeddings
 
     - name: Make test scripts executable
       run: chmod +x tests/*.sh
@@ -140,6 +160,9 @@ jobs:
 
     - name: Run performance tests
       run: bash tests/test-performance.sh
+
+    - name: Test Phase 4 neural embeddings
+      run: bash tests/test_phase4_features.sh
 
   # Security and Audit
   security:
@@ -175,7 +198,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
 
     - name: Generate documentation
-      run: cargo doc --no-deps --all-features
+      run: cargo doc --no-deps --features neural-embeddings
 
     - name: Check for broken links in docs
       run: |
@@ -226,14 +249,14 @@ jobs:
       if: runner.os != 'Windows'
       run: |
         if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
-          cross build --release --target ${{ matrix.target }}
+          cross build --release --target ${{ matrix.target }} --features neural-embeddings
         else
-          cargo build --release --target ${{ matrix.target }}
+          cargo build --release --target ${{ matrix.target }} --features neural-embeddings
         fi
 
     - name: Build release binary (Windows)
       if: runner.os == 'Windows'
-      run: cargo build --release --target ${{ matrix.target }}
+      run: cargo build --release --target ${{ matrix.target }} --features tfidf-only
 
     - name: Upload binary artifact
       uses: actions/upload-artifact@v4
@@ -282,7 +305,7 @@ jobs:
         echo "Checking MVP feature implementation..."
         
         # Build and test basic functionality
-        cargo build --release
+        cargo build --release --features neural-embeddings
         
         # Test CLI interface
         ./target/release/semisearch --help | grep -q "search" || (echo "❌ Search command missing" && exit 1)

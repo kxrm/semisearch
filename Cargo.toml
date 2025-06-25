@@ -49,6 +49,6 @@ reqwest = { version = "0.11", features = ["rustls-tls", "stream"], default-featu
 tempfile = "3.8"
 
 [features]
-default = ["neural-embeddings"]
+default = ["tfidf-only"]
 neural-embeddings = ["ort", "tokenizers", "ndarray"]
 tfidf-only = [] 

@@ -1,5 +1,6 @@
 use anyhow::Result;
 use futures_util::StreamExt;
+#[cfg(feature = "neural-embeddings")]
 use ort::{Environment, ExecutionProvider, Session, SessionBuilder};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -22,7 +23,9 @@ pub struct EmbeddingConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EmbeddingDevice {
     Cpu,
+    #[cfg(feature = "neural-embeddings")]
     Cuda,
+    #[cfg(feature = "neural-embeddings")]
     Metal,
 }
 
@@ -46,6 +49,7 @@ impl Default for EmbeddingConfig {
 /// System embedding capabilities
 #[derive(Debug, Clone, PartialEq)]
 pub enum EmbeddingCapability {
+    #[cfg(feature = "neural-embeddings")]
     Full,  // Full neural embeddings
     TfIdf, // TF-IDF only
     None,  // No embeddings
@@ -55,8 +59,10 @@ pub enum EmbeddingCapability {
 pub struct LocalEmbedder {
     config: EmbeddingConfig,
     // Neural embedding components
+    #[cfg(feature = "neural-embeddings")]
     #[allow(dead_code)]
     session: Option<Session>,
+    #[cfg(feature = "neural-embeddings")]
     #[allow(dead_code)]
     tokenizer: Option<tokenizers::Tokenizer>,
     // TF-IDF fallback components
@@ -73,6 +79,7 @@ impl LocalEmbedder {
         let capability = Self::detect_capabilities();
 
         match capability {
+            #[cfg(feature = "neural-embeddings")]
             EmbeddingCapability::Full => {
                 // Try to initialize neural embeddings
                 match Self::initialize_neural_embedder(&config).await {
@@ -102,6 +109,12 @@ impl LocalEmbedder {
                 println!("⚠️  No embedding capabilities available");
                 Err(anyhow::anyhow!("System lacks embedding capabilities"))
             }
+            #[cfg(not(feature = "neural-embeddings"))]
+            EmbeddingCapability::Full => {
+                // Fall back to TF-IDF when neural embeddings are not available
+                println!("📊 Neural embeddings not available, using TF-IDF");
+                Self::new_tfidf_only(config).await
+            }
         }
     }
 
@@ -113,7 +126,9 @@ impl LocalEmbedder {
     ) -> Self {
         Self {
             config,
+            #[cfg(feature = "neural-embeddings")]
             session: None,
+            #[cfg(feature = "neural-embeddings")]
             tokenizer: None,
             vocabulary: Arc::new(vocabulary),
             idf_scores: Arc::new(idf_scores),
@@ -129,6 +144,7 @@ impl LocalEmbedder {
     }
 
     /// Initialize neural embedding components
+    #[cfg(feature = "neural-embeddings")]
     async fn initialize_neural_embedder(
         config: &EmbeddingConfig,
     ) -> Result<(Session, tokenizers::Tokenizer)> {
@@ -180,6 +196,7 @@ impl LocalEmbedder {
     }
 
     /// Download ONNX model from HuggingFace
+    #[cfg(feature = "neural-embeddings")]
     async fn download_model(model_path: &Path, model_name: &str) -> Result<()> {
         println!("📥 Downloading neural embedding model (first time setup)...");
 
@@ -212,6 +229,7 @@ impl LocalEmbedder {
     }
 
     /// Download tokenizer from HuggingFace
+    #[cfg(feature = "neural-embeddings")]
     async fn download_tokenizer(tokenizer_path: &Path, model_name: &str) -> Result<()> {
         println!("📥 Downloading tokenizer...");
 
@@ -229,7 +247,9 @@ impl LocalEmbedder {
     async fn new_tfidf_only(config: EmbeddingConfig) -> Result<Self> {
         Ok(Self {
             config,
+            #[cfg(feature = "neural-embeddings")]
             session: None,
+            #[cfg(feature = "neural-embeddings")]
             tokenizer: None,
             vocabulary: Arc::new(HashMap::new()),
             idf_scores: Arc::new(HashMap::new()),
@@ -251,7 +271,14 @@ impl LocalEmbedder {
 
         // Advanced capability detection
         if available_memory > 2_000_000 && cpu_count >= 4 && has_onnx {
-            EmbeddingCapability::Full
+            #[cfg(feature = "neural-embeddings")]
+            {
+                EmbeddingCapability::Full
+            }
+            #[cfg(not(feature = "neural-embeddings"))]
+            {
+                EmbeddingCapability::TfIdf
+            }
         } else if available_memory > 500_000 {
             EmbeddingCapability::TfIdf
         } else {
@@ -262,13 +289,17 @@ impl LocalEmbedder {
     /// Generate embedding for text
     pub fn embed(&self, text: &str) -> Result<Vec<f32>> {
         match self.capability {
+            #[cfg(feature = "neural-embeddings")]
             EmbeddingCapability::Full => self.embed_neural(text),
             EmbeddingCapability::TfIdf => self.embed_tfidf(text),
             EmbeddingCapability::None => Err(anyhow::anyhow!("No embedding capability available")),
+            #[cfg(not(feature = "neural-embeddings"))]
+            EmbeddingCapability::Full => self.embed_tfidf(text), // Fall back to TF-IDF
         }
     }
 
     /// Generate neural embedding using ONNX Runtime
+    #[cfg(feature = "neural-embeddings")]
     fn embed_neural(&self, text: &str) -> Result<Vec<f32>> {
         // For now, fall back to TF-IDF while ONNX Runtime API is being finalized
         // This maintains the architecture and allows Phase 4 to be functionally complete
@@ -292,6 +323,7 @@ impl LocalEmbedder {
 
     /// Build vocabulary from a collection of documents (TF-IDF mode)
     pub fn build_vocabulary(&mut self, documents: &[String]) -> Result<()> {
+        #[cfg(feature = "neural-embeddings")]
         if self.capability == EmbeddingCapability::Full {
             // Neural embeddings don't need vocabulary building
             return Ok(());
@@ -372,27 +404,36 @@ impl LocalEmbedder {
     /// Get embedding dimension
     pub fn embedding_dim(&self) -> usize {
         match self.capability {
+            #[cfg(feature = "neural-embeddings")]
             EmbeddingCapability::Full => 384, // all-MiniLM-L6-v2 dimension
             EmbeddingCapability::TfIdf => self.vocabulary.len(),
             EmbeddingCapability::None => 0,
+            #[cfg(not(feature = "neural-embeddings"))]
+            EmbeddingCapability::Full => self.vocabulary.len(), // Fall back to vocabulary size
         }
     }
 
     /// Check if embedder has vocabulary (for TF-IDF mode)
     pub fn has_vocabulary(&self) -> bool {
         match self.capability {
+            #[cfg(feature = "neural-embeddings")]
             EmbeddingCapability::Full => true, // Neural embeddings always ready
             EmbeddingCapability::TfIdf => !self.vocabulary.is_empty(),
             EmbeddingCapability::None => false,
+            #[cfg(not(feature = "neural-embeddings"))]
+            EmbeddingCapability::Full => !self.vocabulary.is_empty(), // Check vocabulary for fallback
         }
     }
 
     /// Get vocabulary size (for TF-IDF mode)
     pub fn vocabulary_size(&self) -> usize {
         match self.capability {
+            #[cfg(feature = "neural-embeddings")]
             EmbeddingCapability::Full => 384, // Neural embedding dimension
             EmbeddingCapability::TfIdf => self.vocabulary.len(),
             EmbeddingCapability::None => 0,
+            #[cfg(not(feature = "neural-embeddings"))]
+            EmbeddingCapability::Full => self.vocabulary.len(), // Fall back to vocabulary size
         }
     }
 
@@ -403,7 +444,14 @@ impl LocalEmbedder {
 
     /// Check if neural embeddings are available
     pub fn is_neural(&self) -> bool {
-        self.capability == EmbeddingCapability::Full
+        #[cfg(feature = "neural-embeddings")]
+        {
+            self.capability == EmbeddingCapability::Full
+        }
+        #[cfg(not(feature = "neural-embeddings"))]
+        {
+            false // Neural embeddings not available when feature is disabled
+        }
     }
 
     // Private helper methods
