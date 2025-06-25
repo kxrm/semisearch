@@ -87,7 +87,7 @@ impl LocalEmbedder {
                 // Try to initialize neural embeddings
                 match Self::initialize_neural_embedder(&config).await {
                     Ok((session, tokenizer)) => {
-                        println!("✅ Neural embeddings initialized successfully");
+                        eprintln!("✅ Neural embeddings initialized successfully");
                         Ok(Self {
                             config,
                             session: Some(session),
@@ -99,17 +99,17 @@ impl LocalEmbedder {
                         })
                     }
                     Err(e) => {
-                        println!("⚠️  Neural embeddings failed, falling back to TF-IDF: {e}");
+                        eprintln!("⚠️  Neural embeddings failed, falling back to TF-IDF: {e}");
                         Self::new_tfidf_only(config).await
                     }
                 }
             }
             EmbeddingCapability::TfIdf => {
-                println!("📊 Using TF-IDF embeddings (limited system resources)");
+                eprintln!("📊 Using TF-IDF embeddings (limited system resources)");
                 Self::new_tfidf_only(config).await
             }
             EmbeddingCapability::None => {
-                println!("⚠️  No embedding capabilities available");
+                eprintln!("⚠️  No embedding capabilities available");
                 Err(anyhow::anyhow!("System lacks embedding capabilities"))
             }
         }
@@ -299,7 +299,7 @@ impl LocalEmbedder {
         // For now, fall back to TF-IDF while ONNX Runtime API is being finalized
         // This maintains the architecture and allows Phase 4 to be functionally complete
         // The neural embedding foundation is in place for future completion
-        println!("🔄 Neural embedding requested, using enhanced TF-IDF (ONNX Runtime integration pending)");
+        eprintln!("🔄 Neural embedding requested, using enhanced TF-IDF (ONNX Runtime integration pending)");
         self.embed_tfidf(text)
     }
 
@@ -900,11 +900,11 @@ mod tests {
                 println!("   🤖 Neural model download will be attempted");
             }
             EmbeddingCapability::TfIdf => {
-                println!("   📊 System limited to TF-IDF embeddings");
-                println!("   ⚠️  Neural embeddings disabled or unavailable");
+                eprintln!("   📊 System limited to TF-IDF embeddings");
+                eprintln!("   ⚠️  Neural embeddings disabled or unavailable");
             }
             EmbeddingCapability::None => {
-                println!("   ❌ No embedding capabilities detected");
+                eprintln!("   ❌ No embedding capabilities detected");
             }
         }
 
