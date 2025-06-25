@@ -287,7 +287,7 @@ jobs:
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
 
-    - name: Install ONNX Runtime for neural embeddings testing
+    - name: Install ONNX Runtime and verify MVP features
       run: |
         echo "Installing ONNX Runtime for neural embeddings testing..."
         
@@ -303,38 +303,11 @@ jobs:
         # Verify installation
         ls -la onnxruntime-linux-x64-${ONNX_VERSION}/lib/
         echo "ONNX Runtime installed successfully"
-
-    - name: Verify project structure matches plan
-      run: |
-        echo "Checking project structure compliance..."
         
-        # Check required directories exist
-        test -d src/ || (echo "❌ Missing src/ directory" && exit 1)
-        test -d tests/ || (echo "❌ Missing tests/ directory" && exit 1)
-        test -d docs/ || (echo "❌ Missing docs/ directory" && exit 1)
-        
-        # Check required files exist
-        test -f src/lib.rs || (echo "❌ Missing src/lib.rs" && exit 1)
-        test -f src/main.rs || (echo "❌ Missing src/main.rs" && exit 1)
-        test -f tests/integration_tests.rs || (echo "❌ Missing integration tests" && exit 1)
-        test -f docs/SEMANTIC_SEARCH_ARCHITECTURE_PLAN.md || (echo "❌ Missing architecture plan" && exit 1)
-        
-        # Check test scripts are executable
-        test -x tests/run-all.sh || (echo "❌ run-all.sh not executable" && exit 1)
-        test -x tests/test-search.sh || (echo "❌ test-search.sh not executable" && exit 1)
-        test -x tests/test-performance.sh || (echo "❌ test-performance.sh not executable" && exit 1)
-        
-        echo "✅ Project structure complies with architecture plan"
-
-    - name: Verify MVP features are implemented
-      run: |
         echo "Checking MVP feature implementation..."
         
         # Build and test basic functionality with neural embeddings
         cargo build --release --features neural-embeddings
-        
-        # Set library path for binary execution
-        export LD_LIBRARY_PATH="$PWD/onnxruntime-linux-x64-1.16.3/lib:$LD_LIBRARY_PATH"
         
         # Test CLI interface
         ./target/release/semisearch --help | grep -q "search" || (echo "❌ Search command missing" && exit 1)
@@ -362,6 +335,28 @@ jobs:
         rm test_mvp.txt
         
         echo "✅ All MVP features are working correctly"
+
+    - name: Verify project structure matches plan
+      run: |
+        echo "Checking project structure compliance..."
+        
+        # Check required directories exist
+        test -d src/ || (echo "❌ Missing src/ directory" && exit 1)
+        test -d tests/ || (echo "❌ Missing tests/ directory" && exit 1)
+        test -d docs/ || (echo "❌ Missing docs/ directory" && exit 1)
+        
+        # Check required files exist
+        test -f src/lib.rs || (echo "❌ Missing src/lib.rs" && exit 1)
+        test -f src/main.rs || (echo "❌ Missing src/main.rs" && exit 1)
+        test -f tests/integration_tests.rs || (echo "❌ Missing integration tests" && exit 1)
+        test -f docs/SEMANTIC_SEARCH_ARCHITECTURE_PLAN.md || (echo "❌ Missing architecture plan" && exit 1)
+        
+        # Check test scripts are executable
+        test -x tests/run-all.sh || (echo "❌ run-all.sh not executable" && exit 1)
+        test -x tests/test-search.sh || (echo "❌ test-search.sh not executable" && exit 1)
+        test -x tests/test-performance.sh || (echo "❌ test-performance.sh not executable" && exit 1)
+        
+        echo "✅ Project structure complies with architecture plan"
 
     - name: Verify Phase 2 completion
       run: |
