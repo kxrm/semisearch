@@ -170,7 +170,11 @@ impl FileIndexer {
                                 stats
                                     .errors
                                     .push(format!("{}: {e}", entry.path().display()));
-                                eprintln!("Error processing: {path} - {e}", path = entry.path().display(), e = e);
+                                eprintln!(
+                                    "Error processing: {path} - {e}",
+                                    path = entry.path().display(),
+                                    e = e
+                                );
                             }
                         }
                     }
@@ -185,11 +189,26 @@ impl FileIndexer {
         stats.duration_seconds = start_time.elapsed().as_secs_f64();
 
         println!("Indexing complete:");
-        println!("  Files processed: {files_processed}", files_processed = stats.files_processed);
-        println!("  Files updated: {files_updated}", files_updated = stats.files_updated);
-        println!("  Files skipped: {files_skipped}", files_skipped = stats.files_skipped);
-        println!("  Chunks created: {chunks_created}", chunks_created = stats.chunks_created);
-        println!("  Duration: {duration:.2}s", duration = stats.duration_seconds);
+        println!(
+            "  Files processed: {files_processed}",
+            files_processed = stats.files_processed
+        );
+        println!(
+            "  Files updated: {files_updated}",
+            files_updated = stats.files_updated
+        );
+        println!(
+            "  Files skipped: {files_skipped}",
+            files_skipped = stats.files_skipped
+        );
+        println!(
+            "  Chunks created: {chunks_created}",
+            chunks_created = stats.chunks_created
+        );
+        println!(
+            "  Duration: {duration:.2}s",
+            duration = stats.duration_seconds
+        );
         println!("  Errors: {errors}", errors = stats.errors.len());
 
         Ok(stats)
