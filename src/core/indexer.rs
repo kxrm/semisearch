@@ -137,7 +137,7 @@ impl FileIndexer {
         let start_time = std::time::Instant::now();
         let mut stats = IndexStats::default();
 
-        println!("Indexing directory: {}", path.display());
+        println!("Indexing directory: {path}", path = path.display());
 
         // Create thread-safe filter criteria
         let excluded_dirs = self.config.excluded_directories.clone();
@@ -170,7 +170,11 @@ impl FileIndexer {
                                 stats
                                     .errors
                                     .push(format!("{}: {e}", entry.path().display()));
-                                eprintln!("Error processing {}: {e}", entry.path().display());
+                                eprintln!(
+                                    "Error processing: {path} - {e}",
+                                    path = entry.path().display(),
+                                    e = e
+                                );
                             }
                         }
                     }
@@ -185,19 +189,27 @@ impl FileIndexer {
         stats.duration_seconds = start_time.elapsed().as_secs_f64();
 
         println!("Indexing complete:");
-        println!("  Files processed: {}", stats.files_processed);
-        println!("  Files updated: {}", stats.files_updated);
-        println!("  Files skipped: {}", stats.files_skipped);
-        println!("  Chunks created: {}", stats.chunks_created);
         println!(
-            "  Total size: {} MB",
-            stats.total_size_bytes / (1024 * 1024)
+            "  Files processed: {files_processed}",
+            files_processed = stats.files_processed
         );
-        println!("  Duration: {:.2}s", stats.duration_seconds);
-
-        if !stats.errors.is_empty() {
-            println!("  Errors: {}", stats.errors.len());
-        }
+        println!(
+            "  Files updated: {files_updated}",
+            files_updated = stats.files_updated
+        );
+        println!(
+            "  Files skipped: {files_skipped}",
+            files_skipped = stats.files_skipped
+        );
+        println!(
+            "  Chunks created: {chunks_created}",
+            chunks_created = stats.chunks_created
+        );
+        println!(
+            "  Duration: {duration:.2}s",
+            duration = stats.duration_seconds
+        );
+        println!("  Errors: {errors}", errors = stats.errors.len());
 
         Ok(stats)
     }

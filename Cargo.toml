@@ -39,16 +39,19 @@ rustc-hash = "1.1"
 tokio = { version = "1.0", features = ["full"] }
 futures-util = "0.3"
 
-# ML and embeddings (Phase 4)
+# Dynamic loading for optional features
+libloading = "0.8"
+
+# ML and embeddings (Phase 4) - Optional at runtime
 ort = { version = "1.15", features = ["copy-dylibs"], optional = true }
 tokenizers = { version = "0.13", optional = true, default-features = false, features = ["onig"] }
 ndarray = { version = "0.15", optional = true }
-reqwest = { version = "0.11", features = ["rustls-tls", "stream"], default-features = false }
+reqwest = { version = "0.11", features = ["rustls-tls", "stream"], default-features = false, optional = true }
 
 [dev-dependencies]
 tempfile = "3.8"
 
 [features]
-default = ["tfidf-only"]
-neural-embeddings = ["ort", "tokenizers", "ndarray"]
-tfidf-only = [] 
+default = []  # No neural dependencies by default
+neural-embeddings = ["ort", "tokenizers", "ndarray", "reqwest"]
+tfidf-only = []  # Legacy feature for minimal builds 

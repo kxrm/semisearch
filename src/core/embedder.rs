@@ -241,7 +241,10 @@ impl LocalEmbedder {
     }
 
     /// Create TF-IDF only embedder
-    async fn new_tfidf_only(config: EmbeddingConfig) -> Result<Self> {
+    pub async fn new_tfidf_only(config: EmbeddingConfig) -> Result<Self> {
+        // Create embedder with TF-IDF capability only
+        let capability = EmbeddingCapability::TfIdf;
+
         Ok(Self {
             config,
             #[cfg(feature = "neural-embeddings")]
@@ -251,35 +254,36 @@ impl LocalEmbedder {
             vocabulary: Arc::new(HashMap::new()),
             idf_scores: Arc::new(HashMap::new()),
             embedding_cache: HashMap::new(),
-            capability: EmbeddingCapability::TfIdf,
+            capability,
         })
     }
 
-    /// Detect system embedding capabilities
+    /// Detect system capabilities for embeddings
     pub fn detect_capabilities() -> EmbeddingCapability {
-        // Check available memory
-        let available_memory = sys_info::mem_info().map(|info| info.avail).unwrap_or(0);
-
-        // Check CPU count
-        let cpu_count = num_cpus::get();
-
-        // Check for ONNX Runtime availability (simplified check)
-        let has_onnx = std::env::var("DISABLE_ONNX").is_err();
-
-        // Advanced capability detection
-        if available_memory > 2_000_000 && cpu_count >= 4 && has_onnx {
-            #[cfg(feature = "neural-embeddings")]
-            {
-                EmbeddingCapability::Full
+        #[cfg(feature = "neural-embeddings")]
+        {
+            match crate::capability_detector::CapabilityDetector::detect_neural_capability() {
+                crate::capability_detector::NeuralCapability::Available => {
+                    EmbeddingCapability::Full
+                }
+                crate::capability_detector::NeuralCapability::Unavailable(reason) => {
+                    eprintln!("📊 Neural embeddings unavailable: {reason} (using TF-IDF)");
+                    EmbeddingCapability::TfIdf
+                }
+                crate::capability_detector::NeuralCapability::Insufficient(reason) => {
+                    eprintln!("📊 Neural embeddings insufficient: {reason} (using TF-IDF)");
+                    EmbeddingCapability::TfIdf
+                }
+                crate::capability_detector::NeuralCapability::NoModel(reason) => {
+                    eprintln!("📊 Neural model missing: {reason} (using TF-IDF)");
+                    EmbeddingCapability::TfIdf
+                }
             }
-            #[cfg(not(feature = "neural-embeddings"))]
-            {
-                EmbeddingCapability::TfIdf
-            }
-        } else if available_memory > 500_000 {
+        }
+        #[cfg(not(feature = "neural-embeddings"))]
+        {
+            eprintln!("📊 Neural embeddings not compiled, using TF-IDF");
             EmbeddingCapability::TfIdf
-        } else {
-            EmbeddingCapability::None
         }
     }
 
@@ -534,18 +538,6 @@ impl LocalEmbedder {
         }
 
         Ok(())
-    }
-}
-
-// Add temporary implementations for missing dependencies
-mod sys_info {
-    pub struct MemInfo {
-        pub avail: u64,
-    }
-
-    pub fn mem_info() -> Option<MemInfo> {
-        // Simplified memory detection
-        Some(MemInfo { avail: 4_000_000 }) // Assume 4GB available
     }
 }
 

@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand, ValueEnum};
+use search::capability_detector::CapabilityDetector;
 use search::core::embedder::{EmbeddingCapability, EmbeddingConfig, LocalEmbedder};
 use search::core::indexer::FileIndexer;
 use search::search::strategy::SearchEngine;
@@ -233,9 +234,18 @@ async fn main() -> Result<()> {
             let stats = indexer.index_directory(std::path::Path::new(&path))?;
 
             println!("✅ Indexing complete:");
-            println!("   📁 Files processed: {}", stats.files_processed);
-            println!("   📄 Chunks created: {}", stats.chunks_created);
-            println!("   ⏱️  Time taken: {:.2}s", stats.duration_seconds);
+            println!(
+                "   📁 Files processed: {files_processed}",
+                files_processed = stats.files_processed
+            );
+            println!(
+                "   📄 Chunks created: {chunks_created}",
+                chunks_created = stats.chunks_created
+            );
+            println!(
+                "   ⏱️  Time taken: {duration:.2}s",
+                duration = stats.duration_seconds
+            );
         }
 
         Commands::Status => {
@@ -311,7 +321,7 @@ fn display_results(
                 "count": results.len(),
                 "search_time_ms": search_time.as_millis()
             });
-            println!("{}", serde_json::to_string_pretty(&output)?);
+            println!("{output}", output = serde_json::to_string_pretty(&output)?);
         }
         OutputFormat::Plain => {
             if results.is_empty() {
@@ -319,15 +329,23 @@ fn display_results(
                 return Ok(());
             }
 
-            println!("Found {} matches in {:?}:", results.len(), search_time);
+            println!(
+                "Found {matches} matches in {search_time:?}:",
+                matches = results.len(),
+                search_time = search_time
+            );
             println!();
 
             for result in results {
                 if files_only {
-                    println!("{}", result.file_path);
+                    println!("{file_path}", file_path = result.file_path);
                 } else {
-                    println!("📁 {}", result.file_path);
-                    println!("   Line {}: {}", result.line_number, result.content);
+                    println!("📁 {file_path}", file_path = result.file_path);
+                    println!(
+                        "   Line {line_number}: {content}",
+                        line_number = result.line_number,
+                        content = result.content
+                    );
                     if let Some(score) = result.score {
                         println!("   Score: {score:.3}");
                     }
@@ -353,8 +371,14 @@ async fn show_status() -> Result<()> {
         let database = Database::new(&db_path)?;
         let stats = database.get_stats()?;
         println!("📊 Database Status:");
-        println!("   📁 Indexed files: {}", stats.file_count);
-        println!("   📄 Total chunks: {}", stats.chunk_count);
+        println!(
+            "   📁 Indexed files: {file_count}",
+            file_count = stats.file_count
+        );
+        println!(
+            "   📄 Total chunks: {chunk_count}",
+            chunk_count = stats.chunk_count
+        );
         println!(
             "   💾 Database size: {:.2} MB",
             db_path.metadata()?.len() as f64 / (1024.0 * 1024.0)
@@ -374,11 +398,14 @@ async fn show_status() -> Result<()> {
         .join("models");
 
     if models_dir.exists() {
-        println!("🤖 Models directory: {}", models_dir.display());
+        println!(
+            "🤖 Models directory: {models_dir}",
+            models_dir = models_dir.display()
+        );
         let model_path = models_dir.join("model.onnx");
         if model_path.exists() {
             let metadata = std::fs::metadata(&model_path)?;
-            println!("   Neural model: {} bytes", metadata.len());
+            println!("   Neural model: {size} bytes", size = metadata.len());
         } else {
             println!("   Neural model: Not downloaded");
         }
@@ -394,11 +421,14 @@ async fn show_config() -> Result<()> {
     println!("===========================");
 
     let config = EmbeddingConfig::default();
-    println!("Model: {}", config.model_name);
-    println!("Cache directory: {}", config.cache_dir.display());
-    println!("Max length: {}", config.max_length);
-    println!("Batch size: {}", config.batch_size);
-    println!("Device: {:?}", config.device);
+    println!("Model: {model_name}", model_name = config.model_name);
+    println!(
+        "Cache directory: {cache_dir}",
+        cache_dir = config.cache_dir.display()
+    );
+    println!("Max length: {max_length}", max_length = config.max_length);
+    println!("Batch size: {batch_size}", batch_size = config.batch_size);
+    println!("Device: {device:?}", device = config.device);
 
     Ok(())
 }
@@ -407,17 +437,58 @@ async fn run_doctor() -> Result<()> {
     println!("🏥 Semisearch System Check");
     println!("=========================");
 
+    // Use the new capability detector for detailed diagnostics
+    let details = CapabilityDetector::get_capability_details();
+
     // Check system resources
-    if let Ok(mem_info) = sys_info::mem_info() {
-        println!("💾 Available memory: {} MB", mem_info.avail / 1024);
-        println!("💾 Total memory: {} MB", mem_info.total / 1024);
+    if let Some(ref mem_info) = details.memory_info {
+        println!(
+            "💾 Available memory: {avail} MB",
+            avail = mem_info.avail / 1024 / 1024
+        );
+        println!(
+            "💾 Total memory: {total} MB",
+            total = mem_info.total / 1024 / 1024
+        );
+    } else {
+        println!("💾 Memory: Unable to detect");
     }
 
-    println!("🖥️  CPU cores: {}", num_cpus::get());
+    println!("🖥️  CPU cores: {cpu_count}", cpu_count = details.cpu_count);
 
-    // Check embedding capabilities
+    // Check neural capability components
+    println!("🧠 Neural Embedding Components:");
+    println!(
+        "   ONNX Runtime: {}",
+        if details.onnx_available {
+            "✅ Available"
+        } else {
+            "❌ Not found"
+        }
+    );
+    println!(
+        "   System Resources: {}",
+        if details.resources_adequate {
+            "✅ Adequate"
+        } else {
+            "❌ Insufficient"
+        }
+    );
+    println!(
+        "   Neural Model: {}",
+        if details.model_available {
+            "✅ Downloaded"
+        } else {
+            "❌ Missing"
+        }
+    );
+
+    // Determine overall capability
     let capability = LocalEmbedder::detect_capabilities();
-    println!("🧠 Detected capability: {capability:?}");
+    println!(
+        "🧠 Detected capability: {status}",
+        status = details.get_status()
+    );
 
     match capability {
         #[cfg(feature = "neural-embeddings")]
@@ -432,8 +503,14 @@ async fn run_doctor() -> Result<()> {
             }
         }
         EmbeddingCapability::TfIdf => {
-            println!("⚠️  Limited system - TF-IDF embeddings only");
-            println!("   Consider upgrading RAM for neural embeddings");
+            println!("📊 Using TF-IDF embeddings (enhanced statistical search)");
+
+            // Test TF-IDF embedder
+            print!("🧪 Testing TF-IDF embedder... ");
+            match create_embedder().await {
+                Ok(_) => println!("✅ Success"),
+                Err(e) => println!("❌ Failed: {e}"),
+            }
         }
         EmbeddingCapability::None => {
             println!("❌ System too limited for embeddings");
@@ -450,28 +527,51 @@ async fn run_doctor() -> Result<()> {
 
     // Check network connectivity (for model downloads)
     print!("🌐 Testing network connectivity... ");
-    match reqwest::get("https://huggingface.co").await {
-        Ok(response) if response.status().is_success() => println!("✅ Success"),
-        Ok(_) => println!("⚠️  Limited connectivity"),
-        Err(_) => println!("❌ No network access"),
+    #[cfg(feature = "neural-embeddings")]
+    {
+        match reqwest::get("https://huggingface.co").await {
+            Ok(response) if response.status().is_success() => println!("✅ Success"),
+            Ok(_) => println!("⚠️  Limited connectivity"),
+            Err(_) => println!("❌ No network access"),
+        }
+    }
+    #[cfg(not(feature = "neural-embeddings"))]
+    {
+        println!("⏭️  Skipped (neural features not enabled)");
     }
 
     println!();
     println!("🎯 Recommendations:");
 
+    // Show specific recommendations based on capability details
+    let recommendations = details.get_recommendations();
+    if recommendations.is_empty() {
+        println!("   • System is fully capable for neural embeddings");
+        println!("   • Use 'semisearch search --semantic' for best results");
+        println!("   • Run 'semisearch index --semantic <dir>' to build semantic index");
+    } else {
+        for recommendation in recommendations {
+            println!("   • {recommendation}");
+        }
+    }
+
+    // Show fallback recommendations
     match capability {
         #[cfg(feature = "neural-embeddings")]
         EmbeddingCapability::Full => {
-            println!("   • Use 'semisearch search --semantic' for best results");
-            println!("   • Run 'semisearch index --semantic <dir>' to build semantic index");
+            println!("Recommendations:");
+            println!("   • Use 'semisearch search --semantic' for best results.");
+            println!("   • Run 'semisearch index --semantic <dir>' to build a semantic index.");
         }
         EmbeddingCapability::TfIdf => {
-            println!("   • Use 'semisearch search --mode tfidf' for statistical search");
-            println!("   • Keyword and fuzzy search work well on this system");
+            println!("Recommendations:");
+            println!("   • Use 'semisearch search --mode tfidf' for statistical search.");
+            println!("   • For full semantic search, recompile with the 'neural-embeddings' feature flag.");
         }
         EmbeddingCapability::None => {
-            println!("   • Use 'semisearch search --mode keyword' for basic search");
-            println!("   • Consider using regex mode for pattern matching");
+            println!("Recommendations:");
+            println!("   • Use 'semisearch search --mode keyword' for basic search.");
+            println!("   • Consider using regex mode for pattern matching.");
         }
     }
 
