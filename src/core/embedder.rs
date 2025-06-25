@@ -99,10 +99,7 @@ impl LocalEmbedder {
                         })
                     }
                     Err(e) => {
-                        eprintln!(
-                            "⚠️  Neural embeddings failed, falling back to TF-IDF: {e}",
-                            e = e
-                        );
+                        eprintln!("⚠️  Neural embeddings failed, falling back to TF-IDF: {e}");
                         Self::new_tfidf_only(config).await
                     }
                 }
@@ -270,24 +267,15 @@ impl LocalEmbedder {
                     EmbeddingCapability::Full
                 }
                 crate::capability_detector::NeuralCapability::Unavailable(reason) => {
-                    eprintln!(
-                        "📊 Neural embeddings unavailable: {reason} (using TF-IDF)",
-                        reason = reason
-                    );
+                    eprintln!("📊 Neural embeddings unavailable: {reason} (using TF-IDF)");
                     EmbeddingCapability::TfIdf
                 }
                 crate::capability_detector::NeuralCapability::Insufficient(reason) => {
-                    eprintln!(
-                        "📊 Neural embeddings insufficient: {reason} (using TF-IDF)",
-                        reason = reason
-                    );
+                    eprintln!("📊 Neural embeddings insufficient: {reason} (using TF-IDF)");
                     EmbeddingCapability::TfIdf
                 }
                 crate::capability_detector::NeuralCapability::NoModel(reason) => {
-                    eprintln!(
-                        "📊 Neural model missing: {reason} (using TF-IDF)",
-                        reason = reason
-                    );
+                    eprintln!("📊 Neural model missing: {reason} (using TF-IDF)");
                     EmbeddingCapability::TfIdf
                 }
             }
