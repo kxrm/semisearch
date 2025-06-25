@@ -297,7 +297,7 @@ jobs:
         tar -xzf onnxruntime-linux-x64-${ONNX_VERSION}.tgz
         
         # Set up environment variables
-        export LD_LIBRARY_PATH="$PWD/onnxruntime-linux-x64-${ONNX_VERSION}/lib:$LD_LIBRARY_PATH"
+        export LD_LIBRARY_PATH="$PWD/onnxruntime-linux-x64-${ONNX_VERSION}/lib"
         echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
         
         # Verify installation and debug
@@ -318,8 +318,13 @@ jobs:
         # Debug binary and library path
         echo "=== Binary Debug ==="
         ls -la target/release/semisearch
+        echo "ONNX Runtime libraries in target/release/:"
         ls -la target/release/libonnxruntime.so*
         echo "LD_LIBRARY_PATH after build: $LD_LIBRARY_PATH"
+        
+        # Test if binary can find library
+        echo "=== Library Loading Test ==="
+        ldd target/release/semisearch | grep onnx || echo "No ONNX dependencies found in ldd output"
         
         # Test CLI interface
         echo "=== Testing CLI Interface ==="
