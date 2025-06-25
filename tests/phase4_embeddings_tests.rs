@@ -143,14 +143,22 @@ async fn test_embedding_vocabulary_persistence() {
     assert!(similarity > 0.99);
 }
 
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 #[test]
 fn test_capability_detection() {
     let capability = LocalEmbedder::detect_capabilities();
 
     // Should detect some capability on any system
+    #[cfg(feature = "neural-embeddings")]
     assert!(matches!(
         capability,
         EmbeddingCapability::Full | EmbeddingCapability::TfIdf | EmbeddingCapability::None
+    ));
+
+    #[cfg(not(feature = "neural-embeddings"))]
+    assert!(matches!(
+        capability,
+        EmbeddingCapability::TfIdf | EmbeddingCapability::None
     ));
 }
 

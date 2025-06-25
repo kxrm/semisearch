@@ -566,10 +566,17 @@ mod tests {
     #[test]
     fn test_detect_capabilities() {
         let capability = LocalEmbedder::detect_capabilities();
-        // Should detect some capability on most systems
+
+        #[cfg(feature = "neural-embeddings")]
         assert!(matches!(
             capability,
             EmbeddingCapability::Full | EmbeddingCapability::TfIdf | EmbeddingCapability::None
+        ));
+
+        #[cfg(not(feature = "neural-embeddings"))]
+        assert!(matches!(
+            capability,
+            EmbeddingCapability::TfIdf | EmbeddingCapability::None
         ));
     }
 
