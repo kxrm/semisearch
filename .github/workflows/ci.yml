@@ -254,9 +254,19 @@ jobs:
       if: matrix.target == 'aarch64-unknown-linux-gnu'
       run: |
         cargo install cross
-        # Install OpenSSL for aarch64 cross-compilation
+        # Install OpenSSL and cross-compilation tools for aarch64
         sudo apt-get update
-        sudo apt-get install -y gcc-aarch64-linux-gnu libssl-dev
+        sudo apt-get install -y gcc-aarch64-linux-gnu libssl-dev pkg-config libssl-dev:arm64
+        
+        # Set up OpenSSL environment for cross-compilation
+        export OPENSSL_DIR=/usr/lib/aarch64-linux-gnu
+        export OPENSSL_LIB_DIR=/usr/lib/aarch64-linux-gnu
+        export OPENSSL_INCLUDE_DIR=/usr/include
+        export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig
+        echo "OPENSSL_DIR=$OPENSSL_DIR" >> $GITHUB_ENV
+        echo "OPENSSL_LIB_DIR=$OPENSSL_LIB_DIR" >> $GITHUB_ENV
+        echo "OPENSSL_INCLUDE_DIR=$OPENSSL_INCLUDE_DIR" >> $GITHUB_ENV
+        echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" >> $GITHUB_ENV
 
     - name: Build release binary (Linux/macOS)
       if: runner.os != 'Windows'
