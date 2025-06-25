@@ -347,10 +347,10 @@ fn display_results(
                         content = result.content
                     );
                     if let Some(score) = result.score {
-                        println!("   Score: {score:.3}", score = score);
+                        println!("   Score: {score:.3}");
                     }
                     if let Some(match_type) = &result.match_type {
-                        println!("   Match: {match_type:?}", match_type = match_type);
+                        println!("   Match: {match_type:?}");
                     }
                     println!();
                 }
@@ -389,10 +389,7 @@ async fn show_status() -> Result<()> {
 
     // Check system capabilities
     let capability = LocalEmbedder::detect_capabilities();
-    println!(
-        "🧠 Embedding Capability: {capability:?}",
-        capability = capability
-    );
+    println!("🧠 Embedding Capability: {capability:?}");
 
     // Check models directory
     let models_dir = dirs::home_dir()
@@ -560,18 +557,20 @@ async fn run_doctor() -> Result<()> {
 
     // Show fallback recommendations
     match capability {
-        EmbeddingCapability::TfIdf => {
-            println!("   • Use 'semisearch search --mode tfidf' for statistical search");
-            println!("   • Keyword and fuzzy search work well on this system");
+        EmbeddingCapability::TfIdf | EmbeddingCapability::Full => {
+            let recommendations = vec![
+                "Use 'semisearch search --semantic' for best results.",
+                "Run 'semisearch index --semantic <dir>' to build a semantic index.",
+                "Keyword and fuzzy search also work well on this system.",
+            ];
+            println!("Recommendations:");
+            for recommendation in recommendations {
+                println!("   • {recommendation}");
+            }
         }
         EmbeddingCapability::None => {
             println!("   • Use 'semisearch search --mode keyword' for basic search");
             println!("   • Consider using regex mode for pattern matching");
-        }
-        #[cfg(feature = "neural-embeddings")]
-        EmbeddingCapability::Full => {
-            println!("   • Use 'semisearch search --semantic' for best results");
-            println!("   • Run 'semisearch index --semantic <dir>' to build semantic index");
         }
     }
 
