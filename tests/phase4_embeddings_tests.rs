@@ -1,9 +1,14 @@
 #[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 use search::core::{EmbeddingCapability, EmbeddingConfig, LocalEmbedder};
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 use search::search::semantic::{SemanticReranker, SemanticSearch, SemanticSearchOptions};
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 use search::storage::{ChunkRecord, Database};
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 use search::text::TextProcessor;
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 use std::sync::Arc;
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 use tempfile::TempDir;
 
 #[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
