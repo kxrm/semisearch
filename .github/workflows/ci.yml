@@ -187,7 +187,12 @@ jobs:
       run: cargo audit
 
     - name: Run cargo deny (licenses and advisories)
-      uses: EmbarkStudios/cargo-deny-action@v1
+      uses: EmbarkStudios/cargo-deny-action@v2
+      with:
+        command: check
+        arguments: --all-features
+        manifest-path: ./Cargo.toml
+        log-level: warn
 
   # Documentation
   docs:

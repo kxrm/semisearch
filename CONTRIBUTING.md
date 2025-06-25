@@ -176,6 +176,9 @@ cargo test
 
 # Install CLI locally
 cargo install --path .
+
+# Install pre-commit hooks (recommended)
+./scripts/install-hooks.sh
 ```
 
 ### Dev Container
@@ -185,6 +188,25 @@ Use the provided dev container for consistent environment:
 code .
 # Select "Reopen in Container"
 ```
+
+### Pre-commit Hooks (Recommended)
+To ensure code quality, install pre-commit hooks:
+
+```bash
+# Install pre-commit hooks
+./scripts/install-hooks.sh
+
+# Or run manual checks
+./scripts/pre-commit.sh
+```
+
+The hooks will automatically:
+- ✅ Check Rust code formatting (`cargo fmt`)
+- ✅ Run Clippy linter (`cargo clippy`)
+- ✅ Run tests (`cargo test`)
+- ✅ Check for merge conflicts
+- ✅ Validate YAML files
+- ✅ Remove trailing whitespace
 
 ## 📞 Getting Help
 
