@@ -151,7 +151,18 @@ impl SearchEngine {
         let capability = LocalEmbedder::detect_capabilities();
 
         let semantic_search = match capability {
+            #[cfg(feature = "neural-embeddings")]
             EmbeddingCapability::Full | EmbeddingCapability::TfIdf => {
+                match Self::initialize_semantic_search(&capability).await {
+                    Ok(search) => Some(search),
+                    Err(e) => {
+                        println!("⚠️  Semantic search initialization failed: {e}");
+                        None
+                    }
+                }
+            }
+            #[cfg(not(feature = "neural-embeddings"))]
+            EmbeddingCapability::TfIdf => {
                 match Self::initialize_semantic_search(&capability).await {
                     Ok(search) => Some(search),
                     Err(e) => {

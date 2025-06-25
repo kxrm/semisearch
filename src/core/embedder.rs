@@ -1,4 +1,5 @@
 use anyhow::Result;
+#[cfg(feature = "neural-embeddings")]
 use futures_util::StreamExt;
 #[cfg(feature = "neural-embeddings")]
 use ort::{Environment, ExecutionProvider, Session, SessionBuilder};
@@ -6,7 +7,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+#[cfg(feature = "neural-embeddings")]
 use tokio::fs;
+#[cfg(feature = "neural-embeddings")]
 use tokio::io::AsyncWriteExt;
 // use ndarray::Array2; // TODO: Implement neural tensor operations
 
@@ -108,12 +111,6 @@ impl LocalEmbedder {
             EmbeddingCapability::None => {
                 println!("⚠️  No embedding capabilities available");
                 Err(anyhow::anyhow!("System lacks embedding capabilities"))
-            }
-            #[cfg(not(feature = "neural-embeddings"))]
-            EmbeddingCapability::Full => {
-                // Fall back to TF-IDF when neural embeddings are not available
-                println!("📊 Neural embeddings not available, using TF-IDF");
-                Self::new_tfidf_only(config).await
             }
         }
     }
@@ -293,8 +290,6 @@ impl LocalEmbedder {
             EmbeddingCapability::Full => self.embed_neural(text),
             EmbeddingCapability::TfIdf => self.embed_tfidf(text),
             EmbeddingCapability::None => Err(anyhow::anyhow!("No embedding capability available")),
-            #[cfg(not(feature = "neural-embeddings"))]
-            EmbeddingCapability::Full => self.embed_tfidf(text), // Fall back to TF-IDF
         }
     }
 
@@ -408,8 +403,6 @@ impl LocalEmbedder {
             EmbeddingCapability::Full => 384, // all-MiniLM-L6-v2 dimension
             EmbeddingCapability::TfIdf => self.vocabulary.len(),
             EmbeddingCapability::None => 0,
-            #[cfg(not(feature = "neural-embeddings"))]
-            EmbeddingCapability::Full => self.vocabulary.len(), // Fall back to vocabulary size
         }
     }
 
@@ -420,8 +413,6 @@ impl LocalEmbedder {
             EmbeddingCapability::Full => true, // Neural embeddings always ready
             EmbeddingCapability::TfIdf => !self.vocabulary.is_empty(),
             EmbeddingCapability::None => false,
-            #[cfg(not(feature = "neural-embeddings"))]
-            EmbeddingCapability::Full => !self.vocabulary.is_empty(), // Check vocabulary for fallback
         }
     }
 
@@ -432,8 +423,6 @@ impl LocalEmbedder {
             EmbeddingCapability::Full => 384, // Neural embedding dimension
             EmbeddingCapability::TfIdf => self.vocabulary.len(),
             EmbeddingCapability::None => 0,
-            #[cfg(not(feature = "neural-embeddings"))]
-            EmbeddingCapability::Full => self.vocabulary.len(), // Fall back to vocabulary size
         }
     }
 

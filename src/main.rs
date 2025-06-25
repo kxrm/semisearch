@@ -271,6 +271,7 @@ async fn determine_search_mode(
         SearchMode::Auto => {
             // Auto-detect best mode based on system capabilities
             match LocalEmbedder::detect_capabilities() {
+                #[cfg(feature = "neural-embeddings")]
                 EmbeddingCapability::Full => Ok(SearchMode::Hybrid),
                 EmbeddingCapability::TfIdf => Ok(SearchMode::Tfidf),
                 EmbeddingCapability::None => Ok(SearchMode::Keyword),
@@ -419,6 +420,7 @@ async fn run_doctor() -> Result<()> {
     println!("🧠 Detected capability: {capability:?}");
 
     match capability {
+        #[cfg(feature = "neural-embeddings")]
         EmbeddingCapability::Full => {
             println!("✅ System supports full neural embeddings");
 
@@ -458,6 +460,7 @@ async fn run_doctor() -> Result<()> {
     println!("🎯 Recommendations:");
 
     match capability {
+        #[cfg(feature = "neural-embeddings")]
         EmbeddingCapability::Full => {
             println!("   • Use 'semisearch search --semantic' for best results");
             println!("   • Run 'semisearch index --semantic <dir>' to build semantic index");
