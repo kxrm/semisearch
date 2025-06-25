@@ -333,6 +333,9 @@ jobs:
         # Build and test basic functionality with neural embeddings
         cargo build --release --features neural-embeddings
         
+        # Set library path for binary execution
+        export LD_LIBRARY_PATH="$PWD/onnxruntime-linux-x64-1.16.3/lib:$LD_LIBRARY_PATH"
+        
         # Test CLI interface
         ./target/release/semisearch --help | grep -q "search" || (echo "❌ Search command missing" && exit 1)
         ./target/release/semisearch --help | grep -q "index" || (echo "❌ Index command missing" && exit 1)
