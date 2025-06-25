@@ -551,7 +551,7 @@ async fn run_doctor() -> Result<()> {
         println!("   • Run 'semisearch index --semantic <dir>' to build semantic index");
     } else {
         for recommendation in recommendations {
-            println!("   • {recommendation}", recommendation = recommendation);
+            println!("   • {recommendation}");
         }
     }
 
