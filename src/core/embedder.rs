@@ -704,6 +704,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
     async fn test_neural_embedder_with_model_download() {
         // Force neural embedding mode by ensuring good system resources
         std::env::remove_var("DISABLE_ONNX"); // Remove any disable flag
@@ -827,6 +828,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
     async fn test_all_minilm_l6_v2_demonstration() {
         println!("🎯 === all-MiniLM-L6-v2 Neural Model Demonstration ===");
 

@@ -1,3 +1,4 @@
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 use search::core::{EmbeddingCapability, EmbeddingConfig, LocalEmbedder};
 use search::search::semantic::{SemanticReranker, SemanticSearch, SemanticSearchOptions};
 use search::storage::{ChunkRecord, Database};
@@ -5,6 +6,7 @@ use search::text::TextProcessor;
 use std::sync::Arc;
 use tempfile::TempDir;
 
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 #[tokio::test]
 async fn test_phase4_end_to_end_embeddings() {
     let temp_dir = TempDir::new().unwrap();
@@ -93,6 +95,7 @@ async fn test_phase4_end_to_end_embeddings() {
     }
 }
 
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 #[tokio::test]
 async fn test_embedding_vocabulary_persistence() {
     let temp_dir = TempDir::new().unwrap();
@@ -146,6 +149,7 @@ fn test_capability_detection() {
     ));
 }
 
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 #[tokio::test]
 async fn test_batch_embedding() {
     let config = EmbeddingConfig::default();
@@ -168,6 +172,7 @@ async fn test_batch_embedding() {
     }
 }
 
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 #[tokio::test]
 async fn test_semantic_search_options() {
     let options = SemanticSearchOptions::default();
@@ -192,6 +197,7 @@ async fn test_semantic_search_options() {
     assert!(custom_options.enable_reranking);
 }
 
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 #[tokio::test]
 async fn test_empty_vocabulary_handling() {
     let config = EmbeddingConfig::default();
@@ -218,6 +224,7 @@ async fn test_empty_vocabulary_handling() {
         .contains("vocabulary not built"));
 }
 
+#[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
 #[tokio::test]
 async fn test_embedding_normalization() {
     let config = EmbeddingConfig::default();

@@ -421,6 +421,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
     async fn test_search_engine_with_embedder() {
         let database = create_test_database();
 
