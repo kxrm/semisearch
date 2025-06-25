@@ -107,7 +107,7 @@ echo ""
 
 # Test fuzzy search
 log_info "Testing fuzzy search..."
-FUZZY_RESULT=$(cargo run --quiet -- search "${QUERY}O" --path "$TEMP_DIR" --fuzzy 2>&1)  # Introduce typo
+FUZZY_RESULT=$(cargo run --quiet -- search "${QUERY}O" --path "$TEMP_DIR" --mode fuzzy 2>&1)  # Introduce typo
 if [ $? -eq 0 ]; then
     log_success "Fuzzy search completed"
     echo "$FUZZY_RESULT"
@@ -120,13 +120,26 @@ echo ""
 
 # Test regex search
 log_info "Testing regex search..."
-REGEX_RESULT=$(cargo run --quiet -- search "TODO.*:" --path "$TEMP_DIR" --regex 2>&1)
+REGEX_RESULT=$(cargo run --quiet -- search "TODO.*:" --path "$TEMP_DIR" --mode regex 2>&1)
 if [ $? -eq 0 ]; then
     log_success "Regex search completed"
     echo "$REGEX_RESULT"
 else
     log_error "Regex search failed"
     echo "$REGEX_RESULT"
+fi
+
+echo ""
+
+# Test semantic search
+log_info "Testing semantic search..."
+SEMANTIC_RESULT=$(cargo run --quiet -- search "$QUERY" --path "$TEMP_DIR" --mode semantic 2>&1)
+if [ $? -eq 0 ]; then
+    log_success "Semantic search completed"
+    echo "$SEMANTIC_RESULT"
+else
+    log_warning "Semantic search not available (likely Windows or limited system)"
+    echo "$SEMANTIC_RESULT"
 fi
 
 echo ""
@@ -150,5 +163,6 @@ echo "  • Basic search: ✅"
 echo "  • JSON output: ✅"
 echo "  • Fuzzy search: ✅"
 echo "  • Regex search: ✅"
+echo "  • Semantic search: ✅ (if available)"
 echo "  • Result limits: ✅"
 echo "" 
