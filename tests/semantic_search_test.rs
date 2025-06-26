@@ -10,6 +10,7 @@ use search::SearchOptions;
 use std::path::Path;
 use tempfile::tempdir;
 
+#[allow(dead_code)]
 fn find_onnx_runtime() -> Option<String> {
     // 1. Check ORT_DYLIB_PATH
     if let Ok(path) = std::env::var("ORT_DYLIB_PATH") {
