@@ -87,7 +87,7 @@ All Phases 1, 2, 3, and 4 from the architecture plan have been implemented with 
 - ✅ **LocalEmbedder** - Both TF-IDF and neural embedding implementations with vocabulary building
 - ✅ **SemanticSearch** - Advanced cosine similarity search with neural and TF-IDF reranking
 - ✅ **Capability Detection** - Progressive enhancement based on system resources (Neural/TfIdf/Keyword)
-- ✅ **Model Download System** - Automatic model download with progress bars and caching
+- ✅ **Model Download System** - Automatic model download with progress display and caching
 - ✅ **Vocabulary Persistence** - Save/load embedding models for reuse across sessions
 - ✅ **Batch Processing** - Efficient embedding generation for multiple texts
 - ✅ **Cross-platform Support** - Linux, macOS, and Windows compatibility (with platform-specific handling)
@@ -100,6 +100,8 @@ All Phases 1, 2, 3, and 4 from the architecture plan have been implemented with 
 - ✅ **Normalized Vectors** - Proper vector normalization for accurate similarity calculations
 - ✅ **Thread-safe Design** - Arc-wrapped components for concurrent access
 - ✅ **Privacy-First Architecture** - All ML processing remains completely local after initial model download
+- ✅ **Lazy Evaluation** - Grep-like immediate search without mandatory indexing
+- ✅ **On-demand Embeddings** - Generate embeddings during search for immediate results
 
 **Production-Ready Features:**
 - ✅ **Progressive Enhancement** - Graceful degradation from neural → TF-IDF → keyword search
@@ -108,6 +110,7 @@ All Phases 1, 2, 3, and 4 from the architecture plan have been implemented with 
 - ✅ **Doctor Command** - System capability analysis and troubleshooting
 - ✅ **Platform Compatibility** - Neural embeddings on Linux/macOS, graceful fallback on Windows
 - ✅ **Offline-First Privacy** - No network requests after initial model download
+- ✅ **Real Neural Inference** - Actual ONNX Runtime inference with mean pooling and normalization
 
 ## Progressive Enhancement and Neural Embeddings
 
@@ -231,8 +234,19 @@ cargo run -- search "test" --whole-words
 
 ### Neural Semantic Search (Phase 4)
 ```bash
+# Check system capabilities for neural embeddings
+cargo run -- doctor
+
+# Enable neural embeddings by setting ONNX Runtime path (if not in system path)
+export ORT_DYLIB_PATH=/path/to/libonnxruntime.so
+# or
+export LD_LIBRARY_PATH=/path/to/onnxruntime/lib:$LD_LIBRARY_PATH
+
 # Neural semantic search (auto-detects system capabilities)
 cargo run -- search "error handling" --mode semantic
+
+# The first run will download the model (~90MB) if ONNX Runtime is available
+# Subsequent runs use the cached model for instant neural embeddings
 
 # Neural semantic search with custom similarity threshold
 cargo run -- search "database connection" --mode semantic --semantic-threshold 0.3
@@ -240,11 +254,14 @@ cargo run -- search "database connection" --mode semantic --semantic-threshold 0
 # Force neural embeddings (if system supports it)
 cargo run -- search "async function" --semantic
 
-# TF-IDF fallback semantic search
+# TF-IDF fallback semantic search (if ONNX Runtime not available)
 cargo run -- search "database query" --mode tfidf
 
 # Combined semantic and traditional search modes
 cargo run -- search "async function" --mode hybrid --format json
+
+# Download neural model explicitly (requires ONNX Runtime)
+cargo run -- index --semantic
 
 # Check system capabilities for neural embeddings
 cargo run -- doctor
@@ -453,6 +470,8 @@ cargo test search::semantic::tests   # Semantic search tests
 - **Caching:** Model caching in `~/.semisearch/models/`, regex compilation caching
 - **Scalability:** Resource-aware search strategies with automatic capability detection
 - **Cross-platform:** Full neural support on Linux/macOS, TF-IDF fallback on Windows
+- **Lazy Search:** Grep-like immediate results without mandatory indexing
+- **Real-time Embeddings:** Generate embeddings on-demand during search for instant results
 
 ### Performance Features
 - **Incremental Indexing:** SHA-256 change detection provides 920x speedup for unchanged files
@@ -464,6 +483,8 @@ cargo test search::semantic::tests   # Semantic search tests
 - **Configurable Limits:** Adjustable result limits and scoring thresholds
 - **Embedding Persistence:** Vocabulary models saved for reuse across sessions
 - **Progressive Enhancement:** Automatic capability detection and graceful degradation
+- **On-demand Processing:** Generate embeddings lazily as needed, not requiring pre-indexing
+- **ONNX Runtime Integration:** Hardware-accelerated inference when available
 
 ## Future Enhancements
 

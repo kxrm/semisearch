@@ -202,8 +202,11 @@ impl SearchEngine {
                     self.semantic_enhanced_search(query, &options, semantic_search)
                         .await
                 } else {
-                    // Fallback to keyword if semantic not available
-                    self.keyword_search(query, path, &options).await
+                    // Return error if semantic search explicitly requested but not available
+                    Err(anyhow::anyhow!(
+                        "Semantic search explicitly requested but not available. \
+                         Please ensure neural embeddings are enabled and the model is downloaded."
+                    ))
                 }
             }
             SearchMode::Hybrid => {
@@ -219,15 +222,26 @@ impl SearchEngine {
     }
 
     /// Determine search mode from options
-    fn determine_search_mode(&self, _options: &SearchOptions) -> SearchMode {
-        // TODO: Implement semantic search options in SearchOptions
-        // if options.no_semantic_search {
-        //     return SearchMode::Keyword;
-        // }
-        //
-        // if options.semantic_search {
-        //     return SearchMode::Semantic;
-        // }
+    fn determine_search_mode(&self, options: &SearchOptions) -> SearchMode {
+        // Check if explicit search mode is specified
+        if let Some(ref mode_str) = options.search_mode {
+            match mode_str.as_str() {
+                "semantic" => return SearchMode::Semantic,
+                "keyword" => return SearchMode::Keyword,
+                "hybrid" => return SearchMode::Hybrid,
+                "auto" => {
+                    // Auto mode: use semantic if available, otherwise keyword
+                    if self.semantic_search.is_some() {
+                        return SearchMode::Hybrid;
+                    } else {
+                        return SearchMode::Keyword;
+                    }
+                }
+                _ => {
+                    // Unknown mode, fall through to auto detection
+                }
+            }
+        }
 
         // Auto mode: use semantic if available, otherwise keyword
         if self.semantic_search.is_some() {
@@ -258,15 +272,21 @@ impl SearchEngine {
         // Get chunks with embeddings
         let chunks = self.database.get_chunks_with_embeddings()?;
 
-        let _semantic_options = SemanticSearchOptions {
-            similarity_threshold: 0.7, // TODO: Add semantic_threshold to SearchOptions
+        let semantic_options = SemanticSearchOptions {
+            similarity_threshold: options.min_score, // Use min_score as semantic threshold
             max_results: options.max_results,
-            boost_exact_matches: true,
+            boost_exact_matches: false, // Disable exact match boosting for pure semantic search
             enable_reranking: false,
             boost_recent_files: false,
         };
 
-        let semantic_results = semantic_search.search(query, &chunks, options.max_results)?;
+        // Create a semantic search instance with the custom threshold
+        let custom_semantic_search = SemanticSearch::with_threshold(
+            semantic_search.embedder().clone(),
+            semantic_options.similarity_threshold,
+        );
+        let semantic_results =
+            custom_semantic_search.search(query, &chunks, options.max_results)?;
         let mut results = Vec::new();
 
         for result in semantic_results {
