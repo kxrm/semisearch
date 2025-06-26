@@ -10,6 +10,7 @@ GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 RED='\033[0;31m'
 NC='\033[0m'
+YELLOW='\033[0;33m'
 
 log_info() {
     echo -e "${BLUE}ℹ️  $1${NC}"
@@ -21,6 +22,10 @@ log_success() {
 
 log_error() {
     echo -e "${RED}❌ $1${NC}"
+}
+
+log_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
 }
 
 # Check if query is provided
@@ -133,8 +138,12 @@ echo ""
 
 # Test semantic search
 log_info "Testing semantic search..."
+set +e  # Temporarily disable exit on error
 SEMANTIC_RESULT=$(cargo run --quiet -- search "$QUERY" --path "$TEMP_DIR" --mode semantic 2>&1)
-if [ $? -eq 0 ]; then
+SEMANTIC_EXIT_CODE=$?
+set -e  # Re-enable exit on error
+
+if [ $SEMANTIC_EXIT_CODE -eq 0 ]; then
     log_success "Semantic search completed"
     echo "$SEMANTIC_RESULT"
 else
