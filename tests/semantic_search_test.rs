@@ -106,7 +106,10 @@ async fn test_tfidf_search_integration() {
     );
 
     println!("✅ TF-IDF search integration test passed");
-    println!("   Found {} results for 'machine learning'", results.len());
+    println!(
+        "   Found {count} results for 'machine learning'",
+        count = results.len()
+    );
     for (i, result) in results.iter().enumerate() {
         println!(
             "   {}. {} (score: {:.3})",
@@ -403,7 +406,10 @@ async fn test_semantic_vs_keyword_search() {
 async fn test_onnx_runtime_detection() {
     let onnx_path = find_onnx_runtime();
     if onnx_path.is_some() {
-        println!("✅ ONNX Runtime found at: {}", onnx_path.unwrap());
+        println!(
+            "✅ ONNX Runtime found at: {path}",
+            path = onnx_path.unwrap()
+        );
     } else {
         println!("⚠️  ONNX Runtime not found - this is expected in some environments");
     }
@@ -415,7 +421,7 @@ async fn test_onnx_runtime_detection() {
 #[cfg(feature = "neural-embeddings")]
 async fn test_embedder_capability_detection() {
     let capability = LocalEmbedder::detect_capabilities();
-    println!("✅ System embedding capability: {:?}", capability);
+    println!("✅ System embedding capability: {capability:?}");
 
     // Test should pass regardless of capability
     assert!(matches!(
