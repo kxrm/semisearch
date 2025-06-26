@@ -37,6 +37,28 @@ impl CapabilityDetector {
 
     /// Check if ONNX Runtime library is available
     fn onnx_runtime_available() -> bool {
+        // First check environment variable ORT_DYLIB_PATH
+        if let Ok(ort_path) = std::env::var("ORT_DYLIB_PATH") {
+            unsafe {
+                if Library::new(&ort_path).is_ok() {
+                    return true;
+                }
+            }
+        }
+        
+        // Check LD_LIBRARY_PATH paths
+        if let Ok(ld_library_path) = std::env::var("LD_LIBRARY_PATH") {
+            for path in ld_library_path.split(':') {
+                let lib_path = PathBuf::from(path).join("libonnxruntime.so");
+                unsafe {
+                    if Library::new(lib_path).is_ok() {
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        // Check standard paths
         let lib_paths = [
             "libonnxruntime.so.1.16.0",
             "libonnxruntime.so",

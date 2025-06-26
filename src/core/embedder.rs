@@ -7,7 +7,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 #[cfg(feature = "neural-embeddings")]
 use tokio::fs;
-// use ndarray::Array2; // TODO: Implement neural tensor operations
 
 /// Embedding configuration options
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -287,11 +286,103 @@ impl LocalEmbedder {
     /// Generate neural embedding using ONNX Runtime
     #[cfg(feature = "neural-embeddings")]
     fn embed_neural(&self, text: &str) -> Result<Vec<f32>> {
-        // For now, fall back to TF-IDF while ONNX Runtime API is being finalized
-        // This maintains the architecture and allows Phase 4 to be functionally complete
-        // The neural embedding foundation is in place for future completion
-        eprintln!("🔄 Neural embedding requested, using enhanced TF-IDF (ONNX Runtime integration pending)");
-        self.embed_tfidf(text)
+        use ndarray::{Array2, CowArray};
+        
+        // Get the session and tokenizer
+        let session = self.session.as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Neural session not initialized"))?;
+        let tokenizer = self.tokenizer.as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Tokenizer not initialized"))?;
+            
+        // Check cache first for lazy evaluation
+        if let Some(cached) = self.embedding_cache.get(text) {
+            return Ok(cached.clone());
+        }
+        
+        // Tokenize the text
+        let encoding = tokenizer.encode(text, true)
+            .map_err(|e| anyhow::anyhow!("Tokenization failed: {}", e))?;
+            
+        let input_ids = encoding.get_ids();
+        let attention_mask = encoding.get_attention_mask();
+        let type_ids = encoding.get_type_ids();
+        
+        // Ensure we don't exceed max length
+        let seq_len = input_ids.len().min(self.config.max_length);
+        let input_ids = &input_ids[..seq_len];
+        let attention_mask = &attention_mask[..seq_len];
+        let type_ids = &type_ids[..seq_len];
+        
+        // Convert to i64 for ONNX
+        let input_ids: Vec<i64> = input_ids.iter().map(|&x| x as i64).collect();
+        let attention_mask: Vec<i64> = attention_mask.iter().map(|&x| x as i64).collect();
+        let type_ids: Vec<i64> = type_ids.iter().map(|&x| x as i64).collect();
+        
+        // Store attention mask for later use in pooling
+        let attention_mask_copy = attention_mask.clone();
+        
+        // Create input tensors with shape [1, sequence_length]
+        let input_ids_array = Array2::from_shape_vec((1, seq_len), input_ids)?;
+        let attention_mask_array = Array2::from_shape_vec((1, seq_len), attention_mask)?;
+        let type_ids_array = Array2::from_shape_vec((1, seq_len), type_ids)?;
+        
+        // Convert arrays to CowArray and then to dynamic dimension
+        let input_ids_dyn = CowArray::from(input_ids_array).into_dyn();
+        let attention_mask_dyn = CowArray::from(attention_mask_array).into_dyn();
+        let type_ids_dyn = CowArray::from(type_ids_array).into_dyn();
+        
+        // Create Values from the dynamic arrays
+        let input_ids_value = ort::Value::from_array(session.allocator(), &input_ids_dyn)?;
+        let attention_mask_value = ort::Value::from_array(session.allocator(), &attention_mask_dyn)?;
+        let type_ids_value = ort::Value::from_array(session.allocator(), &type_ids_dyn)?;
+        
+        let outputs = session.run(vec![input_ids_value, attention_mask_value, type_ids_value])?;
+        
+        // Extract embeddings from the output
+        // The model outputs shape: [batch_size, sequence_length, hidden_size]
+        let output_extracted = outputs[0].try_extract::<f32>()?;
+        let output_tensor = output_extracted.view();
+        let output_shape = output_tensor.shape();
+        
+        if output_shape.len() != 3 {
+            return Err(anyhow::anyhow!("Unexpected output shape: {:?}", output_shape));
+        }
+        
+        // Perform mean pooling over the sequence dimension
+        let hidden_size = output_shape[2];
+        
+        // Calculate mean pooling with attention mask
+        let mut pooled_embedding = vec![0.0f32; hidden_size];
+        let mut total_weight = 0.0f32;
+        
+        // Access the output data using the stored attention mask
+        for i in 0..seq_len {
+            let mask_value = attention_mask_copy[i] as f32;
+            if mask_value > 0.0 {
+                total_weight += mask_value;
+                for j in 0..hidden_size {
+                    // Access the embedding at position [0, i, j]
+                    pooled_embedding[j] += output_tensor[[0, i, j]] * mask_value;
+                }
+            }
+        }
+        
+        // Average by total weight
+        if total_weight > 0.0 {
+            for value in &mut pooled_embedding {
+                *value /= total_weight;
+            }
+        }
+        
+        // Normalize the embedding to unit length
+        let norm: f32 = pooled_embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+        if norm > 0.0 {
+            for value in &mut pooled_embedding {
+                *value /= norm;
+            }
+        }
+        
+        Ok(pooled_embedding)
     }
 
     /// Generate TF-IDF embedding (fallback)
@@ -727,128 +818,163 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
-    async fn test_neural_embedder_with_model_download() {
-        // Force neural embedding mode by ensuring good system resources
-        std::env::remove_var("DISABLE_ONNX"); // Remove any disable flag
-
+    #[cfg(all(feature = "neural-embeddings", not(target_os = "windows")))]
+    async fn test_neural_embeddings_actual() {
+        // This test verifies actual neural embedding generation
         let config = EmbeddingConfig::default();
-        println!("🧠 Testing neural embedder with all-MiniLM-L6-v2 model...");
-        println!("📋 Model configuration:");
-        println!("   🔤 Model: {}", config.model_name);
-        println!("   📏 Max length: {}", config.max_length);
-        println!("   📦 Batch size: {}", config.batch_size);
-        println!("   💾 Cache dir: {:?}", config.cache_dir);
 
-        // This will attempt to download and use the neural model
-        match LocalEmbedder::new(config).await {
-            Ok(embedder) => {
-                println!("✅ Neural embedder created successfully!");
-                println!("📊 Capability: {:?}", embedder.capability());
-                println!(
-                    "📏 Reported embedding dimension: {}",
-                    embedder.embedding_dim()
+        // Create embedder - this will download model if needed
+        let embedder = match LocalEmbedder::new(config).await {
+            Ok(e) => e,
+            Err(_) => {
+                eprintln!(
+                    "Skipping neural embedding test - model download or initialization failed"
                 );
-
-                // Test embedding generation
-                #[cfg(feature = "neural-embeddings")]
-                if embedder.capability() == EmbeddingCapability::Full {
-                    println!("🚀 Testing neural embedding generation...");
-                    match embedder.embed("artificial intelligence machine learning") {
-                        Ok(embedding) => {
-                            println!("✅ Embedding generated: {} dimensions", embedding.len());
-                            println!(
-                                "📈 First 5 values: {:?}",
-                                &embedding[..5.min(embedding.len())]
-                            );
-                            println!(
-                                "📈 Last 5 values: {:?}",
-                                &embedding[embedding.len().saturating_sub(5)..]
-                            );
-
-                            // Test that we get consistent embeddings
-                            let embedding2 = embedder
-                                .embed("artificial intelligence machine learning")
-                                .unwrap();
-                            assert_eq!(embedding.len(), embedding2.len());
-                            println!("✅ Consistent embedding dimensions confirmed");
-
-                            // Test different text
-                            let different_embedding =
-                                embedder.embed("cooking recipes food").unwrap();
-                            println!(
-                                "✅ Different text embedding: {} dimensions",
-                                different_embedding.len()
-                            );
-
-                            // Calculate similarity
-                            let similarity = LocalEmbedder::similarity(&embedding, &embedding2);
-                            println!("📊 Same text similarity: {similarity:.4}");
-
-                            let cross_similarity =
-                                LocalEmbedder::similarity(&embedding, &different_embedding);
-                            println!("📊 Different text similarity: {cross_similarity:.4}");
-
-                            // The actual dimension doesn't matter for the demo - what matters is that it works
-                            assert!(!embedding.is_empty());
-
-                            // For identical text, similarity should be 1.0 (or very close)
-                            if (similarity - 1.0).abs() < 0.01 {
-                                println!("✅ Perfect similarity for identical text");
-                            } else if similarity >= cross_similarity {
-                                println!("✅ Same text has higher similarity than different text");
-                            } else {
-                                println!("⚠️  TF-IDF similarity may be 0.0 for short texts without shared vocabulary");
-                                // This is acceptable for TF-IDF with limited vocabulary
-                            }
-                        }
-                        Err(e) => {
-                            println!("⚠️  Neural embedding failed, but embedder was created: {e}");
-                        }
-                    }
-                } else {
-                    println!("📊 Fell back to TF-IDF mode despite neural setup");
-                }
-
-                // Test batch processing
-                println!("🔄 Testing batch embedding...");
-                let texts = vec![
-                    "machine learning algorithms".to_string(),
-                    "deep neural networks".to_string(),
-                    "natural language processing".to_string(),
-                ];
-
-                match embedder.embed_batch(&texts) {
-                    Ok(batch_embeddings) => {
-                        println!(
-                            "✅ Batch embeddings generated: {} texts",
-                            batch_embeddings.len()
-                        );
-                        for (i, emb) in batch_embeddings.iter().enumerate() {
-                            println!("   📄 Text {}: {} dimensions", i + 1, emb.len());
-                        }
-                    }
-                    Err(e) => {
-                        println!("⚠️  Batch embedding failed: {e}");
-                    }
-                }
+                return;
             }
-            Err(e) => {
-                println!("⚠️  Neural embedder creation failed (expected in test environment): {e}");
-                println!("📊 This demonstrates the fallback mechanism working correctly");
+        };
 
-                // Verify fallback works
-                std::env::set_var("DISABLE_ONNX", "1");
-                let fallback_embedder = LocalEmbedder::new(EmbeddingConfig::default())
-                    .await
-                    .unwrap();
-                assert_eq!(fallback_embedder.capability(), EmbeddingCapability::TfIdf);
-                println!("✅ Fallback to TF-IDF confirmed");
-                std::env::remove_var("DISABLE_ONNX");
-            }
+        // Only run if we have neural capabilities
+        if embedder.capability() != EmbeddingCapability::Full {
+            eprintln!("Skipping neural embedding test - system doesn't support neural embeddings");
+            return;
         }
 
-        println!("🎯 all-MiniLM-L6-v2 Neural Model Demonstration Complete!");
+        // Test embedding generation for different texts
+        let text1 = "artificial intelligence and machine learning";
+        let text2 = "cooking recipes and food preparation";
+        let text3 = "artificial intelligence and machine learning"; // Same as text1
+
+        // Generate embeddings
+        let embedding1 = embedder.embed(text1).unwrap();
+        let embedding2 = embedder.embed(text2).unwrap();
+        let embedding3 = embedder.embed(text3).unwrap();
+
+        // Verify embedding properties
+        assert_eq!(embedding1.len(), 384, "Expected 384-dimensional embeddings");
+        assert_eq!(embedding2.len(), 384, "Expected 384-dimensional embeddings");
+        assert_eq!(embedding3.len(), 384, "Expected 384-dimensional embeddings");
+
+        // Verify embeddings are normalized (unit length)
+        let norm1: f32 = embedding1.iter().map(|x| x * x).sum::<f32>().sqrt();
+        let norm2: f32 = embedding2.iter().map(|x| x * x).sum::<f32>().sqrt();
+        assert!((norm1 - 1.0).abs() < 0.01, "Embedding should be normalized");
+        assert!((norm2 - 1.0).abs() < 0.01, "Embedding should be normalized");
+
+        // Verify same text produces same embedding
+        let similarity_same = LocalEmbedder::similarity(&embedding1, &embedding3);
+        assert!(
+            similarity_same > 0.99,
+            "Same text should produce nearly identical embeddings"
+        );
+
+        // Verify different texts produce different embeddings
+        let similarity_diff = LocalEmbedder::similarity(&embedding1, &embedding2);
+        assert!(
+            similarity_diff < 0.9,
+            "Different texts should produce different embeddings"
+        );
+        assert!(
+            similarity_diff > -0.5,
+            "Embeddings should not be completely opposite"
+        );
+
+        // Test semantic similarity
+        let tech_text = "deep learning neural networks";
+        let food_text = "baking bread in the oven";
+
+        let tech_embedding = embedder.embed(tech_text).unwrap();
+        let food_embedding = embedder.embed(food_text).unwrap();
+
+        // Tech text should be more similar to AI text than food text
+        let tech_ai_similarity = LocalEmbedder::similarity(&embedding1, &tech_embedding);
+        let food_ai_similarity = LocalEmbedder::similarity(&embedding1, &food_embedding);
+
+        assert!(
+            tech_ai_similarity > food_ai_similarity,
+            "Tech text should be more similar to AI text than food text"
+        );
+    }
+
+    #[tokio::test]
+    #[cfg(all(feature = "neural-embeddings", not(target_os = "windows")))]
+    async fn test_neural_embeddings_caching() {
+        let config = EmbeddingConfig::default();
+
+        // Create embedder with neural capabilities
+        let mut embedder = match LocalEmbedder::new(config).await {
+            Ok(e) => e,
+            Err(_) => {
+                eprintln!("Skipping caching test - embedder initialization failed");
+                return;
+            }
+        };
+
+        if embedder.capability() != EmbeddingCapability::Full {
+            eprintln!("Skipping caching test - system doesn't support neural embeddings");
+            return;
+        }
+
+        // Enable caching by adding to cache manually (since it's not implemented in embed_neural yet)
+        let text = "test caching functionality";
+        let embedding1 = embedder.embed(text).unwrap();
+
+        // Manually add to cache for testing
+        embedder
+            .embedding_cache
+            .insert(text.to_string(), embedding1.clone());
+
+        // Second call should use cache
+        let embedding2 = embedder.embed(text).unwrap();
+
+        // Should be exactly the same
+        assert_eq!(
+            embedding1, embedding2,
+            "Cached embeddings should be identical"
+        );
+    }
+
+    #[tokio::test]
+    #[cfg(all(feature = "neural-embeddings", not(target_os = "windows")))]
+    async fn test_neural_embeddings_batch() {
+        let config = EmbeddingConfig::default();
+
+        let embedder = match LocalEmbedder::new(config).await {
+            Ok(e) => e,
+            Err(_) => {
+                eprintln!("Skipping batch test - embedder initialization failed");
+                return;
+            }
+        };
+
+        if embedder.capability() != EmbeddingCapability::Full {
+            eprintln!("Skipping batch test - system doesn't support neural embeddings");
+            return;
+        }
+
+        // Test batch processing
+        let texts = vec![
+            "first document about AI".to_string(),
+            "second document about cooking".to_string(),
+            "third document about sports".to_string(),
+        ];
+
+        let batch_embeddings = embedder.embed_batch(&texts).unwrap();
+
+        assert_eq!(batch_embeddings.len(), 3, "Should have 3 embeddings");
+        assert!(
+            batch_embeddings.iter().all(|e| e.len() == 384),
+            "All embeddings should be 384-dimensional"
+        );
+
+        // Verify each embedding is normalized
+        for embedding in &batch_embeddings {
+            let norm: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+            assert!(
+                (norm - 1.0).abs() < 0.01,
+                "Each embedding should be normalized"
+            );
+        }
     }
 
     #[tokio::test]
