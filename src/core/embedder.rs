@@ -135,6 +135,60 @@ impl LocalEmbedder {
         Self::new(config).await
     }
 
+    /// Create embedder with forced neural mode for semantic search requests
+    /// This function attempts to download the model if it's missing and ONNX is available
+    #[cfg(feature = "neural-embeddings")]
+    pub async fn new_with_semantic_request(config: EmbeddingConfig) -> Result<Self> {
+        // Check if ONNX and resources are available
+        match crate::capability_detector::CapabilityDetector::detect_neural_capability() {
+            crate::capability_detector::NeuralCapability::Available => {
+                // Model exists, proceed with neural initialization
+                Self::new(config).await
+            }
+            crate::capability_detector::NeuralCapability::ModelMissing => {
+                // Model is missing but ONNX and resources are available
+                // Attempt to download the model
+                eprintln!("📥 Neural model missing, attempting download for semantic search...");
+                match Self::initialize_neural_embedder(&config).await {
+                    Ok((session, tokenizer)) => {
+                        eprintln!("✅ Neural embeddings initialized successfully");
+                        Ok(Self {
+                            config,
+                            session: Some(session),
+                            tokenizer: Some(tokenizer),
+                            vocabulary: Arc::new(HashMap::new()),
+                            idf_scores: Arc::new(HashMap::new()),
+                            embedding_cache: HashMap::new(),
+                            capability: EmbeddingCapability::Full,
+                        })
+                    }
+                    Err(e) => {
+                        eprintln!("⚠️  Model download failed: {e}");
+                        eprintln!("🔄 Falling back to TF-IDF embeddings");
+                        Self::new_tfidf_only(config).await
+                    }
+                }
+            }
+            crate::capability_detector::NeuralCapability::Unavailable(reason) => {
+                eprintln!("⚠️  Neural embeddings unavailable: {reason}");
+                eprintln!("🔄 Falling back to TF-IDF embeddings");
+                Self::new_tfidf_only(config).await
+            }
+            crate::capability_detector::NeuralCapability::Insufficient(reason) => {
+                eprintln!("⚠️  Neural embeddings insufficient: {reason}");
+                eprintln!("🔄 Falling back to TF-IDF embeddings");
+                Self::new_tfidf_only(config).await
+            }
+        }
+    }
+
+    #[cfg(not(feature = "neural-embeddings"))]
+    pub async fn new_with_semantic_request(config: EmbeddingConfig) -> Result<Self> {
+        eprintln!("⚠️  Neural embeddings not compiled");
+        eprintln!("🔄 Using TF-IDF embeddings");
+        Self::new_tfidf_only(config).await
+    }
+
     /// Initialize neural embedding components
     #[cfg(feature = "neural-embeddings")]
     async fn initialize_neural_embedder(
@@ -252,16 +306,17 @@ impl LocalEmbedder {
                 crate::capability_detector::NeuralCapability::Available => {
                     EmbeddingCapability::Full
                 }
+                crate::capability_detector::NeuralCapability::ModelMissing => {
+                    // Model is missing but ONNX and resources are available
+                    // Return Full capability so embedder can attempt download
+                    EmbeddingCapability::Full
+                }
                 crate::capability_detector::NeuralCapability::Unavailable(reason) => {
                     eprintln!("📊 Neural embeddings unavailable: {reason} (using TF-IDF)");
                     EmbeddingCapability::TfIdf
                 }
                 crate::capability_detector::NeuralCapability::Insufficient(reason) => {
                     eprintln!("📊 Neural embeddings insufficient: {reason} (using TF-IDF)");
-                    EmbeddingCapability::TfIdf
-                }
-                crate::capability_detector::NeuralCapability::NoModel(reason) => {
-                    eprintln!("📊 Neural model missing: {reason} (using TF-IDF)");
                     EmbeddingCapability::TfIdf
                 }
             }

@@ -6,9 +6,9 @@ use sys_info;
 #[derive(Debug, Clone, PartialEq)]
 pub enum NeuralCapability {
     Available,
+    ModelMissing, // ONNX and resources available, but model needs download
     Unavailable(&'static str),
     Insufficient(&'static str),
-    NoModel(&'static str),
 }
 
 /// Detects system capabilities for neural embeddings
@@ -17,6 +17,11 @@ pub struct CapabilityDetector;
 impl CapabilityDetector {
     /// Detect neural embedding capability at runtime
     pub fn detect_neural_capability() -> NeuralCapability {
+        // Check 0: Environment variable override (for testing)
+        if std::env::var("DISABLE_ONNX").is_ok() {
+            return NeuralCapability::Unavailable("ONNX disabled by environment variable");
+        }
+
         // Check 1: ONNX Runtime library available
         if !Self::onnx_runtime_available() {
             return NeuralCapability::Unavailable("ONNX Runtime not found");
@@ -27,12 +32,12 @@ impl CapabilityDetector {
             return NeuralCapability::Insufficient("Insufficient RAM (< 4GB)");
         }
 
-        // Check 3: Neural model available
-        if !Self::neural_model_available() {
-            return NeuralCapability::NoModel("Neural model not downloaded");
+        // Check 3: Neural model available (but don't require it for capability detection)
+        if Self::neural_model_available() {
+            NeuralCapability::Available
+        } else {
+            NeuralCapability::ModelMissing
         }
-
-        NeuralCapability::Available
     }
 
     /// Check if ONNX Runtime library is available
@@ -45,7 +50,6 @@ impl CapabilityDetector {
                 }
             }
         }
-
         // Check LD_LIBRARY_PATH paths
         if let Ok(ld_library_path) = std::env::var("LD_LIBRARY_PATH") {
             for path in ld_library_path.split(':') {
@@ -57,7 +61,6 @@ impl CapabilityDetector {
                 }
             }
         }
-
         // Check standard paths
         let lib_paths = [
             "libonnxruntime.so.1.16.0",

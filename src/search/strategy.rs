@@ -1,7 +1,10 @@
 use crate::core::embedder::{EmbeddingCapability, LocalEmbedder};
 use crate::search::semantic::{SemanticSearch, SemanticSearchOptions};
 use crate::storage::Database;
+use crate::text::TextProcessor;
 use anyhow::Result;
+use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
 
 // Use the main types from lib.rs
@@ -199,7 +202,7 @@ impl SearchEngine {
             SearchMode::Keyword => self.keyword_search(query, path, &options).await,
             SearchMode::Semantic => {
                 if let Some(ref semantic_search) = self.semantic_search {
-                    self.semantic_enhanced_search(query, &options, semantic_search)
+                    self.semantic_enhanced_search(query, path, &options, semantic_search)
                         .await
                 } else {
                     // Return error if semantic search explicitly requested but not available
@@ -266,27 +269,45 @@ impl SearchEngine {
     async fn semantic_enhanced_search(
         &self,
         query: &str,
+        path: &str,
         options: &SearchOptions,
         semantic_search: &SemanticSearch,
     ) -> Result<Vec<SearchResult>> {
-        // Get chunks with embeddings
-        let chunks = self.database.get_chunks_with_embeddings()?;
+        // Try to get pre-indexed chunks first
+        if let Ok(chunks) = self.database.get_chunks_with_embeddings() {
+            if !chunks.is_empty() {
+                return self
+                    .semantic_search_indexed(query, options, semantic_search, &chunks)
+                    .await;
+            }
+        }
 
+        // Fall back to lazy semantic search - process files on-demand
+        self.lazy_semantic_search(query, path, options, semantic_search)
+            .await
+    }
+
+    /// Semantic search using pre-indexed chunks
+    async fn semantic_search_indexed(
+        &self,
+        query: &str,
+        options: &SearchOptions,
+        semantic_search: &SemanticSearch,
+        chunks: &[crate::storage::ChunkRecord],
+    ) -> Result<Vec<SearchResult>> {
         let semantic_options = SemanticSearchOptions {
-            similarity_threshold: options.min_score, // Use min_score as semantic threshold
+            similarity_threshold: options.min_score,
             max_results: options.max_results,
-            boost_exact_matches: false, // Disable exact match boosting for pure semantic search
+            boost_exact_matches: false,
             enable_reranking: false,
             boost_recent_files: false,
         };
 
-        // Create a semantic search instance with the custom threshold
         let custom_semantic_search = SemanticSearch::with_threshold(
             semantic_search.embedder().clone(),
             semantic_options.similarity_threshold,
         );
-        let semantic_results =
-            custom_semantic_search.search(query, &chunks, options.max_results)?;
+        let semantic_results = custom_semantic_search.search(query, chunks, options.max_results)?;
         let mut results = Vec::new();
 
         for result in semantic_results {
@@ -302,6 +323,176 @@ impl SearchEngine {
         Ok(results)
     }
 
+    /// Lazy semantic search - process files on-demand
+    async fn lazy_semantic_search(
+        &self,
+        query: &str,
+        path: &str,
+        options: &SearchOptions,
+        semantic_search: &SemanticSearch,
+    ) -> Result<Vec<SearchResult>> {
+        use ignore::WalkBuilder;
+
+        let mut results = Vec::new();
+        let text_processor = TextProcessor::new();
+
+        // First pass: collect all file contents to build vocabulary
+        let mut all_contents = Vec::new();
+        let walker = WalkBuilder::new(path)
+            .follow_links(false)
+            .git_ignore(true)
+            .build();
+
+        for entry in walker {
+            let entry = entry?;
+            if entry.file_type().is_some_and(|ft| ft.is_file()) {
+                if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                    all_contents.push(content);
+                }
+            }
+        }
+
+        // Build vocabulary from all documents if using TF-IDF
+        let embedder = semantic_search.embedder();
+        if embedder.capability() == crate::core::embedder::EmbeddingCapability::TfIdf {
+            // Create a new embedder with vocabulary built from all documents
+            let config = crate::core::embedder::EmbeddingConfig::default();
+            let mut new_embedder = crate::core::embedder::LocalEmbedder::with_vocabulary(
+                config,
+                HashMap::new(),
+                HashMap::new(),
+            );
+
+            if let Ok(()) = new_embedder.build_vocabulary(&all_contents) {
+                // Create a new semantic search with the vocabulary-built embedder
+                let semantic_search_with_vocab = SemanticSearch::new(Arc::new(new_embedder));
+
+                // Generate query embedding once
+                let query_embedding = semantic_search_with_vocab.embedder().embed(query)?;
+
+                // Second pass: search each file
+                let walker = WalkBuilder::new(path)
+                    .follow_links(false)
+                    .git_ignore(true)
+                    .build();
+
+                for entry in walker {
+                    let entry = entry?;
+                    if entry.file_type().is_some_and(|ft| ft.is_file()) {
+                        if let Some(file_results) = self
+                            .semantic_search_in_file(
+                                entry.path(),
+                                query,
+                                &query_embedding,
+                                options,
+                                &semantic_search_with_vocab,
+                                &text_processor,
+                            )
+                            .await?
+                        {
+                            results.extend(file_results);
+                        }
+                    }
+                }
+            }
+        } else {
+            // Neural embeddings don't need vocabulary building
+            let query_embedding = embedder.embed(query)?;
+
+            let walker = WalkBuilder::new(path)
+                .follow_links(false)
+                .git_ignore(true)
+                .build();
+
+            for entry in walker {
+                let entry = entry?;
+                if entry.file_type().is_some_and(|ft| ft.is_file()) {
+                    if let Some(file_results) = self
+                        .semantic_search_in_file(
+                            entry.path(),
+                            query,
+                            &query_embedding,
+                            options,
+                            semantic_search,
+                            &text_processor,
+                        )
+                        .await?
+                    {
+                        results.extend(file_results);
+                    }
+                }
+            }
+        }
+
+        // Sort by score (descending)
+        results.sort_by(|a, b| {
+            let score_a = a.score.unwrap_or(0.0);
+            let score_b = b.score.unwrap_or(0.0);
+            score_b
+                .partial_cmp(&score_a)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        // Filter by minimum score and limit results
+        results.retain(|r| r.score.unwrap_or(1.0) >= options.min_score);
+        results.truncate(options.max_results);
+
+        Ok(results)
+    }
+
+    /// Search semantically within a single file
+    async fn semantic_search_in_file(
+        &self,
+        file_path: &Path,
+        _query: &str,
+        query_embedding: &[f32],
+        options: &SearchOptions,
+        semantic_search: &SemanticSearch,
+        text_processor: &TextProcessor,
+    ) -> Result<Option<Vec<SearchResult>>> {
+        // Skip binary files
+        if let Some(extension) = file_path.extension() {
+            let ext = extension.to_string_lossy().to_lowercase();
+            if matches!(
+                ext.as_str(),
+                "exe" | "dll" | "so" | "dylib" | "bin" | "obj" | "o" | "a" | "lib"
+            ) {
+                return Ok(None);
+            }
+        }
+
+        let content = match std::fs::read_to_string(file_path) {
+            Ok(content) => content,
+            Err(_) => return Ok(None), // Skip files we can't read
+        };
+
+        // Process file into chunks
+        let chunks = text_processor.process_file(&content);
+        let mut results = Vec::new();
+
+        // Embed and search each chunk
+        for chunk in chunks {
+            let chunk_embedding = semantic_search.embedder().embed(&chunk.content)?;
+            let similarity = LocalEmbedder::similarity(query_embedding, &chunk_embedding);
+
+            if similarity >= options.min_score {
+                results.push(SearchResult {
+                    file_path: file_path.to_string_lossy().to_string(),
+                    line_number: chunk.line_number,
+                    content: chunk.content,
+                    score: Some(similarity),
+                    match_type: Some(MatchType::Semantic),
+                });
+            }
+        }
+
+        if results.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(results))
+        }
+    }
+
     /// Hybrid search combining keyword and semantic
     async fn hybrid_search(
         &self,
@@ -313,7 +504,7 @@ impl SearchEngine {
         // Get both keyword and semantic results
         let keyword_results = self.keyword_search(query, path, options).await?;
         let semantic_results = self
-            .semantic_enhanced_search(query, options, semantic_search)
+            .semantic_enhanced_search(query, path, options, semantic_search)
             .await
             .unwrap_or_default();
 
