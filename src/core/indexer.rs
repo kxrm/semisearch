@@ -257,13 +257,26 @@ impl FileIndexer {
 
         // Store chunks in database
         for chunk in &chunks {
+            // Generate embedding if embedder is available
+            let embedding = if let Some(ref embedder) = self.embedder {
+                match embedder.embed(&chunk.content) {
+                    Ok(emb) => Some(emb),
+                    Err(e) => {
+                        eprintln!("Warning: Failed to generate embedding for chunk: {e}");
+                        None
+                    }
+                }
+            } else {
+                None
+            };
+
             self.database.insert_chunk(
                 file_id,
                 chunk.line_number,
                 chunk.start_char,
                 chunk.end_char,
                 &chunk.content,
-                None, // No embeddings in Phase 2
+                embedding.as_deref(),
             )?;
         }
 

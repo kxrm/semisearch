@@ -132,6 +132,11 @@ impl SemanticSearch {
             0
         }
     }
+
+    /// Get a reference to the embedder
+    pub fn embedder(&self) -> &Arc<LocalEmbedder> {
+        &self.embedder
+    }
 }
 
 /// Semantic search options

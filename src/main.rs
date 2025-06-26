@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand, ValueEnum};
 use search::capability_detector::CapabilityDetector;
 use search::core::embedder::{EmbeddingCapability, EmbeddingConfig, LocalEmbedder};
-use search::core::indexer::FileIndexer;
+use search::core::indexer::{FileIndexer, IndexerConfig};
 use search::search::strategy::SearchEngine;
 use search::storage::database::Database;
 use search::{SearchOptions, SearchResult};
@@ -160,6 +160,15 @@ async fn main() -> Result<()> {
                 case_sensitive,
                 typo_tolerance,
                 max_edit_distance: 2,
+                search_mode: Some(match final_mode {
+                    SearchMode::Semantic => "semantic".to_string(),
+                    SearchMode::Keyword => "keyword".to_string(),
+                    SearchMode::Hybrid => "hybrid".to_string(),
+                    SearchMode::Fuzzy => "fuzzy".to_string(),
+                    SearchMode::Regex => "regex".to_string(),
+                    SearchMode::Tfidf => "tfidf".to_string(),
+                    SearchMode::Auto => "auto".to_string(),
+                }),
             };
 
             // Initialize database
@@ -213,7 +222,7 @@ async fn main() -> Result<()> {
                 LocalEmbedder::detect_capabilities() != EmbeddingCapability::None
             };
 
-            let _embedder = if build_semantic {
+            let embedder = if build_semantic {
                 match create_embedder().await {
                     Ok(emb) => {
                         println!("✅ Semantic embeddings will be generated during indexing");
@@ -230,7 +239,15 @@ async fn main() -> Result<()> {
                 None
             };
 
-            let indexer = FileIndexer::new(database);
+            let indexer = if let Some(emb) = embedder {
+                let config = IndexerConfig {
+                    enable_embeddings: true,
+                    ..Default::default()
+                };
+                FileIndexer::with_embedder(database, config, emb)
+            } else {
+                FileIndexer::new(database)
+            };
             let stats = indexer.index_directory(std::path::Path::new(&path))?;
 
             println!("✅ Indexing complete:");

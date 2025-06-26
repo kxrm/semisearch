@@ -47,6 +47,7 @@ pub struct SearchOptions {
     pub case_sensitive: bool,
     pub typo_tolerance: bool,
     pub max_edit_distance: usize,
+    pub search_mode: Option<String>,
 }
 
 impl Default for SearchOptions {
@@ -59,6 +60,7 @@ impl Default for SearchOptions {
             case_sensitive: false,
             typo_tolerance: false, // Disabled by default to avoid false positives
             max_edit_distance: 2,
+            search_mode: None, // Default to None (auto-detect)
         }
     }
 }
@@ -297,6 +299,7 @@ mod tests {
             case_sensitive: false,
             typo_tolerance: true,
             max_edit_distance: 2,
+            search_mode: None,
         };
         let results = search_files("todo", temp_dir.path().to_str().unwrap(), &options).unwrap();
 
@@ -339,6 +342,7 @@ mod tests {
             case_sensitive: false,
             typo_tolerance: true,
             max_edit_distance: 2,
+            search_mode: None,
         };
         let results = search_files("todo", temp_dir.path().to_str().unwrap(), &options).unwrap();
 
@@ -356,6 +360,7 @@ mod tests {
             case_sensitive: false,
             typo_tolerance: true,
             max_edit_distance: 2,
+            search_mode: None,
         };
         let results = search_files("todo", temp_dir.path().to_str().unwrap(), &options).unwrap();
         assert!(results.is_empty());
@@ -380,6 +385,7 @@ mod tests {
             case_sensitive: false,
             typo_tolerance: true,
             max_edit_distance: 2,
+            search_mode: None,
         };
 
         // Test fuzzy matching with typos - use a query that won't match exactly
@@ -408,6 +414,7 @@ mod tests {
             case_sensitive: false,
             typo_tolerance: true,
             max_edit_distance: 2,
+            search_mode: None,
         };
 
         // Test regex pattern matching
@@ -441,6 +448,7 @@ mod tests {
             case_sensitive: true,
             typo_tolerance: true,
             max_edit_distance: 2,
+            search_mode: None,
         };
 
         // Test case-sensitive search
@@ -463,6 +471,7 @@ mod tests {
             case_sensitive: false,
             typo_tolerance: true,
             max_edit_distance: 2,
+            search_mode: None,
         };
 
         let results = search_files("todo", temp_dir.path().to_str().unwrap(), &options).unwrap();
@@ -490,6 +499,7 @@ mod tests {
             fuzzy_matching: true,
             typo_tolerance: true,
             max_edit_distance: 2,
+            search_mode: None,
             ..Default::default()
         };
 
