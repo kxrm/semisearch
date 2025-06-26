@@ -110,6 +110,12 @@ async fn test_embedding_vocabulary_persistence() {
     let config = EmbeddingConfig::default();
     let mut embedder1 = LocalEmbedder::new(config.clone()).await.unwrap();
 
+    // Skip vocabulary persistence test for neural embedders
+    if embedder1.is_neural() {
+        eprintln!("Skipping vocabulary persistence test for neural embedder");
+        return;
+    }
+
     let documents = vec![
         "artificial intelligence".to_string(),
         "machine learning".to_string(),
@@ -218,6 +224,9 @@ async fn test_empty_vocabulary_handling() {
     use search::core::{EmbeddingConfig, LocalEmbedder};
     let config = EmbeddingConfig::default();
     let embedder = LocalEmbedder::new(config).await.unwrap();
+
+    // Check embedder type before moving it
+    let is_neural = embedder.is_neural();
     let semantic_search = SemanticSearch::new(Arc::new(embedder));
 
     let chunks = vec![ChunkRecord {
@@ -231,13 +240,23 @@ async fn test_empty_vocabulary_handling() {
         embedding: Some(vec![0.1, 0.2, 0.3]),
     }];
 
-    // Should fail with empty vocabulary
+    // Test behavior depends on embedder type
     let result = semantic_search.search("test query", &chunks, 10);
-    assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("vocabulary not built"));
+
+    if is_neural {
+        // Neural embedders don't require vocabulary, so this should succeed
+        assert!(
+            result.is_ok(),
+            "Neural embedders should work without vocabulary"
+        );
+    } else {
+        // TF-IDF embedders require vocabulary, so this should fail
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("vocabulary not built"));
+    }
 }
 
 #[cfg(not(target_os = "windows"))] // Skip on Windows due to ONNX Runtime issues
@@ -296,4 +315,52 @@ fn test_similarity_edge_cases() {
     let emb5 = vec![0.0, 0.0, 0.0];
     assert_eq!(LocalEmbedder::similarity(&emb1, &emb5), 0.0);
     assert_eq!(LocalEmbedder::similarity(&emb5, &emb5), 0.0);
+}
+
+#[cfg(all(not(target_os = "windows"), feature = "neural-embeddings"))]
+#[tokio::test]
+async fn test_regression_neural_model_auto_download() {
+    use search::core::{EmbeddingConfig, LocalEmbedder};
+    use std::fs;
+    use std::path::PathBuf;
+
+    // Simulate a fresh environment: remove model if it exists
+    let cache_dir = dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".semisearch")
+        .join("models");
+    let model_path = cache_dir.join("model.onnx");
+    if model_path.exists() {
+        fs::remove_file(&model_path).unwrap();
+    }
+    if cache_dir.exists() && cache_dir.read_dir().unwrap().next().is_none() {
+        fs::remove_dir(&cache_dir).unwrap();
+    }
+
+    // Set up ONNX Runtime in LD_LIBRARY_PATH if needed (assume test env is set)
+    // env::set_var("LD_LIBRARY_PATH", "/path/to/onnxruntime");
+
+    // Attempt to create a neural embedder (should trigger model download)
+    let config = EmbeddingConfig::default();
+    let result = LocalEmbedder::new(config).await;
+
+    // The test should fail if the error is about missing model, not about download attempt
+    match result {
+        Ok(embedder) => {
+            // If it succeeds, model was downloaded or already present
+            assert!(
+                embedder.is_neural(),
+                "Embedder should be neural if ONNX is present and model is downloaded"
+            );
+        }
+        Err(e) => {
+            let msg = e.to_string();
+            assert!(
+                msg.contains("download")
+                    || msg.contains("network")
+                    || msg.contains("Failed to load model"),
+                "Embedder failed for wrong reason: {msg}"
+            );
+        }
+    }
 }

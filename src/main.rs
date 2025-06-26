@@ -177,7 +177,8 @@ async fn main() -> Result<()> {
 
             // Initialize embedder if needed
             let embedder = if matches!(final_mode, SearchMode::Semantic | SearchMode::Hybrid) {
-                match create_embedder().await {
+                let semantic_requested = semantic || matches!(final_mode, SearchMode::Semantic);
+                match create_embedder(semantic_requested).await {
                     Ok(emb) => Some(emb),
                     Err(e) => {
                         println!("⚠️  Semantic search unavailable: {e}");
@@ -223,7 +224,7 @@ async fn main() -> Result<()> {
             };
 
             let embedder = if build_semantic {
-                match create_embedder().await {
+                match create_embedder(semantic).await {
                     Ok(emb) => {
                         println!("✅ Semantic embeddings will be generated during indexing");
                         Some(emb)
@@ -308,9 +309,16 @@ async fn determine_search_mode(
     }
 }
 
-async fn create_embedder() -> Result<LocalEmbedder> {
+async fn create_embedder(semantic_requested: bool) -> Result<LocalEmbedder> {
     let config = EmbeddingConfig::default();
-    LocalEmbedder::new(config).await
+
+    if semantic_requested {
+        // Use the new function that attempts model download for semantic requests
+        LocalEmbedder::new_with_semantic_request(config).await
+    } else {
+        // Use the regular function for auto-detection
+        LocalEmbedder::new(config).await
+    }
 }
 
 fn get_database_path() -> Result<PathBuf> {
@@ -514,7 +522,7 @@ async fn run_doctor() -> Result<()> {
 
             // Test embedder creation
             print!("🧪 Testing embedder initialization... ");
-            match create_embedder().await {
+            match create_embedder(true).await {
                 Ok(_) => println!("✅ Success"),
                 Err(e) => println!("❌ Failed: {e}"),
             }
@@ -524,7 +532,7 @@ async fn run_doctor() -> Result<()> {
 
             // Test TF-IDF embedder
             print!("🧪 Testing TF-IDF embedder... ");
-            match create_embedder().await {
+            match create_embedder(true).await {
                 Ok(_) => println!("✅ Success"),
                 Err(e) => println!("❌ Failed: {e}"),
             }
