@@ -82,7 +82,9 @@ impl CapabilityDetector {
         let model_available = Self::neural_model_available();
 
         let memory_info = sys_info::mem_info().ok();
-        let cpu_count = num_cpus::get();
+        let cpu_count = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1);
 
         CapabilityDetails {
             onnx_available,

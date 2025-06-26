@@ -1,7 +1,5 @@
 use anyhow::Result;
 #[cfg(feature = "neural-embeddings")]
-use futures_util::StreamExt;
-#[cfg(feature = "neural-embeddings")]
 use ort::{Environment, ExecutionProvider, Session, SessionBuilder};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -9,8 +7,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 #[cfg(feature = "neural-embeddings")]
 use tokio::fs;
-#[cfg(feature = "neural-embeddings")]
-use tokio::io::AsyncWriteExt;
 // use ndarray::Array2; // TODO: Implement neural tensor operations
 
 /// Embedding configuration options
@@ -197,31 +193,22 @@ impl LocalEmbedder {
     async fn download_model(model_path: &Path, model_name: &str) -> Result<()> {
         println!("📥 Downloading neural embedding model (first time setup)...");
 
-        let pb = indicatif::ProgressBar::new(100);
-        pb.set_style(
-            indicatif::ProgressStyle::default_bar()
-                .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
-                .unwrap()
-        );
-
         let url = format!("https://huggingface.co/{model_name}/resolve/main/onnx/model.onnx");
 
         let response = reqwest::get(&url).await?;
         let total_size = response.content_length().unwrap_or(0);
-        pb.set_length(total_size);
 
-        let mut file = fs::File::create(model_path).await?;
-        let mut downloaded = 0u64;
-        let mut stream = response.bytes_stream();
-
-        while let Some(chunk) = stream.next().await {
-            let chunk = chunk?;
-            file.write_all(&chunk).await?;
-            downloaded += chunk.len() as u64;
-            pb.set_position(downloaded);
+        if total_size > 0 {
+            println!("📦 Model size: {:.2} MB", total_size as f64 / 1_048_576.0);
         }
 
-        pb.finish_with_message("✅ Neural model downloaded successfully");
+        // Download the entire content at once instead of streaming
+        let content = response.bytes().await?;
+
+        // Write to file
+        fs::write(model_path, content).await?;
+
+        println!("✅ Neural model downloaded successfully");
         Ok(())
     }
 
