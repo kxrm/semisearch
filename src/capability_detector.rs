@@ -45,7 +45,7 @@ impl CapabilityDetector {
                 }
             }
         }
-        
+
         // Check LD_LIBRARY_PATH paths
         if let Ok(ld_library_path) = std::env::var("LD_LIBRARY_PATH") {
             for path in ld_library_path.split(':') {
@@ -57,7 +57,7 @@ impl CapabilityDetector {
                 }
             }
         }
-        
+
         // Check standard paths
         let lib_paths = [
             "libonnxruntime.so.1.16.0",

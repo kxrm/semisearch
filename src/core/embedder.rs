@@ -287,74 +287,83 @@ impl LocalEmbedder {
     #[cfg(feature = "neural-embeddings")]
     fn embed_neural(&self, text: &str) -> Result<Vec<f32>> {
         use ndarray::{Array2, CowArray};
-        
+
         // Get the session and tokenizer
-        let session = self.session.as_ref()
+        let session = self
+            .session
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Neural session not initialized"))?;
-        let tokenizer = self.tokenizer.as_ref()
+        let tokenizer = self
+            .tokenizer
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Tokenizer not initialized"))?;
-            
+
         // Check cache first for lazy evaluation
         if let Some(cached) = self.embedding_cache.get(text) {
             return Ok(cached.clone());
         }
-        
+
         // Tokenize the text
-        let encoding = tokenizer.encode(text, true)
+        let encoding = tokenizer
+            .encode(text, true)
             .map_err(|e| anyhow::anyhow!("Tokenization failed: {}", e))?;
-            
+
         let input_ids = encoding.get_ids();
         let attention_mask = encoding.get_attention_mask();
         let type_ids = encoding.get_type_ids();
-        
+
         // Ensure we don't exceed max length
         let seq_len = input_ids.len().min(self.config.max_length);
         let input_ids = &input_ids[..seq_len];
         let attention_mask = &attention_mask[..seq_len];
         let type_ids = &type_ids[..seq_len];
-        
+
         // Convert to i64 for ONNX
         let input_ids: Vec<i64> = input_ids.iter().map(|&x| x as i64).collect();
         let attention_mask: Vec<i64> = attention_mask.iter().map(|&x| x as i64).collect();
         let type_ids: Vec<i64> = type_ids.iter().map(|&x| x as i64).collect();
-        
+
         // Store attention mask for later use in pooling
         let attention_mask_copy = attention_mask.clone();
-        
+
         // Create input tensors with shape [1, sequence_length]
         let input_ids_array = Array2::from_shape_vec((1, seq_len), input_ids)?;
         let attention_mask_array = Array2::from_shape_vec((1, seq_len), attention_mask)?;
         let type_ids_array = Array2::from_shape_vec((1, seq_len), type_ids)?;
-        
+
         // Convert arrays to CowArray and then to dynamic dimension
         let input_ids_dyn = CowArray::from(input_ids_array).into_dyn();
         let attention_mask_dyn = CowArray::from(attention_mask_array).into_dyn();
         let type_ids_dyn = CowArray::from(type_ids_array).into_dyn();
-        
+
         // Create Values from the dynamic arrays
         let input_ids_value = ort::Value::from_array(session.allocator(), &input_ids_dyn)?;
-        let attention_mask_value = ort::Value::from_array(session.allocator(), &attention_mask_dyn)?;
+        let attention_mask_value =
+            ort::Value::from_array(session.allocator(), &attention_mask_dyn)?;
         let type_ids_value = ort::Value::from_array(session.allocator(), &type_ids_dyn)?;
-        
+
         let outputs = session.run(vec![input_ids_value, attention_mask_value, type_ids_value])?;
-        
+
         // Extract embeddings from the output
         // The model outputs shape: [batch_size, sequence_length, hidden_size]
         let output_extracted = outputs[0].try_extract::<f32>()?;
         let output_tensor = output_extracted.view();
         let output_shape = output_tensor.shape();
-        
+
         if output_shape.len() != 3 {
-            return Err(anyhow::anyhow!("Unexpected output shape: {:?}", output_shape));
+            return Err(anyhow::anyhow!(
+                "Unexpected output shape: {:?}",
+                output_shape
+            ));
         }
-        
+
         // Perform mean pooling over the sequence dimension
         let hidden_size = output_shape[2];
-        
+
         // Calculate mean pooling with attention mask
         let mut pooled_embedding = vec![0.0f32; hidden_size];
         let mut total_weight = 0.0f32;
-        
+
         // Access the output data using the stored attention mask
         for i in 0..seq_len {
             let mask_value = attention_mask_copy[i] as f32;
@@ -366,14 +375,14 @@ impl LocalEmbedder {
                 }
             }
         }
-        
+
         // Average by total weight
         if total_weight > 0.0 {
             for value in &mut pooled_embedding {
                 *value /= total_weight;
             }
         }
-        
+
         // Normalize the embedding to unit length
         let norm: f32 = pooled_embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
         if norm > 0.0 {
@@ -381,7 +390,7 @@ impl LocalEmbedder {
                 *value /= norm;
             }
         }
-        
+
         Ok(pooled_embedding)
     }
 
