@@ -111,43 +111,58 @@ All Phases 1, 2, 3, and 4 from the architecture plan have been implemented with 
 
 ## Progressive Enhancement and Neural Embeddings
 
-SemiSearch is built with progressive enhancement in mind. The release binaries work out of the box without any external dependencies, providing TF-IDF based search capabilities.
+SemiSearch implements true progressive enhancement through runtime library loading. The release binaries work immediately without any external dependencies while automatically detecting and using ONNX Runtime if available.
+
+### How It Works
+
+The binaries use dynamic loading (`load-dynamic` feature) to check for ONNX Runtime at startup:
+- If ONNX Runtime is found: Full neural embedding capabilities are enabled
+- If not found: Falls back to TF-IDF based search (no functionality loss)
+
+This means **one binary works everywhere** - no need for different builds or manual configuration.
 
 ### Default Behavior (No External Dependencies)
 
 The pre-built binaries from GitHub releases:
-- Work immediately without ONNX Runtime
-- Provide TF-IDF based semantic search
+- Start immediately on any system
+- Provide full search functionality via TF-IDF
 - Support all search modes (keyword, fuzzy, regex, tfidf)
-- Have no external library dependencies
+- Automatically upgrade to neural embeddings if ONNX Runtime is detected
 
 ### Enabling Neural Embeddings
 
-For advanced neural embedding support, you have two options:
+To enable neural embeddings, simply install ONNX Runtime:
 
-#### Option 1: Build from Source
+#### Linux
 ```bash
-# Clone the repository
-git clone https://github.com/kxrm/semisearch
-cd semisearch
-
-# Build with neural embeddings support
-cargo build --release --features neural-embeddings
-
-# Install ONNX Runtime (required for neural embeddings)
-# Linux:
+# Download ONNX Runtime
 wget https://github.com/microsoft/onnxruntime/releases/download/v1.16.0/onnxruntime-linux-x64-1.16.0.tgz
 tar xzf onnxruntime-linux-x64-1.16.0.tgz
-export LD_LIBRARY_PATH=$PWD/onnxruntime-linux-x64-1.16.0/lib:$LD_LIBRARY_PATH
 
-# macOS:
+# Option 1: Install system-wide
+sudo cp onnxruntime-linux-x64-1.16.0/lib/libonnxruntime.so* /usr/local/lib/
+sudo ldconfig
+
+# Option 2: Use environment variable
+export LD_LIBRARY_PATH=$PWD/onnxruntime-linux-x64-1.16.0/lib:$LD_LIBRARY_PATH
+```
+
+#### macOS
+```bash
+# Download ONNX Runtime
 wget https://github.com/microsoft/onnxruntime/releases/download/v1.16.0/onnxruntime-osx-x64-1.16.0.tgz
 tar xzf onnxruntime-osx-x64-1.16.0.tgz
+
+# Use environment variable
 export DYLD_LIBRARY_PATH=$PWD/onnxruntime-osx-x64-1.16.0/lib:$DYLD_LIBRARY_PATH
 ```
 
-#### Option 2: Use Docker (Coming Soon)
-A Docker image with neural embeddings pre-configured will be available soon.
+#### Custom ONNX Runtime Location
+
+You can also specify a custom path to ONNX Runtime:
+```bash
+ORT_DYLIB_PATH=/path/to/libonnxruntime.so semisearch doctor
+```
 
 ### Checking Capabilities
 
@@ -159,7 +174,7 @@ semisearch doctor
 
 This will show:
 - Available memory and CPU cores
-- ONNX Runtime availability (if built with neural-embeddings)
+- ONNX Runtime availability
 - Neural model status
 - Current embedding capability (TfIdf or Full)
 - Recommendations for your system

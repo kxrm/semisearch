@@ -259,17 +259,15 @@ jobs:
     - name: Build release binary (Linux/macOS)
       if: runner.os != 'Windows'
       run: |
-        # Build without neural-embeddings to avoid hard dependency on ONNX Runtime
-        # The binary will still detect and use ONNX if available at runtime
         if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
-          cross build --release --target ${{ matrix.target }}
+          cross build --release --target ${{ matrix.target }} --features neural-embeddings
         else
-          cargo build --release --target ${{ matrix.target }}
+          cargo build --release --target ${{ matrix.target }} --features neural-embeddings
         fi
 
     - name: Build release binary (Windows)
       if: runner.os == 'Windows'
-      run: cargo build --release --target ${{ matrix.target }}
+      run: cargo build --release --target ${{ matrix.target }} --features tfidf-only
 
     - name: Upload binary artifact
       uses: actions/upload-artifact@v4

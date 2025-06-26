@@ -43,8 +43,8 @@ futures-util = "0.3"
 libloading = "0.8"
 
 # ML and embeddings (Phase 4) - Optional at runtime
-ort = { version = "1.15", features = ["copy-dylibs"], optional = true }
-tokenizers = { version = "0.13", optional = true, default-features = false, features = ["onig"] }
+ort = { version = "1.15", features = ["copy-dylibs", "load-dynamic"], optional = true }
+tokenizers = { version = "0.15", optional = true }
 ndarray = { version = "0.15", optional = true }
 reqwest = { version = "0.11", features = ["rustls-tls", "stream"], default-features = false, optional = true }
 
