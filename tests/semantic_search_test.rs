@@ -394,7 +394,7 @@ async fn test_onnx_runtime_detection() {
     } else {
         println!("⚠️  ONNX Runtime not found - this is expected in some environments");
     }
-    
+
     // Test completed successfully
 }
 
