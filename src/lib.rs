@@ -25,6 +25,9 @@ pub mod capability_detector;
 // Phase 5: Help system for user guidance
 pub mod help;
 
+// Phase 6: Context detection for smart defaults
+pub mod context;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResult {
     pub file_path: String,
