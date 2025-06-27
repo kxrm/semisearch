@@ -163,7 +163,7 @@ async fn run_main() -> Result<()> {
             let search_time = start_time.elapsed();
 
             // Display results based on format
-            if cli.advanced && args.format == "json" {
+            if args.format == "json" {
                 if results.is_empty() {
                     // Handle no matches for JSON format
                     let no_matches_error = ErrorTranslator::handle_no_results(&args.query);
