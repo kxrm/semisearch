@@ -170,9 +170,9 @@ async fn run_main() -> Result<()> {
                     let exit_code = no_matches_error.exit_code();
 
                     match no_matches_error.to_json() {
-                        Ok(json) => eprintln!("{}", json),
+                        Ok(json) => eprintln!("{json}"),
                         Err(_) => eprintln!("{{\"error_type\": \"NoMatches\", \"details\": {{\"query\": \"{}\", \"suggestions\": []}}}}",
-                            args.query.replace('"', "\\\"")),
+                            args.query),
                     }
 
                     std::process::exit(exit_code);
@@ -278,12 +278,12 @@ fn display_simple_results(
 
         if json_format {
             match no_matches_error.to_json() {
-                Ok(json) => eprintln!("{}", json),
+                Ok(json) => eprintln!("{json}"),
                 Err(_) => eprintln!("{{\"error_type\": \"NoMatches\", \"details\": {{\"query\": \"{}\", \"suggestions\": []}}}}",
-                    query.replace('"', "\\\"")),
+                    query),
             }
         } else {
-            eprintln!("{}", no_matches_error);
+            eprintln!("{no_matches_error}");
         }
 
         std::process::exit(exit_code);
@@ -373,7 +373,7 @@ async fn handle_simple_status() -> Result<()> {
                 println!("⚠️  Database: Not initialized (run 'semisearch index .' first)");
             }
         }
-        Err(e) => println!("❌ Database: Error - {}", e),
+        Err(e) => println!("❌ Database: Error - {e}"),
     }
 
     // Check search capabilities
@@ -407,7 +407,7 @@ async fn handle_simple_status() -> Result<()> {
 
 /// Handle indexing with simple interface
 async fn handle_index(path: &str, force: bool, semantic: bool, no_semantic: bool) -> Result<()> {
-    println!("📚 Indexing files in: {}", path);
+    println!("�� Indexing files in: {path}");
 
     if force {
         println!("🔄 Forcing full reindex");
@@ -446,7 +446,7 @@ async fn handle_index(path: &str, force: bool, semantic: bool, no_semantic: bool
         match create_embedder(true).await {
             Ok(embedder) => FileIndexer::with_embedder(database, config, embedder),
             Err(e) => {
-                println!("⚠️  Semantic indexing failed: {}", e);
+                println!("⚠️  Semantic indexing failed: {e}");
                 println!("🔄 Falling back to keyword-only indexing");
                 FileIndexer::with_config(database, config)
             }
@@ -491,7 +491,7 @@ async fn show_config() -> Result<()> {
     // Database location
     match get_database_path() {
         Ok(db_path) => println!("📁 Database: {}", db_path.display()),
-        Err(e) => println!("❌ Database path error: {}", e),
+        Err(e) => println!("❌ Database path error: {e}"),
     }
 
     // Capabilities
@@ -529,7 +529,7 @@ async fn run_doctor() -> Result<()> {
             print!("🧪 Testing embedder initialization... ");
             match create_embedder(true).await {
                 Ok(_) => println!("✅ Success"),
-                Err(e) => println!("❌ Failed: {}", e),
+                Err(e) => println!("❌ Failed: {e}"),
             }
         }
         EmbeddingCapability::TfIdf => {
@@ -539,7 +539,7 @@ async fn run_doctor() -> Result<()> {
             print!("🧪 Testing TF-IDF embedder... ");
             match create_embedder(false).await {
                 Ok(_) => println!("✅ Success"),
-                Err(e) => println!("❌ Failed: {}", e),
+                Err(e) => println!("❌ Failed: {e}"),
             }
         }
         EmbeddingCapability::None => {
@@ -564,17 +564,17 @@ async fn run_doctor() -> Result<()> {
                             Ok(stats) => {
                                 println!("✅ Database stats: {} files indexed", stats.file_count);
                             }
-                            Err(e) => println!("⚠️  Database stats error: {}", e),
+                            Err(e) => println!("⚠️  Database stats error: {e}"),
                         }
                     }
-                    Err(e) => println!("❌ Database connection failed: {}", e),
+                    Err(e) => println!("❌ Database connection failed: {e}"),
                 }
             } else {
                 println!("⚠️  Database not initialized");
                 println!("💡 Run 'semisearch index .' to create database");
             }
         }
-        Err(e) => println!("❌ Database path error: {}", e),
+        Err(e) => println!("❌ Database path error: {e}"),
     }
 
     // Performance test
@@ -594,7 +594,7 @@ async fn run_doctor() -> Result<()> {
                 duration.as_secs_f64()
             );
         }
-        Err(e) => println!("❌ Search test failed: {}", e),
+        Err(e) => println!("❌ Search test failed: {e}"),
     }
 
     println!();
@@ -634,24 +634,26 @@ async fn handle_error(error: anyhow::Error) {
 /// Handle errors with additional context (query, path) for better user guidance
 async fn handle_error_with_context(error: anyhow::Error, query: Option<&str>, path: Option<&str>) {
     let user_error = ErrorTranslator::translate_technical_error_with_context(&error, query, path);
-    let exit_code = user_error.exit_code();
-
-    // Check if JSON format was requested (look for --format json in args)
-    let args: Vec<String> = std::env::args().collect();
-    let json_format = args
-        .windows(2)
-        .any(|w| w[0] == "--format" && w[1] == "json");
-
-    if json_format {
-        // Output structured JSON error to stderr
-        match user_error.to_json() {
-            Ok(json) => eprintln!("{}", json),
-            Err(_) => eprintln!("{{\"error_type\": \"Generic\", \"details\": {{\"message\": \"An error occurred\", \"suggestions\": []}}}}"),
+    
+    // Check if JSON format was requested
+    if let Ok(json_mode) = std::env::var("SEMISEARCH_JSON") {
+        if json_mode == "1" || json_mode.to_lowercase() == "true" {
+            match user_error.to_json() {
+                Ok(json) => eprintln!("{json}"),
+                Err(_) => {
+                    // Fallback to regular error display
+                    eprintln!("{user_error}");
+                }
+            }
+        } else {
+            eprintln!("{user_error}");
         }
     } else {
-        // Output user-friendly error to stderr
-        eprintln!("{}", user_error);
+        eprintln!("{user_error}");
     }
-
+    
+    let exit_code = user_error.exit_code();
     std::process::exit(exit_code);
 }
+
+

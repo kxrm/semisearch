@@ -37,15 +37,13 @@ async fn test_user_friendly_error_messages() -> Result<()> {
     // Should not contain technical jargon
     assert!(
         !stderr.contains("anyhow") && !stderr.contains("Error:"),
-        "Should not expose technical error types: {}",
-        stderr
+        "Should not expose technical error types: {stderr}"
     );
 
     // Should contain helpful guidance
     assert!(
         stderr.contains("Make sure") || stderr.contains("Try") || stderr.contains("Check"),
-        "Should provide actionable guidance: {}",
-        stderr
+        "Should provide actionable guidance: {stderr}"
     );
 
     Ok(())
@@ -81,26 +79,23 @@ async fn test_no_matches_helpful_suggestions() -> Result<()> {
     // Should return exit code 1 (Unix convention: no matches found)
     assert!(
         !output.status.success(),
-        "No matches should return exit code 1 (Unix convention): {}",
-        stderr
+        "No matches should return exit code 1 (Unix convention): {stderr}"
     );
 
     if let Some(code) = output.status.code() {
         assert_eq!(
             code, 1,
-            "No matches should return exit code 1, got: {}",
-            code
+            "No matches should return exit code 1, got: {code}"
         );
     }
 
     // Should show helpful suggestions (now on stderr)
-    let combined_output = format!("{}{}", stdout, stderr);
+    let combined_output = format!("{stdout}{stderr}");
     assert!(
         combined_output.contains("Try:")
             || combined_output.contains("Check spelling")
             || combined_output.contains("--fuzzy"),
-        "Should provide helpful suggestions for no matches: {}",
-        combined_output
+        "Should provide helpful suggestions for no matches: {combined_output}"
     );
 
     Ok(())
@@ -165,15 +160,13 @@ async fn test_json_error_format() -> Result<()> {
         let parsed: Result<serde_json::Value, _> = serde_json::from_str(&json_str);
         assert!(
             parsed.is_ok(),
-            "JSON error format should be valid JSON: {}",
-            json_str
+            "JSON error format should be valid JSON: {json_str}"
         );
 
         let json = parsed.unwrap();
         assert!(
             json.get("error_type").is_some(),
-            "JSON error should contain 'error_type' field: {}",
-            json
+            "JSON error should contain 'error_type' field: {json}"
         );
     }
 
@@ -250,16 +243,14 @@ async fn test_technical_error_translation() -> Result<()> {
     // Should contain user-friendly language, not technical terms
     assert!(
         !stderr.contains("std::io::Error") && !stderr.contains("anyhow::Error"),
-        "Should not expose technical error types: {}",
-        stderr
+        "Should not expose technical error types: {stderr}"
     );
 
     // Should provide actionable guidance
     if !output.status.success() {
         assert!(
             stderr.contains("permission") || stderr.contains("access") || stderr.contains("Check"),
-            "Should explain permission issues clearly: {}",
-            stderr
+            "Should explain permission issues clearly: {stderr}"
         );
     }
 
@@ -299,9 +290,7 @@ async fn test_consistent_error_formatting() -> Result<()> {
                 stderr.contains(expected_pattern)
                     || stderr.contains("Error:")
                     || stderr.contains("❌"),
-                "Error should follow consistent format for {:?}: {}",
-                args,
-                stderr
+                "Should contain expected error pattern '{expected_pattern}': {stderr}"
             );
         }
     }
@@ -336,8 +325,7 @@ async fn test_stderr_stdout_separation() -> Result<()> {
         // Results should be on stdout
         assert!(
             stdout.contains("Found") || stdout.contains("matches"),
-            "Search results should be on stdout: {}",
-            stdout
+            "Search results should be on stdout: {stdout}"
         );
 
         // Warnings (if any) should be on stderr, but not errors
@@ -369,8 +357,7 @@ async fn test_stderr_stdout_separation() -> Result<()> {
                 filtered_stderr.contains("⚠️")
                     || filtered_stderr.contains("Warning")
                     || filtered_stderr.contains("Falling back"),
-                "Only warnings should be on stderr for successful operations: {}",
-                filtered_stderr
+                "Only warnings should be on stderr for successful operations: {filtered_stderr}"
             );
         }
     }
@@ -401,8 +388,7 @@ async fn test_error_context_information() -> Result<()> {
         // Error should include context about what was attempted
         assert!(
             stderr.contains("/path/that/does/not/exist") || stderr.contains("directory"),
-            "Error should include path context: {}",
-            stderr
+            "Error should include path context: {stderr}"
         );
     }
 
