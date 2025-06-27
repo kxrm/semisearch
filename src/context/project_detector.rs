@@ -181,10 +181,11 @@ mod tests {
     fn test_case_insensitive_extension_detection() {
         let temp_dir = TempDir::new().unwrap();
 
-        // Create files with different case extensions
-        fs::write(temp_dir.path().join("test.MD"), "# Test").unwrap();
-        fs::write(temp_dir.path().join("test.md"), "# Test").unwrap();
-        fs::write(temp_dir.path().join("test.Md"), "# Test").unwrap();
+        // Create files with different case extensions but different base names
+        // to avoid conflicts on case-insensitive filesystems
+        fs::write(temp_dir.path().join("test1.MD"), "# Test").unwrap();
+        fs::write(temp_dir.path().join("test2.md"), "# Test").unwrap();
+        fs::write(temp_dir.path().join("test3.Md"), "# Test").unwrap();
 
         let file_counts = ProjectDetector::count_file_types(temp_dir.path());
         assert_eq!(file_counts.get("md"), Some(&3)); // All should be counted as "md"
