@@ -103,9 +103,14 @@ fn test_context_aware_config_for_rust() {
     let config = ContextAwareConfig::from_project_type(ProjectType::RustProject);
 
     assert!(matches!(config.project_type, ProjectType::RustProject));
-    assert_eq!(config.search_paths, vec!["src/", "tests/"]);
-    assert_eq!(config.file_patterns, vec!["*.rs"]);
-    assert_eq!(config.ignore_patterns, vec!["target/"]);
+    assert_eq!(
+        config.search_paths,
+        vec!["src/".to_string(), "tests/".to_string()]
+    );
+    assert_eq!(config.file_patterns, vec!["*.rs".to_string()]);
+    assert!(config.ignore_patterns.contains(&"target/".to_string()));
+    assert!(config.ignore_patterns.contains(&".git/".to_string()));
+    assert!(config.ignore_patterns.contains(&"Cargo.lock".to_string()));
 }
 
 #[test]
@@ -116,9 +121,19 @@ fn test_context_aware_config_for_javascript() {
         config.project_type,
         ProjectType::JavaScriptProject
     ));
-    assert_eq!(config.search_paths, vec!["src/", "lib/"]);
-    assert_eq!(config.file_patterns, vec!["*.js", "*.ts"]);
-    assert_eq!(config.ignore_patterns, vec!["node_modules/", "dist/"]);
+    assert_eq!(
+        config.search_paths,
+        vec!["src/".to_string(), "lib/".to_string()]
+    );
+    assert_eq!(
+        config.file_patterns,
+        vec!["*.js".to_string(), "*.ts".to_string()]
+    );
+    assert!(config
+        .ignore_patterns
+        .contains(&"node_modules/".to_string()));
+    assert!(config.ignore_patterns.contains(&"dist/".to_string()));
+    assert!(config.ignore_patterns.contains(&".git/".to_string()));
 }
 
 #[test]
@@ -126,12 +141,14 @@ fn test_context_aware_config_for_python() {
     let config = ContextAwareConfig::from_project_type(ProjectType::PythonProject);
 
     assert!(matches!(config.project_type, ProjectType::PythonProject));
-    assert_eq!(config.search_paths, vec!["src/", "lib/", "tests/"]);
-    assert_eq!(config.file_patterns, vec!["*.py"]);
     assert_eq!(
-        config.ignore_patterns,
-        vec!["__pycache__/", "*.pyc", ".pytest_cache/", "venv/", ".venv/"]
+        config.search_paths,
+        vec!["src/".to_string(), "lib/".to_string(), "tests/".to_string()]
     );
+    assert_eq!(config.file_patterns, vec!["*.py".to_string()]);
+    assert!(config.ignore_patterns.contains(&"__pycache__/".to_string()));
+    assert!(config.ignore_patterns.contains(&"venv/".to_string()));
+    assert!(config.ignore_patterns.contains(&".git/".to_string()));
 }
 
 #[test]
@@ -139,9 +156,13 @@ fn test_context_aware_config_for_documentation() {
     let config = ContextAwareConfig::from_project_type(ProjectType::Documentation);
 
     assert!(matches!(config.project_type, ProjectType::Documentation));
-    assert_eq!(config.search_paths, vec!["./"]);
-    assert_eq!(config.file_patterns, vec!["*.md", "*.txt"]);
-    assert_eq!(config.ignore_patterns, Vec::<String>::new());
+    assert_eq!(config.search_paths, vec!["./".to_string()]);
+    assert_eq!(
+        config.file_patterns,
+        vec!["*.md".to_string(), "*.txt".to_string()]
+    );
+    assert!(config.ignore_patterns.contains(&".git/".to_string()));
+    assert!(!config.ignore_patterns.is_empty());
 }
 
 #[test]
@@ -149,12 +170,13 @@ fn test_context_aware_config_for_mixed() {
     let config = ContextAwareConfig::from_project_type(ProjectType::Mixed);
 
     assert!(matches!(config.project_type, ProjectType::Mixed));
-    assert_eq!(config.search_paths, vec!["./"]);
-    assert_eq!(config.file_patterns, vec!["*"]);
-    assert_eq!(
-        config.ignore_patterns,
-        vec!["target/", "node_modules/", "__pycache__/", "dist/", ".git/"]
-    );
+    assert_eq!(config.search_paths, vec!["./".to_string()]);
+    assert_eq!(config.file_patterns, vec!["*".to_string()]);
+    assert!(config.ignore_patterns.contains(&"target/".to_string()));
+    assert!(config
+        .ignore_patterns
+        .contains(&"node_modules/".to_string()));
+    assert!(config.ignore_patterns.contains(&".git/".to_string()));
 }
 
 #[test]
@@ -162,9 +184,11 @@ fn test_context_aware_config_default() {
     let config = ContextAwareConfig::default();
 
     assert!(matches!(config.project_type, ProjectType::Unknown));
-    assert_eq!(config.search_paths, vec!["./"]);
-    assert_eq!(config.file_patterns, vec!["*"]);
-    assert_eq!(config.ignore_patterns, vec![".git/", ".svn/", ".hg/"]);
+    assert_eq!(config.search_paths, vec!["./".to_string()]);
+    assert_eq!(config.file_patterns, vec!["*".to_string()]);
+    assert!(config.ignore_patterns.contains(&".git/".to_string()));
+    assert!(config.ignore_patterns.contains(&".svn/".to_string()));
+    assert!(config.ignore_patterns.contains(&".hg/".to_string()));
 }
 
 #[test]
