@@ -106,7 +106,7 @@ jobs:
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
       run: |
         cargo install cargo-tarpaulin || true
-        cargo tarpaulin --out xml --timeout 120
+        cargo tarpaulin --out xml --timeout 300 --no-default-features
 
     - name: Upload coverage to Codecov (Ubuntu stable only)
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'

@@ -340,11 +340,16 @@ Try these solutions:
 
 ### No results found
 
-Common fixes:
+When no matches are found, SemiSearch returns exit code 1 (following Unix conventions like `grep`). Common fixes:
 1. **Lower the threshold**: `--score 0.1` (default is 0.3)
 2. **Try fuzzy mode**: `--mode fuzzy` for typos
 3. **Use simpler queries**: Break complex searches into parts
 4. **Check file types**: Binary files are automatically skipped
+
+**Exit Code Reference:**
+- `0`: Matches found (success)
+- `1`: No matches found or other errors
+- `2`: Invalid arguments or command syntax
 
 ### Memory issues
 
@@ -516,7 +521,7 @@ cargo bench
 
 ### Project Status
 
-**Current Version**: v0.4.0
+**Current Version**: v0.6.0
 
 All core features are complete and production-ready:
 - ✅ CLI interface with multiple commands
@@ -526,6 +531,8 @@ All core features are complete and production-ready:
 - ✅ Neural embeddings with ONNX Runtime
 - ✅ Progressive enhancement based on system capabilities
 - ✅ 100% offline operation (after initial model download)
+- ✅ Enhanced error handling with context-aware messages
+- ✅ Proper Unix exit codes (0=success, 1=no matches/errors, 2=invalid arguments)
 
 ### Testing
 
