@@ -12,7 +12,7 @@ async fn test_simple_mode_hides_advanced_options() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "--help",
@@ -69,7 +69,7 @@ async fn test_search_subcommand_simple_by_default() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "search",
@@ -128,7 +128,7 @@ async fn test_advanced_flag_shows_all_options() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "--advanced",
@@ -162,7 +162,7 @@ async fn test_advanced_search_shows_all_options() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "--advanced",
@@ -193,7 +193,7 @@ async fn test_simple_mode_search_functionality() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "search",
@@ -228,7 +228,7 @@ async fn test_advanced_flags_work_in_advanced_mode() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "--advanced",
@@ -269,7 +269,7 @@ async fn test_mode_specific_advanced_flags() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "--advanced",
@@ -295,7 +295,7 @@ async fn test_help_system_respects_advanced_flag() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "--help",
@@ -324,7 +324,7 @@ async fn test_version_information() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "--version",
@@ -344,7 +344,7 @@ async fn test_advanced_version_information() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "--advanced",

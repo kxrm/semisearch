@@ -69,4 +69,4 @@ unknown-git = "warn"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 
 # List of allowed Git repositories
-allow-git = [] 
+allow-git = []

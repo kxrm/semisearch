@@ -71,4 +71,4 @@ fi
 log_success "Development environment updated successfully!"
 echo ""
 echo "🎯 Ready for development!"
-echo "Run 'search_help' for available commands." 
+echo "Run 'search_help' for available commands."

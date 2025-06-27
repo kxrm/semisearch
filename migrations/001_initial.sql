@@ -38,4 +38,4 @@ CREATE INDEX IF NOT EXISTS idx_files_modified ON files(modified_at);
 CREATE INDEX IF NOT EXISTS idx_chunks_file_id ON chunks(file_id);
 CREATE INDEX IF NOT EXISTS idx_chunks_content ON chunks(content);
 CREATE INDEX IF NOT EXISTS idx_chunks_line_number ON chunks(line_number);
-CREATE INDEX IF NOT EXISTS idx_query_cache_accessed ON query_cache(last_accessed); 
+CREATE INDEX IF NOT EXISTS idx_query_cache_accessed ON query_cache(last_accessed);

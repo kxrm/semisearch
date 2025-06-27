@@ -26,7 +26,7 @@ Use these prefixes for automatic processing:
 
 ```bash
 feature/add-semantic-indexing     # New features
-bugfix/fix-regex-parsing         # Bug fixes  
+bugfix/fix-regex-parsing         # Bug fixes
 hotfix/critical-security-patch   # Urgent fixes
 ```
 
@@ -219,7 +219,7 @@ The hooks will automatically:
 All contributions should align with the [Semantic Search Architecture Plan](docs/SEMANTIC_SEARCH_ARCHITECTURE_PLAN.md):
 
 - **Phase 1**: MVP features (✅ Complete)
-- **Phase 2**: Enhanced search (✅ Complete)  
+- **Phase 2**: Enhanced search (✅ Complete)
 - **Phase 3**: Semantic search & ML integration (🔄 In Progress)
 
 ## 📜 License
@@ -228,4 +228,4 @@ By contributing, you agree that your contributions will be licensed under the sa
 
 ---
 
-Thank you for contributing to Semisearch! 🙏 
+Thank you for contributing to Semisearch! 🙏

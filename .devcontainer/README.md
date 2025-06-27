@@ -19,10 +19,10 @@ This devcontainer provides a complete development environment for the semantic s
    ```bash
    # Show all available commands
    just
-   
+
    # Build the project
    just build
-   
+
    # Get help with development commands
    search_help
    ```
@@ -72,13 +72,13 @@ This devcontainer provides a complete development environment for the semantic s
    ```bash
    # Run the setup script first
    bash .devcontainer/setup.sh
-   
+
    # Get help and see available commands
    search_help
-   
+
    # Create test data to work with
    create_test_data
-   
+
    # Use the interactive setup guide
    bash .devcontainer/scripts/new-developer-setup.sh
    ```
@@ -95,7 +95,7 @@ This devcontainer provides a complete development environment for the semantic s
    # Run setup and install additional tools
    bash .devcontainer/setup.sh
    bash .devcontainer/install-more-tools.sh
-   
+
    # Start building immediately
    just build
    just run search "hello world"
@@ -105,7 +105,7 @@ This devcontainer provides a complete development environment for the semantic s
    ```bash
    # Install cross-compilation tools
    bash .devcontainer/install-more-tools.sh
-   
+
    # Use Just for task automation
    just watch    # Continuous development
    just clippy   # Code quality checks
@@ -123,7 +123,7 @@ This devcontainer provides a complete development environment for the semantic s
   - `walkdir` for file traversal
   - `anyhow` for error handling
 
-- **ML Infrastructure**: 
+- **ML Infrastructure**:
   - ONNX Runtime support via Python
   - Python 3.11 with ML libraries (sentence-transformers, torch, etc.)
   - Model storage volumes configured
@@ -256,7 +256,7 @@ The devcontainer is configured to persist GitHub CLI credentials across containe
 1. Create a GitHub Personal Access Token:
    - Go to GitHub Settings → Developer settings → Personal access tokens
    - Generate a new token with scopes: `repo`, `read:org`, `gist`
-   
+
 2. Set the token as an environment variable on your host:
    ```bash
    # Add to your ~/.bashrc, ~/.zshrc, or ~/.profile
@@ -346,7 +346,7 @@ The following directories are persisted across container rebuilds:
    ```bash
    # Authenticate with GitHub
    .devcontainer/setup-gh-auth.sh
-   
+
    # Verify setup
    gh auth status
    cargo test
@@ -356,7 +356,7 @@ The following directories are persisted across container rebuilds:
    ```bash
    # View recent workflow runs
    gh run list --limit 5
-   
+
    # View specific failed run
    gh run view <run-id> --log
    ```
@@ -367,12 +367,12 @@ The following directories are persisted across container rebuilds:
    cargo test
    cargo clippy
    cargo fmt
-   
+
    # Commit and push
    git add .
    git commit -m "Your changes"
    git push
-   
+
    # Monitor CI
    gh run watch
-   ``` 
+   ```

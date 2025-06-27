@@ -58,4 +58,4 @@
 - **When to run**: When you want to update your development environment
 - **What it does**:
   - Detects if running in container or host
-  - Calls appropriate update commands 
+  - Calls appropriate update commands

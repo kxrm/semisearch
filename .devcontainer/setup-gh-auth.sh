@@ -23,7 +23,7 @@ echo
 if [ -n "$GH_TOKEN" ]; then
     echo "🔑 Found GH_TOKEN environment variable"
     echo "Testing token authentication..."
-    
+
     if echo "$GH_TOKEN" | gh auth login --with-token; then
         echo "✅ Successfully authenticated with GH_TOKEN!"
         gh auth status
@@ -75,4 +75,4 @@ echo "Examples:"
 echo "  gh run list                    # View workflow runs"
 echo "  gh run view --log <run-id>     # View workflow logs"
 echo "  gh pr list                     # List pull requests"
-echo "  gh issue list                  # List issues" 
+echo "  gh issue list                  # List issues"

@@ -38,7 +38,7 @@ case $approach in
     1)
         echo -e "\n${GREEN}✅ Setting up MVP development${NC}"
         echo "You'll start with basic keyword search - perfect for learning!"
-        
+
         # Create MVP-focused Cargo.toml
         cat > /workspaces/semisearch/Cargo.toml << 'EOF'
 [package]
@@ -52,7 +52,7 @@ clap = { version = "4.0", features = ["derive"] }
 walkdir = "2.3"
 anyhow = "1.0"
 EOF
-        
+
         echo -e "\n${BLUE}📝 Your first tasks:${NC}"
         echo "1. Implement basic file scanning in src/main.rs"
         echo "2. Add simple keyword matching"
@@ -60,11 +60,11 @@ EOF
         echo ""
         echo "Run: cargo run -- search 'TODO' ."
         ;;
-        
+
     2)
         echo -e "\n${GREEN}✅ Setting up Enhanced Search${NC}"
         echo "You'll have fuzzy matching and basic caching!"
-        
+
         # Add more dependencies
         cat > /workspaces/semisearch/Cargo.toml << 'EOF'
 [package]
@@ -82,11 +82,11 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 EOF
         ;;
-        
+
     3)
         echo -e "\n${GREEN}✅ Setting up Full Semantic Search${NC}"
         echo "Complete setup with ML capabilities!"
-        
+
         # Full dependencies from architecture plan
         cp /workspaces/semisearch/.devcontainer/templates/Cargo-full.toml /workspaces/semisearch/Cargo.toml 2>/dev/null || \
         cat > /workspaces/semisearch/Cargo.toml << 'EOF'
@@ -109,7 +109,7 @@ thiserror = "1.0"
 indicatif = "0.17"
 EOF
         ;;
-        
+
     4)
         echo -e "\n${BLUE}ℹ️  Manual setup selected${NC}"
         echo "You can customize Cargo.toml and the project structure yourself."
@@ -127,4 +127,4 @@ echo "1. Review the architecture plan"
 echo "2. Start with the checkpoint matching your chosen approach"
 echo "3. Run 'just' to see available commands"
 echo ""
-echo "Happy coding! 🦀✨" 
+echo "Happy coding! 🦀✨"

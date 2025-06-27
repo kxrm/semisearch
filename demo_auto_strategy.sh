@@ -96,4 +96,4 @@ echo "2. Project type detection (ProjectContext)"
 echo "3. Available search capabilities"
 echo
 echo "This provides a seamless user experience where users don't need to choose"
-echo "search modes - the tool intelligently selects the optimal strategy!" 
+echo "search modes - the tool intelligently selects the optimal strategy!"

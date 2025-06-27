@@ -5,4 +5,4 @@ target-dir = "target"
 rustflags = ["-C", "target-cpu=native"]
 
 [target.aarch64-unknown-linux-gnu]
-rustflags = ["-C", "target-cpu=native"] 
+rustflags = ["-C", "target-cpu=native"]

@@ -4,7 +4,7 @@ This document tracks areas that need error handling improvements following Task 
 
 ## Completed in Task 1.2.1
 - ✅ User-friendly error types in `src/errors/user_errors.rs`
-- ✅ Error translator in `src/errors/translator.rs` 
+- ✅ Error translator in `src/errors/translator.rs`
 - ✅ Main error handling in `src/main_new.rs`
 - ✅ JSON error format support
 - ✅ Proper stderr usage and exit codes
@@ -28,7 +28,7 @@ This document tracks areas that need error handling improvements following Task 
 - Route through error translator
 - Provide contextual help for indexing failures
 
-### 2. Search Module Error Handling  
+### 2. Search Module Error Handling
 **Files:** `src/search/strategy.rs`, `src/lib.rs`
 
 **Current Issues:**
@@ -114,4 +114,4 @@ Each follow-up area should include:
 - All changes must maintain backward compatibility with existing error handling
 - JSON format must remain consistent
 - Exit codes should follow established conventions
-- No breaking changes to public APIs 
+- No breaking changes to public APIs

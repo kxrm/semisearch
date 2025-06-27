@@ -30,8 +30,7 @@ fn test_code_pattern_detection() {
     for keyword in &code_keywords {
         assert!(
             matches!(QueryAnalyzer::analyze(keyword), QueryType::CodePattern),
-            "Keyword '{}' should be detected as CodePattern",
-            keyword
+            "Keyword {keyword} should be detected as CodePattern"
         );
     }
 
@@ -60,8 +59,7 @@ fn test_file_extension_detection() {
     for ext in &file_extensions {
         assert!(
             matches!(QueryAnalyzer::analyze(ext), QueryType::FileExtension),
-            "Extension '{}' should be detected as FileExtension",
-            ext
+            "Extension {ext} should be detected as FileExtension"
         );
     }
 
@@ -98,8 +96,7 @@ fn test_regex_like_detection() {
     for pattern in &regex_patterns {
         assert!(
             matches!(QueryAnalyzer::analyze(pattern), QueryType::RegexLike),
-            "Pattern '{}' should be detected as RegexLike",
-            pattern
+            "Pattern {pattern} should be detected as RegexLike"
         );
     }
 }
@@ -119,8 +116,7 @@ fn test_conceptual_detection() {
     for query in &conceptual_queries {
         assert!(
             matches!(QueryAnalyzer::analyze(query), QueryType::Conceptual),
-            "Query '{}' should be detected as Conceptual",
-            query
+            "Query {query} should be detected as Conceptual"
         );
     }
 }
@@ -133,8 +129,7 @@ fn test_single_word_defaults() {
     for query in &simple_queries {
         assert!(
             matches!(QueryAnalyzer::analyze(query), QueryType::ExactPhrase),
-            "Query '{}' should default to ExactPhrase",
-            query
+            "Query {query} should default to ExactPhrase"
         );
     }
 }
@@ -147,8 +142,7 @@ fn test_two_word_defaults() {
     for query in &two_word_queries {
         assert!(
             matches!(QueryAnalyzer::analyze(query), QueryType::ExactPhrase),
-            "Query '{}' should default to ExactPhrase",
-            query
+            "Query {query} should default to ExactPhrase"
         );
     }
 }

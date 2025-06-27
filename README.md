@@ -372,7 +372,7 @@ For systems with limited RAM:
    ```bash
    # Slower: searches everything
    semisearch search "function"
-   
+
    # Faster: searches only src/
    semisearch search "function" --path ./src
    ```

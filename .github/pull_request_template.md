@@ -63,4 +63,4 @@ cargo fmt --check
 - ✅ All CI checks pass
 - ✅ Required approvals received (1 approval minimum)
 - ✅ No pending change requests
-- ✅ Branch is `feature/*`, `hotfix/*`, or `bugfix/*` 
+- ✅ Branch is `feature/*`, `hotfix/*`, or `bugfix/*`

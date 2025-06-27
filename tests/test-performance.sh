@@ -94,7 +94,7 @@ end_time=$(date +%s.%N)
 if [ "$CALC_AVAILABLE" = true ]; then
     duration=$(echo "$end_time - $start_time" | bc -l)
     echo "Small dataset (100 files): ${duration}s"
-    
+
     if (( $(echo "$duration < 2.0" | bc -l) )); then
         log_success "Small dataset performance: EXCELLENT (< 2s target)"
     elif (( $(echo "$duration < 5.0" | bc -l) )); then
@@ -132,7 +132,7 @@ end_time=$(date +%s.%N)
 if [ "$CALC_AVAILABLE" = true ]; then
     duration=$(echo "$end_time - $start_time" | bc -l)
     echo "Medium dataset (1000 files): ${duration}s"
-    
+
     if (( $(echo "$duration < 10.0" | bc -l) )); then
         log_success "Medium dataset performance: TARGET MET (< 10s)"
     elif (( $(echo "$duration < 30.0" | bc -l) )); then
@@ -157,7 +157,7 @@ end_time=$(date +%s.%N)
 if [ "$CALC_AVAILABLE" = true ]; then
     duration=$(echo "$end_time - $start_time" | bc -l)
     echo "Cold start: ${duration}s"
-    
+
     if (( $(echo "$duration < 0.5" | bc -l) )); then
         log_success "Cold start performance: EXCELLENT (< 500ms target)"
     elif (( $(echo "$duration < 2.0" | bc -l) )); then
@@ -217,13 +217,13 @@ if command -v ps &> /dev/null; then
     $BINARY_PATH search "TODO" --path "$TEST_DATA_DIR" --limit 50 &
     SEARCH_PID=$!
     sleep 0.5  # Give it time to start
-    
+
     if ps -p $SEARCH_PID > /dev/null; then
         MEMORY_KB=$(ps -o rss= -p $SEARCH_PID 2>/dev/null || echo "unknown")
         if [ "$MEMORY_KB" != "unknown" ]; then
             MEMORY_MB=$((MEMORY_KB / 1024))
             echo "Peak memory usage: ${MEMORY_MB}MB"
-            
+
             if [ $MEMORY_MB -lt 100 ]; then
                 log_success "Memory usage: EXCELLENT (< 100MB)"
             elif [ $MEMORY_MB -lt 200 ]; then
@@ -233,7 +233,7 @@ if command -v ps &> /dev/null; then
             fi
         fi
     fi
-    
+
     wait $SEARCH_PID 2>/dev/null || true
 fi
 
@@ -260,4 +260,4 @@ echo "  • Consider using .gitignore to exclude large directories"
 echo ""
 
 log_success "Performance testing completed!"
-echo "" 
+echo ""

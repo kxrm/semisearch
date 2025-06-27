@@ -1,9 +1,9 @@
 # SemiSearch UX Remediation Plan
 
-**Project:** SemiSearch v0.6.0  
-**Status:** Technical Implementation Complete, UX Fundamentally Broken  
-**Target:** Transform from "developer tool" to "human-usable tool"  
-**Timeline:** 2-3 weeks focused work  
+**Project:** SemiSearch v0.6.0
+**Status:** Technical Implementation Complete, UX Fundamentally Broken
+**Target:** Transform from "developer tool" to "human-usable tool"
+**Timeline:** 2-3 weeks focused work
 **Audience:** Junior/Mid-level developers, AI agents
 
 ## Problem Statement
@@ -67,20 +67,20 @@ pub enum SimpleCommands {
     Search {
         /// What to search for
         query: String,
-        
+
         /// Allow typos and similar words
         #[arg(long)]
         fuzzy: bool,
-        
+
         /// Find exact matches only
         #[arg(long)]
         exact: bool,
     },
-    
+
     /// Get help for beginners
     #[command(name = "help-me")]
     HelpMe,
-    
+
     /// Check if tool is working properly
     #[command(name = "status")]
     Status,
@@ -95,7 +95,7 @@ pub struct Cli {
     /// Enable advanced options (for power users)
     #[arg(long, global = true)]
     advanced: bool,
-    
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -137,10 +137,10 @@ if args.len() > 1 && !args[1].starts_with('-') && !["search", "status", "help-me
 pub enum UserError {
     #[error("No matches found for '{query}'. Try:\n  • Check spelling: semisearch \"{query}\" --fuzzy\n  • Use simpler terms: semisearch \"{simplified}\"")]
     NoMatches { query: String, simplified: String },
-    
+
     #[error("🔍 Searching with basic mode (fast but less smart)\n💡 Tip: Install semisearch-models for better results")]
     FallbackMode,
-    
+
     #[error("Cannot search in {path}. Make sure the directory exists and you have permission to read it.")]
     DirectoryAccess { path: String },
 }
@@ -154,18 +154,18 @@ pub struct ErrorTranslator;
 impl ErrorTranslator {
     pub fn translate_technical_error(error: &anyhow::Error) -> UserError {
         let error_str = error.to_string().to_lowercase();
-        
+
         match error_str {
             s if s.contains("onnx") || s.contains("neural") => UserError::FallbackMode,
-            s if s.contains("permission") => UserError::DirectoryAccess { 
-                path: extract_path_from_error(s).unwrap_or_default() 
+            s if s.contains("permission") => UserError::DirectoryAccess {
+                path: extract_path_from_error(s).unwrap_or_default()
             },
             s if s.contains("no results") => UserError::NoMatches {
                 query: extract_query_from_context(),
                 simplified: simplify_query(extract_query_from_context()),
             },
-            _ => UserError::GenericError { 
-                suggestion: "Try running 'semisearch status' to check if everything is working".to_string() 
+            _ => UserError::GenericError {
+                suggestion: "Try running 'semisearch status' to check if everything is working".to_string()
             }
         }
     }
@@ -212,26 +212,26 @@ impl QueryAnalyzer {
         if query.contains('"') {
             return QueryType::ExactPhrase;
         }
-        
+
         if Self::contains_code_keywords(query) {
             return QueryType::CodePattern;
         }
-        
+
         if Self::contains_file_extensions(query) {
             return QueryType::FileExtension;
         }
-        
+
         if Self::looks_like_regex(query) {
             return QueryType::RegexLike;
         }
-        
+
         if query.split_whitespace().count() > 2 {
             QueryType::Conceptual
         } else {
             QueryType::ExactPhrase
         }
     }
-    
+
     fn contains_code_keywords(query: &str) -> bool {
         let code_keywords = ["function", "class", "TODO", "FIXME", "import", "export", "async", "await"];
         code_keywords.iter().any(|&kw| query.to_lowercase().contains(kw))
@@ -253,7 +253,7 @@ impl AutoStrategy {
     pub async fn search(&self, query: &str, path: &str) -> Result<Vec<SearchResult>> {
         let query_type = QueryAnalyzer::analyze(query);
         let context = ProjectContext::detect(path)?;
-        
+
         match (query_type, context, &self.semantic_search) {
             (QueryType::CodePattern, ProjectContext::Code, _) => {
                 self.regex_search.search(&Self::code_pattern_to_regex(query), path).await
@@ -325,24 +325,24 @@ impl ContextualHelp {
 pub fn run_interactive_help() {
     println!("👋 Welcome to SemiSearch!");
     println!("Let's find what you're looking for.\n");
-    
+
     println!("What do you want to search for?");
     println!("Examples:");
     println!("  • TODO comments: semisearch \"TODO\"");
     println!("  • Error handling: semisearch \"try catch\"");
     println!("  • Function definitions: semisearch \"function login\"");
-    
+
     println!("\nType your search below, or 'quit' to exit:");
-    
+
     loop {
         print!("> ");
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).unwrap();
         let input = input.trim();
-        
+
         if input == "quit" { break; }
         if input.is_empty() { continue; }
-        
+
         // Run the search and show results
         println!("Searching for: {}", input);
         // ... execute search and show results
@@ -391,7 +391,7 @@ impl ProjectDetector {
         }
         ProjectType::Unknown
     }
-    
+
     fn mostly_markdown(path: &Path) -> bool {
         // Implementation to check if >70% of files are .md
     }
@@ -453,35 +453,35 @@ impl HumanFormatter {
         if results.is_empty() {
             return Self::format_no_results(query);
         }
-        
+
         let mut output = String::new();
         output.push_str(&format!("Found {} matches:\n\n", results.len()));
-        
+
         for (i, result) in results.iter().take(10).enumerate() {
             // Group by file to reduce noise
             if i == 0 || result.file_path != results[i-1].file_path {
                 output.push_str(&format!("📁 {}\n", result.file_path));
             }
-            
+
             output.push_str(&format!(
                 "   Line {}: {}\n",
                 result.line_number,
                 Self::highlight_match(&result.content, query)
             ));
         }
-        
+
         if results.len() > 10 {
             output.push_str(&format!("\n... and {} more matches\n", results.len() - 10));
         }
-        
+
         output
     }
-    
+
     fn highlight_match(content: &str, query: &str) -> String {
         // Simple highlighting - replace with actual match highlighting
         content.replace(query, &format!("**{}**", query))
     }
-    
+
     fn format_no_results(query: &str) -> String {
         format!(
             "No matches found for '{}'.\n\n\
@@ -506,25 +506,25 @@ pub struct ResultGrouper;
 impl ResultGrouper {
     pub fn group_by_relevance(results: Vec<SearchResult>) -> Vec<ResultGroup> {
         let mut groups = Vec::new();
-        
+
         // Group exact matches first
         let (exact_matches, others): (Vec<_>, Vec<_>) = results
             .into_iter()
             .partition(|r| r.match_type == MatchType::Exact);
-            
+
         if !exact_matches.is_empty() {
             groups.push(ResultGroup {
                 title: "Exact matches".to_string(),
                 results: exact_matches,
             });
         }
-        
+
         // Group by file for remaining results
         let mut by_file: std::collections::HashMap<String, Vec<SearchResult>> = HashMap::new();
         for result in others {
             by_file.entry(result.file_path.clone()).or_default().push(result);
         }
-        
+
         for (file_path, file_results) in by_file {
             if file_results.len() > 3 {
                 groups.push(ResultGroup {
@@ -538,7 +538,7 @@ impl ResultGrouper {
                 });
             }
         }
-        
+
         groups
     }
 }
@@ -570,31 +570,31 @@ pub enum FileType {
 impl FileTypeStrategy {
     pub fn new() -> Self {
         let mut strategies: HashMap<FileType, Box<dyn SearchStrategy>> = HashMap::new();
-        
+
         strategies.insert(
             FileType::Code,
             Box::new(CodeSearchStrategy::new()) // Regex + semantic for code
         );
-        
+
         strategies.insert(
             FileType::Documentation,
             Box::new(DocumentationSearchStrategy::new()) // Semantic for concepts
         );
-        
+
         strategies.insert(
             FileType::Configuration,
             Box::new(ExactSearchStrategy::new()) // Exact matches for config
         );
-        
+
         Self { strategies }
     }
-    
+
     pub async fn search(&self, query: &str, files: &[PathBuf]) -> Result<Vec<SearchResult>> {
         let mut all_results = Vec::new();
-        
+
         // Group files by type
         let files_by_type = self.group_files_by_type(files);
-        
+
         // Search each group with appropriate strategy
         for (file_type, type_files) in files_by_type {
             if let Some(strategy) = self.strategies.get(&file_type) {
@@ -602,10 +602,10 @@ impl FileTypeStrategy {
                 all_results.extend(results);
             }
         }
-        
+
         // Sort by relevance
         all_results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
-        
+
         Ok(all_results)
     }
 }
@@ -681,10 +681,10 @@ test-examples/
 #[tokio::test]
 async fn test_basic_search_works() {
     let temp_dir = create_test_project();
-    
+
     // Test: User runs basic search
     let result = run_command(&["semisearch", "TODO"], &temp_dir).await;
-    
+
     assert!(result.success, "Basic search should work");
     assert!(result.stdout.contains("Found"), "Should show results count");
     assert!(!result.stderr.contains("error"), "Should not show errors");
@@ -694,7 +694,7 @@ async fn test_basic_search_works() {
 #[tokio::test]
 async fn test_error_messages_are_helpful() {
     let result = run_command(&["semisearch", "nonexistent", "/bad/path"], Path::new(".")).await;
-    
+
     assert!(!result.success, "Should fail for bad path");
     assert!(!result.stderr.contains("anyhow"), "Should not expose internal errors");
     assert!(result.stderr.contains("Make sure"), "Should give actionable advice");
@@ -824,11 +824,11 @@ pub struct AdvancedMode {
 impl AdvancedMode {
     pub fn from_args(args: &[String]) -> Self {
         Self {
-            enabled: args.contains(&"--advanced".to_string()) 
+            enabled: args.contains(&"--advanced".to_string())
                 || std::env::var("SEMISEARCH_ADVANCED").is_ok()
         }
     }
-    
+
     pub fn get_cli_definition(&self) -> Command {
         if self.enabled {
             // Return full CLI with all 16+ options
@@ -922,7 +922,7 @@ semisearch "regex.*pattern" --advanced --mode regex
 
 ### Week 1: Emergency Triage
 - **Day 1-2:** Simple CLI interface (Tasks 1.1.1-1.1.3)
-- **Day 3-4:** Fix error messages (Tasks 1.2.1-1.2.3)  
+- **Day 3-4:** Fix error messages (Tasks 1.2.1-1.2.3)
 - **Day 5:** Smart query analysis (Tasks 1.3.1-1.3.2)
 - **Weekend:** Contextual help system (Tasks 1.4.1-1.4.2)
 
@@ -950,4 +950,4 @@ When all these criteria pass, SemiSearch will transform from a "developer tool t
 
 ---
 
-**Remember:** The goal is not to remove functionality, but to hide complexity. Every current feature should still work - it just shouldn't be required to perform basic searches. 
+**Remember:** The goal is not to remove functionality, but to hide complexity. Every current feature should still work - it just shouldn't be required to perform basic searches.

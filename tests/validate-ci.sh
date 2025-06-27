@@ -156,11 +156,11 @@ echo "===================="
 
 if [ $MISSING_FILES -eq 0 ] && [ $PERMISSION_ISSUES -eq 0 ]; then
     log_success "All critical validations passed!"
-    
+
     if [ $TOOLS_MISSING -gt 0 ]; then
         log_warning "$TOOLS_MISSING optional tools missing (tests will adapt)"
     fi
-    
+
     echo ""
     log_success "✨ CI environment is ready for testing!"
     exit 0
@@ -169,4 +169,4 @@ else
     [ $MISSING_FILES -gt 0 ] && echo "  - $MISSING_FILES required files missing"
     [ $PERMISSION_ISSUES -gt 0 ] && echo "  - $PERMISSION_ISSUES permission issues"
     exit 1
-fi 
+fi

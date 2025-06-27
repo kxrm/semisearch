@@ -8,4 +8,3 @@ We need better error handling in the authentication module.
 ## TODO List
 - Implement proper error handling
 - Add database connection error handling
-

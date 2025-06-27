@@ -83,7 +83,7 @@ impl Database {
         size_bytes: i64,
     ) -> Result<i64> {
         let mut stmt = self.conn.prepare_cached(
-            "INSERT OR REPLACE INTO files (path, hash, modified_at, size_bytes, indexed_at) 
+            "INSERT OR REPLACE INTO files (path, hash, modified_at, size_bytes, indexed_at)
              VALUES (?1, ?2, ?3, ?4, ?5)",
         )?;
 
@@ -117,7 +117,7 @@ impl Database {
         });
 
         let mut stmt = self.conn.prepare_cached(
-            "INSERT INTO chunks (file_id, line_number, start_char, end_char, content, embedding) 
+            "INSERT INTO chunks (file_id, line_number, start_char, end_char, content, embedding)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         )?;
 
@@ -288,8 +288,8 @@ impl Database {
     pub fn cleanup_query_cache(&self, max_entries: usize) -> Result<()> {
         let mut stmt = self.conn.prepare_cached(
             "DELETE FROM query_cache WHERE query_hash NOT IN (
-                SELECT query_hash FROM query_cache 
-                ORDER BY last_accessed DESC 
+                SELECT query_hash FROM query_cache
+                ORDER BY last_accessed DESC
                 LIMIT ?1
             )",
         )?;

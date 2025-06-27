@@ -9,7 +9,7 @@ async fn test_natural_path_syntax() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "TODO",
@@ -41,7 +41,7 @@ async fn test_natural_path_current_directory() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "TODO",
@@ -73,7 +73,7 @@ async fn test_natural_path_with_flags() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "TODO",
@@ -106,7 +106,7 @@ async fn test_path_flag_backward_compatibility() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "TODO",
@@ -136,7 +136,7 @@ async fn test_explicit_search_with_natural_path() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "search",
@@ -169,7 +169,7 @@ async fn test_multi_word_query_with_natural_path() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "error handling",
@@ -208,7 +208,7 @@ async fn test_ux_plan_examples() -> Result<()> {
             .args([
                 "run",
                 "--bin",
-                "semisearch-new",
+                "semisearch",
                 "--no-default-features",
                 "--",
                 query,
@@ -241,7 +241,7 @@ async fn test_help_text_includes_natural_path() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "search",
@@ -269,7 +269,7 @@ async fn test_natural_path_intuitiveness() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "TODO",
@@ -281,7 +281,7 @@ async fn test_natural_path_intuitiveness() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "TODO",

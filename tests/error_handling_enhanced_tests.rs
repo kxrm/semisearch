@@ -48,7 +48,7 @@ async fn test_error_display_point_integration() {
     let _temp_dir = TempDir::new().unwrap();
 
     // Test main binary error handling
-    let output = Command::new("./target/debug/semisearch-new")
+    let output = Command::new("./target/debug/semisearch")
         .arg("test_query")
         .arg("/completely/nonexistent/path/12345")
         .output()
@@ -105,7 +105,7 @@ async fn test_cascading_error_handling() {
     std::fs::write(&restricted_file, "test content").unwrap();
 
     // Try to search with invalid parameters
-    let output = Command::new("./target/debug/semisearch-new")
+    let output = Command::new("./target/debug/semisearch")
         .arg("--advanced")
         .arg("search")
         .arg("test")
@@ -133,11 +133,11 @@ async fn test_error_message_consistency() {
 
     let test_cases = vec![
         (
-            "./target/debug/semisearch-new",
+            "./target/debug/semisearch",
             vec!["nonexistent_query", "/bad/path"],
         ),
         (
-            "./target/debug/semisearch-new",
+            "./target/debug/semisearch",
             vec!["--advanced", "search", "query", "/bad/path"],
         ),
     ];
@@ -178,7 +178,7 @@ async fn test_json_error_format_enhanced() {
     ];
 
     for (path, expected_error_type) in test_cases {
-        let output = Command::new("./target/debug/semisearch-new")
+        let output = Command::new("./target/debug/semisearch")
             .args(["--advanced", "search", "test", path, "--format", "json"])
             .output()
             .expect("Failed to execute command");
@@ -212,7 +212,7 @@ async fn test_error_recovery_suggestions() {
     // Test that error recovery suggestions are actionable and specific
 
     // Test 1: Directory access error
-    let output = Command::new("./target/debug/semisearch-new")
+    let output = Command::new("./target/debug/semisearch")
         .args(["impossible_query_xyz_123", "/nonexistent"])
         .output()
         .expect("Failed to execute command");
@@ -230,7 +230,7 @@ async fn test_error_recovery_suggestions() {
 
     // Test 2: No results error (search in valid directory)
     let temp_dir = tempfile::TempDir::new().unwrap();
-    let output = Command::new("./target/debug/semisearch-new")
+    let output = Command::new("./target/debug/semisearch")
         .args([
             "impossible_query_xyz_123",
             temp_dir.path().to_str().unwrap(),

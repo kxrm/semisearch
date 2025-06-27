@@ -12,10 +12,6 @@ rust-version = "1.85"
 name = "semisearch"
 path = "src/main.rs"
 
-[[bin]]
-name = "semisearch-new"
-path = "src/main_new.rs"
-
 [dependencies]
 anyhow = "1.0"
 clap = { version = "4.0", features = ["derive"] }
@@ -58,4 +54,4 @@ neural-embeddings = ["ort", "tokenizers", "ndarray", "reqwest"]
 tfidf-only = []  # Legacy feature for minimal builds
 
 # Build optimizations
-[profile.release] 
+[profile.release]
