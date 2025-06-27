@@ -171,13 +171,7 @@ async fn test_proper_exit_codes() -> Result<()> {
 
     // Test 1: Invalid arguments (should be exit code 2)
     let output = Command::new("cargo")
-        .args([
-            "run",
-            "--bin",
-            "semisearch-new",
-            "--",
-            "--invalid-flag",
-        ])
+        .args(["run", "--bin", "semisearch-new", "--", "--invalid-flag"])
         .output()?;
 
     assert!(!output.status.success(), "Invalid arguments should fail");
@@ -221,10 +215,7 @@ async fn test_technical_error_translation() -> Result<()> {
     let stderr = String::from_utf8(output.stderr)?;
 
     // Should fail
-    assert!(
-        !output.status.success(),
-        "Permission error should fail"
-    );
+    assert!(!output.status.success(), "Permission error should fail");
 
     // Should not expose technical error details
     assert!(
@@ -262,14 +253,7 @@ async fn test_consistent_error_formatting() -> Result<()> {
 
     // Test 2: Permission denied (if possible)
     let output2 = Command::new("cargo")
-        .args([
-            "run",
-            "--bin",
-            "semisearch-new",
-            "--",
-            "TODO",
-            "/root",
-        ])
+        .args(["run", "--bin", "semisearch-new", "--", "TODO", "/root"])
         .output()?;
 
     let stderr2 = String::from_utf8(output2.stderr)?;
@@ -330,7 +314,7 @@ async fn test_stderr_stdout_separation() -> Result<()> {
             })
             .collect::<Vec<_>>()
             .join("\n");
-        
+
         assert!(
             stdout.len() > filtered_stderr.len(),
             "Results should be on stdout: stdout={}, filtered_stderr={}",
