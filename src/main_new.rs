@@ -634,7 +634,7 @@ async fn handle_error(error: anyhow::Error) {
 /// Handle errors with additional context (query, path) for better user guidance
 async fn handle_error_with_context(error: anyhow::Error, query: Option<&str>, path: Option<&str>) {
     let user_error = ErrorTranslator::translate_technical_error_with_context(&error, query, path);
-    
+
     // Check if JSON format was requested
     if let Ok(json_mode) = std::env::var("SEMISEARCH_JSON") {
         if json_mode == "1" || json_mode.to_lowercase() == "true" {
@@ -651,9 +651,7 @@ async fn handle_error_with_context(error: anyhow::Error, query: Option<&str>, pa
     } else {
         eprintln!("{user_error}");
     }
-    
+
     let exit_code = user_error.exit_code();
     std::process::exit(exit_code);
 }
-
-

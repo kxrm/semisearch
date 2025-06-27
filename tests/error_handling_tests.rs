@@ -83,10 +83,7 @@ async fn test_no_matches_helpful_suggestions() -> Result<()> {
     );
 
     if let Some(code) = output.status.code() {
-        assert_eq!(
-            code, 1,
-            "No matches should return exit code 1, got: {code}"
-        );
+        assert_eq!(code, 1, "No matches should return exit code 1, got: {code}");
     }
 
     // Should show helpful suggestions (now on stderr)
