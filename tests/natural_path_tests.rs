@@ -24,13 +24,11 @@ async fn test_natural_path_syntax() -> Result<()> {
     // Should succeed and search in src/ directory
     assert!(
         output.status.success(),
-        "Natural path syntax failed: {}",
-        stderr
+        "Natural path syntax failed: {stderr}"
     );
     assert!(
         stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("matches"),
-        "Should handle natural path syntax: {}",
-        stdout
+        "Should handle natural path syntax: {stdout}"
     );
 
     Ok(())
@@ -59,13 +57,11 @@ async fn test_natural_path_current_directory() -> Result<()> {
     // Should succeed and search in current directory
     assert!(
         output.status.success(),
-        "Current directory path failed: {}",
-        stderr
+        "Current directory path failed: {stderr}"
     );
     assert!(
         stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("matches"),
-        "Should handle current directory: {}",
-        stdout
+        "Should handle current directory: {stdout}"
     );
 
     Ok(())
@@ -95,13 +91,11 @@ async fn test_natural_path_with_flags() -> Result<()> {
     // Should succeed with fuzzy search in src/
     assert!(
         output.status.success(),
-        "Natural path with flags failed: {}",
-        stderr
+        "Natural path with flags failed: {stderr}"
     );
     assert!(
         stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("matches"),
-        "Should handle natural path with flags: {}",
-        stdout
+        "Should handle natural path with flags: {stdout}"
     );
 
     Ok(())
@@ -129,11 +123,10 @@ async fn test_path_flag_backward_compatibility() -> Result<()> {
     let stderr = String::from_utf8(output.stderr)?;
 
     // Should succeed with --path flag
-    assert!(output.status.success(), "--path flag failed: {}", stderr);
+    assert!(output.status.success(), "--path flag failed: {stderr}");
     assert!(
         stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("matches"),
-        "Should handle --path flag: {}",
-        stdout
+        "Should handle --path flag: {stdout}"
     );
 
     Ok(())
@@ -163,13 +156,11 @@ async fn test_explicit_search_with_natural_path() -> Result<()> {
     // Should succeed with explicit search command
     assert!(
         output.status.success(),
-        "Explicit search with natural path failed: {}",
-        stderr
+        "Explicit search with natural path failed: {stderr}"
     );
     assert!(
         stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("matches"),
-        "Should handle explicit search with natural path: {}",
-        stdout
+        "Should handle explicit search with natural path: {stdout}"
     );
 
     Ok(())
@@ -198,13 +189,11 @@ async fn test_multi_word_query_with_natural_path() -> Result<()> {
     // Should succeed with multi-word query
     assert!(
         output.status.success(),
-        "Multi-word query with natural path failed: {}",
-        stderr
+        "Multi-word query with natural path failed: {stderr}"
     );
     assert!(
         stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("matches"),
-        "Should handle multi-word query with natural path: {}",
-        stdout
+        "Should handle multi-word query with natural path: {stdout}"
     );
 
     Ok(())
@@ -240,17 +229,11 @@ async fn test_ux_plan_examples() -> Result<()> {
         // Should succeed for all UX plan examples
         assert!(
             output.status.success(),
-            "UX example '{} {}' failed: {}",
-            query,
-            path,
-            stderr
+            "UX example '{query} {path}' failed: {stderr}"
         );
         assert!(
             stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("matches"),
-            "Should handle UX example '{} {}': {}",
-            query,
-            path,
-            stdout
+            "Should handle UX example '{query} {path}': {stdout}"
         );
     }
 
@@ -280,8 +263,7 @@ async fn test_help_text_includes_natural_path() -> Result<()> {
     assert!(output.status.success(), "Help command should work");
     assert!(
         stdout.contains("QUERY") && stdout.contains("PATH"),
-        "Help should mention QUERY and PATH arguments: {}",
-        stdout
+        "Help should mention QUERY and PATH arguments: {stdout}"
     );
 
     Ok(())
