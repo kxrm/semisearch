@@ -152,15 +152,17 @@ async fn run_main() -> Result<()> {
             }
 
             // Perform search with enhanced error handling
-            let results = match execute_search(&args.query, &search_path, &options).await {
-                Ok(results) => results,
-                Err(e) => {
-                    handle_error_with_context(e, Some(&args.query), Some(&search_path)).await;
-                    return Ok(()); // This line won't be reached due to process::exit in handle_error_with_context
-                }
-            };
+            let search_result_with_strategy =
+                match execute_search(&args.query, &search_path, &options).await {
+                    Ok(result) => result,
+                    Err(e) => {
+                        handle_error_with_context(e, Some(&args.query), Some(&search_path)).await;
+                        return Ok(()); // This line won't be reached due to process::exit in handle_error_with_context
+                    }
+                };
 
             let search_time = start_time.elapsed();
+            let results = &search_result_with_strategy.results;
 
             // Display results based on format
             if cli.advanced && args.format == "json" {
@@ -180,15 +182,21 @@ async fn run_main() -> Result<()> {
                     println!("{}", serde_json::to_string_pretty(&results)?);
                 }
             } else if cli.advanced && args.files_only {
-                for result in &results {
+                for result in results {
                     println!("{}", result.file_path);
                 }
             } else {
                 // Check if advanced mode is enabled for different formatting
                 if cli.advanced {
-                    display_advanced_results(&results, &args.query, search_time)?;
+                    display_advanced_results_with_strategy(
+                        results,
+                        &args.query,
+                        search_time,
+                        &search_result_with_strategy.strategy_legend,
+                        &search_result_with_strategy.deployment_summary,
+                    )?;
                 } else {
-                    display_simple_results(&results, &args.query, search_time)?;
+                    display_simple_results(results, &args.query, search_time)?;
                 }
             }
         }
@@ -212,11 +220,13 @@ async fn run_main() -> Result<()> {
     Ok(())
 }
 
-/// Display search results with advanced technical details
-fn display_advanced_results(
+/// Display search results with advanced technical details and strategy information
+fn display_advanced_results_with_strategy(
     results: &[SearchResult],
     query: &str,
     search_time: std::time::Duration,
+    strategy_legend: &str,
+    deployment_summary: &str,
 ) -> Result<()> {
     use search::output::HumanFormatter;
 
@@ -243,8 +253,14 @@ fn display_advanced_results(
         std::process::exit(exit_code);
     }
 
-    // Use advanced formatting with technical details
-    let formatted_output = HumanFormatter::format_results_advanced(results, query, search_time);
+    // Use advanced formatting with strategy information
+    let formatted_output = HumanFormatter::format_results_advanced_with_strategies(
+        results,
+        query,
+        search_time,
+        strategy_legend,
+        deployment_summary,
+    );
     print!("{formatted_output}");
 
     // Show contextual help based on results
@@ -260,31 +276,127 @@ fn display_advanced_results(
     Ok(())
 }
 
-/// Execute search with the given parameters
+/// Structure to hold search results and strategy information
+#[derive(Debug)]
+struct SearchResultWithStrategy {
+    results: Vec<SearchResult>,
+    strategy_legend: String,
+    deployment_summary: String,
+}
+
+/// Execute search with the given parameters using file type smart defaults
 async fn execute_search(
     query: &str,
     path: &str,
     options: &SearchOptions,
-) -> Result<Vec<SearchResult>> {
-    // Get database path
-    let db_path = get_database_path()?;
-    let database = Database::new(&db_path)?;
+) -> Result<SearchResultWithStrategy> {
+    use search::search::file_type_strategy::FileTypeStrategy;
 
-    // Determine if we should use semantic search
-    let use_semantic = should_use_semantic_search(query);
+    // Check if advanced mode is enabled to determine search strategy
+    let args: Vec<String> = std::env::args().collect();
+    let advanced_mode = args.contains(&"--advanced".to_string());
 
-    // Initialize embedder if needed
-    let embedder = if use_semantic {
-        (create_embedder(true).await).ok()
+    if advanced_mode {
+        // In advanced mode, use file type strategy for smart defaults
+        let mut file_strategy = FileTypeStrategy::new();
+
+        // Detect if semantic search is available
+        let semantic_available = match LocalEmbedder::detect_capabilities() {
+            #[cfg(feature = "neural-embeddings")]
+            EmbeddingCapability::Full => true,
+            _ => false,
+        };
+        file_strategy.set_semantic_available(semantic_available);
+        file_strategy.enable_tracking();
+
+        // Get files in the search path
+        let files = get_files_in_path(path)?;
+
+        // Simulate strategy usage tracking (in real implementation this would be done during search)
+        let grouped_files = file_strategy.group_files_by_type(&files);
+        for file_type in grouped_files.keys() {
+            let strategies = file_strategy.get_strategies_for_file_type(file_type.clone());
+            file_strategy.track_strategy_usage(file_type.clone(), &strategies);
+        }
+
+        // Use file type strategy for search
+        let results = file_strategy.search(query, &files).await?;
+
+        // Get strategy information
+        let strategy_legend = file_strategy.get_strategy_legend();
+        let deployment_summary = file_strategy.get_deployment_summary();
+
+        Ok(SearchResultWithStrategy {
+            results,
+            strategy_legend,
+            deployment_summary,
+        })
     } else {
-        None
-    };
+        // In simple mode, use the existing unified search approach
+        let db_path = get_database_path()?;
+        let database = Database::new(&db_path)?;
 
-    // Create search engine
-    let search_engine = SearchEngine::new(database, embedder);
+        // Determine if we should use semantic search
+        let use_semantic = should_use_semantic_search(query);
 
-    // Perform search
-    search_engine.search(query, path, options.clone()).await
+        // Initialize embedder if needed
+        let embedder = if use_semantic {
+            (create_embedder(true).await).ok()
+        } else {
+            None
+        };
+
+        // Create search engine
+        let search_engine = SearchEngine::new(database, embedder);
+
+        // Perform search
+        let results = search_engine.search(query, path, options.clone()).await?;
+
+        Ok(SearchResultWithStrategy {
+            results,
+            strategy_legend: String::new(),
+            deployment_summary: String::new(),
+        })
+    }
+}
+
+/// Get files in the given path for file type strategy
+fn get_files_in_path(path: &str) -> Result<Vec<PathBuf>> {
+    use std::fs;
+    use std::path::Path;
+
+    let mut files = Vec::new();
+    let search_path = Path::new(path);
+
+    if search_path.is_file() {
+        files.push(search_path.to_path_buf());
+    } else if search_path.is_dir() {
+        // Recursively find files in the directory
+        fn collect_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
+            if let Ok(entries) = fs::read_dir(dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_file() {
+                        files.push(path);
+                    } else if path.is_dir()
+                        && !path
+                            .file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .starts_with('.')
+                    {
+                        // Skip hidden directories but recurse into others
+                        collect_files(&path, files)?;
+                    }
+                }
+            }
+            Ok(())
+        }
+
+        collect_files(search_path, &mut files)?;
+    }
+
+    Ok(files)
 }
 
 /// Determine if we should use semantic search based on query characteristics
@@ -608,11 +720,11 @@ async fn run_doctor() -> Result<()> {
     let test_options = SearchOptions::default();
 
     match execute_search(test_query, test_path, &test_options).await {
-        Ok(results) => {
+        Ok(search_result) => {
             let duration = start.elapsed();
             println!(
                 "✅ Search test: {} results in {:.2}s",
-                results.len(),
+                search_result.results.len(),
                 duration.as_secs_f64()
             );
         }

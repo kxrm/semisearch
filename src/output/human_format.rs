@@ -104,6 +104,76 @@ impl HumanFormatter {
         output
     }
 
+    /// Format search results with strategy deployment information (advanced mode with file type strategy)
+    pub fn format_results_advanced_with_strategies(
+        results: &[SearchResult],
+        query: &str,
+        search_time: Duration,
+        strategy_legend: &str,
+        deployment_summary: &str,
+    ) -> String {
+        if results.is_empty() {
+            return Self::format_no_results(query);
+        }
+
+        let mut output = String::new();
+
+        // Show strategy legend first
+        if !strategy_legend.is_empty() {
+            output.push_str(&format!("{strategy_legend}\n\n"));
+        }
+
+        // Advanced header with timing
+        output.push_str(&format!(
+            "Found {} matches in {:.2}s:\n\n",
+            results.len(),
+            search_time.as_secs_f64()
+        ));
+
+        let mut current_file = "";
+        let results_to_show = results.iter().take(10);
+
+        for result in results_to_show {
+            // Show file path only when it changes
+            if result.file_path != current_file {
+                output.push_str(&format!("📁 {}\n", result.file_path));
+                current_file = &result.file_path;
+            }
+
+            // Show line and content
+            let content = result.content.trim();
+            output.push_str(&format!("   Line {}: {}\n", result.line_number, content));
+
+            // Show technical details in advanced mode
+            if let Some(score) = result.score {
+                if score < 1.0 {
+                    output.push_str(&format!("   Relevance: {:.1}%\n", score * 100.0));
+                }
+            }
+
+            if let Some(match_type) = &result.match_type {
+                if *match_type != MatchType::Exact {
+                    output.push_str(&format!("   Match type: {match_type:?}\n"));
+                }
+            }
+
+            output.push('\n');
+        }
+
+        // Show truncation message if there are more results
+        if results.len() > 10 {
+            output.push_str(&format!("... and {} more matches\n", results.len() - 10));
+            output.push_str("💡 Tip: Use more specific terms to narrow results\n");
+        }
+
+        // Show strategy deployment summary at the end
+        if !deployment_summary.is_empty() {
+            output.push_str(&format!("\nStrategy Deployment:\n{deployment_summary}\n"));
+        }
+
+        output
+    }
+
     /// Format no results message with helpful suggestions
     pub fn format_no_results(query: &str) -> String {
         let simplified = Self::suggest_alternative(query);
