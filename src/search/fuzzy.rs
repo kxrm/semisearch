@@ -216,6 +216,25 @@ impl FuzzySearch {
             (0, content.len().min(query.len() * 2))
         }
     }
+
+    /// Search in files at the given path
+    pub async fn search(&self, query: &str, path: &str) -> Result<Vec<crate::SearchResult>> {
+        use crate::search_files;
+        use crate::SearchOptions as LibSearchOptions;
+
+        let options = LibSearchOptions {
+            min_score: 0.3,
+            max_results: 100,
+            fuzzy_matching: true,
+            regex_mode: false,
+            case_sensitive: false,
+            typo_tolerance: true,
+            max_edit_distance: self.max_edit_distance,
+            search_mode: Some("fuzzy".to_string()),
+        };
+
+        search_files(query, path, &options)
+    }
 }
 
 impl SearchStrategy for FuzzySearch {

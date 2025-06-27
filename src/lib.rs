@@ -15,6 +15,7 @@ pub mod errors;
 pub mod storage;
 
 // Phase 3: Text Processing modules
+pub mod query;
 pub mod search;
 pub mod text;
 

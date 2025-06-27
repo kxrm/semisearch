@@ -207,6 +207,25 @@ impl RegexSearch {
         let regex_pattern = self.wildcard_to_regex(pattern);
         self.search_chunks(&regex_pattern, chunks, options)
     }
+
+    /// Search in files at the given path
+    pub async fn search(&self, query: &str, path: &str) -> Result<Vec<crate::SearchResult>> {
+        use crate::search_files;
+        use crate::SearchOptions as LibSearchOptions;
+
+        let options = LibSearchOptions {
+            min_score: 0.3,
+            max_results: 100,
+            fuzzy_matching: false,
+            regex_mode: true,
+            case_sensitive: false,
+            typo_tolerance: false,
+            max_edit_distance: 2,
+            search_mode: Some("regex".to_string()),
+        };
+
+        search_files(query, path, &options)
+    }
 }
 
 impl SearchStrategy for RegexSearch {
