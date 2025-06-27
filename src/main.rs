@@ -138,7 +138,7 @@ async fn run_main() -> Result<()> {
                     // Disable semantic search
                 }
 
-                if args.regex {
+                if args.regex || args.mode == "regex" {
                     options.regex_mode = true;
                 }
 
