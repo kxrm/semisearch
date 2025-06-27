@@ -83,7 +83,7 @@ pub struct SearchArgs {
     pub semantic_threshold: f32,
 
     /// Output format: plain, json
-    #[arg(short, long, default_value = "plain")]
+    #[arg(short, long, default_value = "plain", hide = true)]
     pub format: String,
 
     /// Show file paths only
