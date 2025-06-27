@@ -25,8 +25,7 @@ async fn test_simple_mode_hides_advanced_options() -> Result<()> {
     let option_count = stdout.matches("--").count();
     assert!(
         option_count <= 10,
-        "Simple mode should show ≤10 options, found: {}",
-        option_count
+        "Simple mode should show ≤10 options, found: {option_count}"
     );
 
     // Should not show advanced options
@@ -85,8 +84,7 @@ async fn test_search_subcommand_simple_by_default() -> Result<()> {
     let option_count = stdout.matches("--").count();
     assert!(
         option_count <= 12,
-        "Simple search should show ≤12 options, found: {}",
-        option_count
+        "Simple search should show ≤12 options, found: {option_count}"
     );
 
     // Should not show advanced options by default
@@ -142,8 +140,7 @@ async fn test_advanced_flag_shows_all_options() -> Result<()> {
     let option_count = stdout.matches("--").count();
     assert!(
         option_count > 10,
-        "Advanced mode should show >10 options, found: {}",
-        option_count
+        "Advanced mode should show >10 options, found: {option_count}"
     );
 
     Ok(())
@@ -175,8 +172,7 @@ async fn test_advanced_search_shows_all_options() -> Result<()> {
     let option_count = stdout.matches("--").count();
     assert!(
         option_count > 10,
-        "Advanced search should show >10 options, found: {}",
-        option_count
+        "Advanced search should show >10 options, found: {option_count}"
     );
 
     Ok(())
@@ -206,15 +202,13 @@ async fn test_simple_mode_search_functionality() -> Result<()> {
     // Should succeed
     assert!(
         output.status.success(),
-        "Simple search should work: {}",
-        stderr
+        "Simple search should work: {stderr}"
     );
 
     // Should show results or "No matches found"
     assert!(
         stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("matches"),
-        "Should show search results: {}",
-        stdout
+        "Should show search results: {stdout}"
     );
 
     Ok(())
@@ -247,15 +241,13 @@ async fn test_advanced_flags_work_in_advanced_mode() -> Result<()> {
     // Should succeed
     assert!(
         output.status.success(),
-        "Advanced search with flags should work: {}",
-        stderr
+        "Advanced search with flags should work: {stderr}"
     );
 
     // Should show results or "No matches found"
     assert!(
         stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("matches"),
-        "Should show search results: {}",
-        stdout
+        "Should show search results: {stdout}"
     );
 
     Ok(())
