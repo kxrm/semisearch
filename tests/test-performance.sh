@@ -183,7 +183,7 @@ fi
 
 # Fuzzy search
 start_time=$(date +%s.%N)
-$BINARY_PATH search "TODO" --path "$TEST_DATA_DIR" --mode fuzzy --limit 20 > /dev/null 2>&1
+$BINARY_PATH --advanced search "TODO" --path "$TEST_DATA_DIR" --mode fuzzy --limit 20 > /dev/null 2>&1
 end_time=$(date +%s.%N)
 if [ "$CALC_AVAILABLE" = true ]; then
     fuzzy_duration=$(echo "$end_time - $start_time" | bc -l)
@@ -192,7 +192,7 @@ fi
 
 # Regex search
 start_time=$(date +%s.%N)
-$BINARY_PATH search "TODO.*:" --path "$TEST_DATA_DIR" --mode regex --limit 20 > /dev/null 2>&1
+$BINARY_PATH --advanced search "TODO.*:" --path "$TEST_DATA_DIR" --mode regex --limit 20 > /dev/null 2>&1
 end_time=$(date +%s.%N)
 if [ "$CALC_AVAILABLE" = true ]; then
     regex_duration=$(echo "$end_time - $start_time" | bc -l)
@@ -201,7 +201,7 @@ fi
 
 # Semantic search (if available)
 start_time=$(date +%s.%N)
-if $BINARY_PATH search "TODO implementation" --path "$TEST_DATA_DIR" --mode semantic --limit 20 > /dev/null 2>&1; then
+if $BINARY_PATH --advanced search "TODO implementation" --path "$TEST_DATA_DIR" --mode semantic --limit 20 > /dev/null 2>&1; then
     end_time=$(date +%s.%N)
     if [ "$CALC_AVAILABLE" = true ]; then
         semantic_duration=$(echo "$end_time - $start_time" | bc -l)
