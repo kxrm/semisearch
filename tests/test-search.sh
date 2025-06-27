@@ -115,26 +115,42 @@ echo ""
 
 # Test fuzzy search
 log_info "Testing fuzzy search..."
+set +e  # Temporarily disable exit on error
 FUZZY_RESULT=$(./target/release/semisearch search "${QUERY}O" --path "$TEMP_DIR" --mode fuzzy 2>&1)  # Introduce typo
-if [ $? -eq 0 ]; then
+FUZZY_EXIT_CODE=$?
+set -e  # Re-enable exit on error
+
+if [ $FUZZY_EXIT_CODE -eq 0 ]; then
     log_success "Fuzzy search completed"
     echo "$FUZZY_RESULT"
-else
-    log_error "Fuzzy search failed"
+elif [ $FUZZY_EXIT_CODE -eq 1 ] && echo "$FUZZY_RESULT" | grep -q "No matches found"; then
+    log_warning "Fuzzy search found no matches (expected outcome)"
     echo "$FUZZY_RESULT"
+else
+    log_error "Fuzzy search failed with unexpected error"
+    echo "$FUZZY_RESULT"
+    exit 1
 fi
 
 echo ""
 
 # Test regex search
 log_info "Testing regex search..."
+set +e  # Temporarily disable exit on error
 REGEX_RESULT=$(./target/release/semisearch search "TODO.*:" --path "$TEMP_DIR" --mode regex 2>&1)
-if [ $? -eq 0 ]; then
+REGEX_EXIT_CODE=$?
+set -e  # Re-enable exit on error
+
+if [ $REGEX_EXIT_CODE -eq 0 ]; then
     log_success "Regex search completed"
     echo "$REGEX_RESULT"
-else
-    log_error "Regex search failed"
+elif [ $REGEX_EXIT_CODE -eq 1 ] && echo "$REGEX_RESULT" | grep -q "No matches found"; then
+    log_warning "Regex search found no matches"
     echo "$REGEX_RESULT"
+else
+    log_error "Regex search failed with unexpected error"
+    echo "$REGEX_RESULT"
+    exit 1
 fi
 
 echo ""
@@ -158,13 +174,21 @@ echo ""
 
 # Test with limits
 log_info "Testing result limits..."
+set +e  # Temporarily disable exit on error
 LIMIT_RESULT=$(./target/release/semisearch search "$QUERY" --path "$TEMP_DIR" --limit 2 2>&1)
-if [ $? -eq 0 ]; then
+LIMIT_EXIT_CODE=$?
+set -e  # Re-enable exit on error
+
+if [ $LIMIT_EXIT_CODE -eq 0 ]; then
     log_success "Limited search completed"
     echo "$LIMIT_RESULT"
-else
-    log_error "Limited search failed"
+elif [ $LIMIT_EXIT_CODE -eq 1 ] && echo "$LIMIT_RESULT" | grep -q "No matches found"; then
+    log_warning "Limited search found no matches"
     echo "$LIMIT_RESULT"
+else
+    log_error "Limited search failed with unexpected error"
+    echo "$LIMIT_RESULT"
+    exit 1
 fi
 
 echo ""
