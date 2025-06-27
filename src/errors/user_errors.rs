@@ -1,3 +1,4 @@
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -131,18 +132,121 @@ impl UserError {
 
     /// Simplify a query for suggestions
     fn simplify_query(query: &str) -> String {
-        // Remove common programming terms and simplify
-        let words: Vec<&str> = query
-            .split_whitespace()
-            .filter(|word| !word.contains("()") && !word.contains("{}"))
-            .take(2) // Take first 2 words
+        // Common programming terms that can be removed for simplification
+        let programming_terms: std::collections::HashSet<&str> = [
+            "function",
+            "class",
+            "method",
+            "async",
+            "await",
+            "const",
+            "let",
+            "var",
+            "public",
+            "private",
+            "protected",
+            "static",
+            "final",
+            "abstract",
+            "interface",
+            "type",
+            "enum",
+            "struct",
+            "trait",
+            "impl",
+            "mod",
+            "import",
+            "export",
+            "require",
+            "include",
+            "using",
+            "namespace",
+            "try",
+            "catch",
+            "throw",
+            "throws",
+            "error",
+            "exception",
+            "handler",
+            "validate",
+            "validation",
+            "check",
+            "verify",
+            "test",
+            "testing",
+            "config",
+            "configuration",
+            "setup",
+            "initialize",
+            "init",
+            "db",
+            "query",
+            "sql",
+            "api",
+            "endpoint",
+            "route",
+            "controller",
+            "service",
+            "repository",
+            "model",
+            "view",
+            "component",
+            "utils",
+            "utility",
+            "helper",
+            "fn",
+            "pub",
+            "def",
+            "return",
+        ]
+        .iter()
+        .cloned()
+        .collect();
+
+        // Common file extensions that can be removed
+        let file_extensions: std::collections::HashSet<&str> = [
+            ".rs", ".py", ".js", ".ts", ".md", ".txt", ".json", ".toml", ".yaml", ".yml", ".xml",
+            ".html", ".css", ".scss", ".sql", ".sh", ".bash",
+        ]
+        .iter()
+        .cloned()
+        .collect();
+
+        // Common noise words
+        let noise_words: std::collections::HashSet<&str> = [
+            "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with",
+            "by", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do",
+            "does", "did", "will", "would", "could", "should", "may", "might", "can", "this",
+            "that", "these", "those",
+        ]
+        .iter()
+        .cloned()
+        .collect();
+
+        // Split on whitespace and punctuation
+        let re = Regex::new(r"[ \t\n\r\.\:\(\)\{\}\[\],;]+")
+            .expect("Invalid regex for query simplification");
+        let tokens: Vec<&str> = re
+            .split(query)
+            .filter(|token| {
+                let token_lower = token.to_lowercase();
+                token.len() > 2
+                    && !programming_terms.contains(token_lower.as_str())
+                    && !file_extensions.contains(token)
+                    && !noise_words.contains(token_lower.as_str())
+            })
             .collect();
 
-        if words.is_empty() {
+        if tokens.is_empty() {
             "search term".to_string()
         } else {
-            words.join(" ")
+            tokens.into_iter().take(3).collect::<Vec<_>>().join(" ")
         }
+    }
+
+    #[cfg(test)]
+    pub fn test_simplify_query(query: &str) -> String {
+        Self::simplify_query(query)
     }
 }
 
@@ -224,3 +328,129 @@ impl fmt::Display for UserError {
 }
 
 impl std::error::Error for UserError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_simplify_query_programming_terms() {
+        // Test that programming terms are removed
+        assert_eq!(
+            UserError::test_simplify_query("function validateUserInput"),
+            "validateUserInput"
+        );
+        assert_eq!(
+            UserError::test_simplify_query("async await authentication"),
+            "authentication"
+        );
+        assert_eq!(
+            UserError::test_simplify_query("const let var database"),
+            "database"
+        );
+    }
+
+    #[test]
+    fn test_simplify_query_file_extensions() {
+        // Test that file extensions are removed or split
+        assert_eq!(UserError::test_simplify_query("config.json setup"), "json");
+        assert_eq!(
+            UserError::test_simplify_query("file.rs extension"),
+            "file extension"
+        );
+        assert_eq!(
+            UserError::test_simplify_query("test.py validation"),
+            "search term"
+        );
+    }
+
+    #[test]
+    fn test_simplify_query_noise_words() {
+        // Test that noise words are removed
+        assert_eq!(
+            UserError::test_simplify_query("the quick brown fox"),
+            "quick brown fox"
+        );
+        assert_eq!(
+            UserError::test_simplify_query("a user login system"),
+            "user login system"
+        );
+        assert_eq!(
+            UserError::test_simplify_query("in the database with"),
+            "database"
+        );
+    }
+
+    #[test]
+    fn test_simplify_query_special_chars() {
+        // Test that words with special characters are split and filtered
+        assert_eq!(
+            UserError::test_simplify_query("complex.function.name()"),
+            "complex name"
+        );
+        assert_eq!(
+            UserError::test_simplify_query("array[index] access"),
+            "array index access"
+        );
+        assert_eq!(
+            UserError::test_simplify_query("object{property} get"),
+            "object property get"
+        );
+    }
+
+    #[test]
+    fn test_simplify_query_short_words() {
+        // Test that very short words are filtered appropriately
+        assert_eq!(UserError::test_simplify_query("a b c long"), "long");
+        assert_eq!(
+            UserError::test_simplify_query("x y z important"),
+            "important"
+        );
+        assert_eq!(UserError::test_simplify_query("1 2 3 data"), "data");
+    }
+
+    #[test]
+    fn test_simplify_query_fallback() {
+        // Test fallback behavior when everything is filtered out
+        assert_eq!(
+            UserError::test_simplify_query("function async"),
+            "search term"
+        );
+        assert_eq!(UserError::test_simplify_query(""), "search term");
+        assert_eq!(UserError::test_simplify_query("a"), "search term");
+    }
+
+    #[test]
+    fn test_simplify_query_real_world_examples() {
+        // Test real-world query examples
+        assert_eq!(
+            UserError::test_simplify_query("TODO: implement error handling"),
+            "TODO implement handling"
+        );
+        assert_eq!(
+            UserError::test_simplify_query("user authentication login system"),
+            "user authentication login"
+        );
+        assert_eq!(
+            UserError::test_simplify_query("database query optimization"),
+            "database optimization"
+        );
+        assert_eq!(
+            UserError::test_simplify_query("API endpoint configuration"),
+            "search term"
+        );
+    }
+
+    #[test]
+    fn test_no_matches_error_with_simplified_suggestions() {
+        let error = UserError::no_matches("function validateUserInput database query");
+        // Only check the simplified suggestion, not the whole error string
+        if let UserError::NoMatches { suggestions, .. } = error {
+            let suggestion = &suggestions[1];
+            assert!(!suggestion.contains("function"));
+            assert!(!suggestion.contains("query"));
+        } else {
+            panic!("Expected NoMatches error");
+        }
+    }
+}
