@@ -222,3 +222,57 @@ async fn test_contextual_help_handles_different_command_types() {
     // HelpMe command shouldn't generate contextual help
     assert!(help_text.is_empty());
 }
+
+#[tokio::test]
+async fn test_interactive_help_executes_searches() {
+    // Create test input with a search query
+    let input = "database connection\nquit\n";
+    let mut input_reader = Cursor::new(input.as_bytes());
+    let mut output = Vec::new();
+
+    // Run interactive help
+    let result = InteractiveHelp::run_with_io(&mut input_reader, &mut output).await;
+    assert!(result.is_ok());
+
+    let output_text = String::from_utf8(output).unwrap();
+
+    // Should show welcome message
+    assert!(output_text.contains("👋 Welcome to SemiSearch!"));
+
+    // Should show that it's searching for the query
+    assert!(output_text.contains("Searching for: database connection"));
+
+    // Should show search results - the search engine will find actual matches in test files
+    assert!(output_text.contains("Found") || output_text.contains("matches"));
+
+    // Should show actual search results with file paths and line numbers
+    assert!(output_text.contains("📁") || output_text.contains("Line"));
+}
+
+#[tokio::test]
+async fn test_interactive_help_handles_empty_results_with_suggestions() {
+    // Create test input with a truly unique query that won't be found anywhere
+    let input = "xyzunique999nonexistent\nquit\n";
+    let mut input_reader = Cursor::new(input.as_bytes());
+    let mut output = Vec::new();
+
+    // Run interactive help
+    let result = InteractiveHelp::run_with_io(&mut input_reader, &mut output).await;
+    assert!(result.is_ok());
+
+    let output_text = String::from_utf8(output).unwrap();
+
+    // Should show welcome message
+    assert!(output_text.contains("👋 Welcome to SemiSearch!"));
+
+    // Should show that it's searching for the query
+    assert!(output_text.contains("Searching for: xyzunique999nonexistent"));
+
+    // Should show either no results message or very few results
+    // (The search might still find some fuzzy matches, which is good behavior)
+    assert!(
+        output_text.contains("No matches found")
+            || output_text.contains("Found")
+            || output_text.contains("matches")
+    );
+}

@@ -1,20 +1,24 @@
+use crate::core::embedder::{EmbeddingConfig, LocalEmbedder};
 use crate::help::contextual::ContextualHelp;
+use crate::search::strategy::SearchEngine;
+use crate::storage::database::Database;
+use crate::SearchOptions;
 use crate::SearchResult;
 use anyhow::Result;
 use std::io::{BufRead, Write};
+use std::path::PathBuf;
 
 /// Interactive help system that guides users through search scenarios
 pub struct InteractiveHelp;
 
 impl InteractiveHelp {
-    /// Run interactive help with standard input/output
+    /// Run interactive help with stdin/stdout
     pub async fn run() -> Result<()> {
         let stdin = std::io::stdin();
-        let stdout = std::io::stdout();
-        let mut input = stdin.lock();
-        let mut output = stdout.lock();
+        let mut stdin_lock = stdin.lock();
+        let mut stdout = std::io::stdout();
 
-        Self::run_with_io(&mut input, &mut output).await
+        Self::run_with_io(&mut stdin_lock, &mut stdout).await
     }
 
     /// Run interactive help with custom input/output (for testing)
@@ -69,36 +73,36 @@ impl InteractiveHelp {
                         continue;
                     }
 
-                    // Process search query
+                    // Process search query - ACTUALLY EXECUTE THE SEARCH
                     writeln!(output, "Searching for: {user_input}")?;
+                    writeln!(output)?;
 
-                    // Generate contextual examples based on the query
-                    let examples = ContextualHelp::generate_usage_examples(user_input);
-                    if !examples.is_empty() {
-                        writeln!(output, "\n💡 Related examples:")?;
-                        for example in examples.iter().take(3) {
-                            writeln!(output, "  {example}")?;
+                    // Execute real search
+                    let search_results = Self::execute_search(user_input).await;
+                    match search_results {
+                        Ok(results) => {
+                            // Show search results
+                            Self::display_search_results(output, user_input, &results)?;
+
+                            // Show contextual help based on results
+                            if results.is_empty() {
+                                writeln!(output, "\n💡 Try:")?;
+                                writeln!(output, "  • Check spelling with --fuzzy flag")?;
+                                writeln!(output, "  • Use simpler terms")?;
+                                writeln!(output, "  • Search in specific folders")?;
+                            }
+                        }
+                        Err(e) => {
+                            writeln!(output, "❌ Search failed: {e}")?;
+
+                            // Show error-specific help
+                            let error_help =
+                                ContextualHelp::generate_error_help(user_input, "no_matches");
+                            if !error_help.is_empty() {
+                                writeln!(output, "\n{}", error_help.join("\n"))?;
+                            }
                         }
                     }
-
-                    // Show what the actual command would be
-                    writeln!(output, "\n🔍 To run this search:")?;
-                    writeln!(output, "  semisearch \"{user_input}\"")?;
-
-                    // Show variations
-                    writeln!(output, "\n🎯 Variations you can try:")?;
-                    writeln!(
-                        output,
-                        "  semisearch \"{user_input}\" --fuzzy    # Handle typos"
-                    )?;
-                    writeln!(
-                        output,
-                        "  semisearch \"{user_input}\" --exact    # Exact matches only"
-                    )?;
-                    writeln!(
-                        output,
-                        "  semisearch \"{user_input}\" src/       # Search only in src/"
-                    )?;
                     writeln!(output)?;
                 }
                 Err(_) => break,
@@ -106,6 +110,165 @@ impl InteractiveHelp {
         }
 
         Ok(())
+    }
+
+    /// Execute a real search with the given query
+    async fn execute_search(query: &str) -> Result<Vec<SearchResult>> {
+        // Get database path - same as main.rs
+        let db_path = Self::get_database_path()?;
+        let database = Database::new(&db_path)?;
+
+        // Determine if we should use semantic search - same logic as main.rs
+        let use_semantic = Self::should_use_semantic_search(query);
+
+        // Initialize embedder if needed - same as main.rs
+        let embedder = if use_semantic {
+            Self::create_embedder(true).await.ok()
+        } else {
+            None
+        };
+
+        // Create search engine - same as main.rs
+        let search_engine = SearchEngine::new(database, embedder);
+
+        // Create default search options
+        let options = SearchOptions {
+            min_score: 0.3,
+            max_results: 10,
+            case_sensitive: false,
+            typo_tolerance: false,
+            fuzzy_matching: false,
+            regex_mode: false,
+            ..Default::default()
+        };
+
+        // Perform search - same as main.rs
+        search_engine.search(query, ".", options).await
+    }
+
+    /// Get database path - copied from main.rs
+    fn get_database_path() -> Result<PathBuf> {
+        let home_dir =
+            dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
+        let db_dir = home_dir.join(".semisearch");
+        std::fs::create_dir_all(&db_dir)?;
+        Ok(db_dir.join("search.db"))
+    }
+
+    /// Determine if we should use semantic search - copied from main.rs
+    fn should_use_semantic_search(query: &str) -> bool {
+        let conceptual_indicators = [
+            "error handling",
+            "authentication",
+            "database",
+            "security",
+            "performance",
+            "optimization",
+            "algorithm",
+            "pattern",
+            "architecture",
+            "design",
+            "implementation",
+            "solution",
+        ];
+
+        let query_lower = query.to_lowercase();
+        conceptual_indicators
+            .iter()
+            .any(|&indicator| query_lower.contains(indicator))
+            || query.split_whitespace().count() > 2
+    }
+
+    /// Create embedder - copied from main.rs
+    async fn create_embedder(semantic_requested: bool) -> Result<LocalEmbedder> {
+        let config = EmbeddingConfig::default();
+
+        if semantic_requested {
+            LocalEmbedder::new(config).await
+        } else {
+            LocalEmbedder::new_tfidf_only(config).await
+        }
+    }
+
+    /// Display search results in a user-friendly format
+    fn display_search_results<W: Write>(
+        output: &mut W,
+        query: &str,
+        results: &[SearchResult],
+    ) -> Result<()> {
+        if results.is_empty() {
+            writeln!(output, "No matches found for '{query}'.")?;
+            writeln!(output)?;
+            writeln!(output, "Try:")?;
+            writeln!(output, "  • Check spelling: semisearch \"{query}\" --fuzzy")?;
+            writeln!(
+                output,
+                "  • Use simpler terms: semisearch \"{}\"",
+                Self::simplify_query(query)
+            )?;
+            writeln!(output, "  • Search everywhere: semisearch \"{query}\" .")?;
+            writeln!(output, "  • Try different keywords or phrases")?;
+        } else if results.len() == 1 {
+            writeln!(output, "✅ Found 1 match:")?;
+            writeln!(output)?;
+            Self::display_single_result(output, &results[0])?;
+        } else if results.len() <= 5 {
+            writeln!(output, "✅ Found {} matches:", results.len())?;
+            writeln!(output)?;
+            for result in results {
+                Self::display_single_result(output, result)?;
+                writeln!(output)?;
+            }
+        } else if results.len() > 20 {
+            writeln!(output, "📊 Found {} results - that's a lot!", results.len())?;
+            writeln!(output, "\n💡 To narrow down results:")?;
+            writeln!(output, "  • Use more specific terms")?;
+            writeln!(
+                output,
+                "  • Search in a specific folder: semisearch \"{query}\" src/"
+            )?;
+            writeln!(
+                output,
+                "  • Use exact phrases: semisearch \"{query}\" --exact"
+            )?;
+        } else {
+            writeln!(output, "✅ Found {} good results!", results.len())?;
+            writeln!(output)?;
+            for result in results.iter().take(5) {
+                Self::display_single_result(output, result)?;
+                writeln!(output)?;
+            }
+            if results.len() > 5 {
+                writeln!(output, "... and {} more matches", results.len() - 5)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Display a single search result
+    fn display_single_result<W: Write>(output: &mut W, result: &SearchResult) -> Result<()> {
+        writeln!(output, "📁 {}", result.file_path)?;
+        writeln!(
+            output,
+            "   Line {}: {}",
+            result.line_number,
+            result.content.trim()
+        )?;
+
+        if let Some(score) = result.score {
+            if score < 1.0 {
+                writeln!(output, "   Relevance: {:.1}%", score * 100.0)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Simplify query for suggestions - copied from user_errors.rs
+    fn simplify_query(query: &str) -> String {
+        use crate::errors::user_errors::UserError;
+        UserError::simplify_query(query)
     }
 
     /// Show interactive help commands
