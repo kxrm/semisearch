@@ -279,8 +279,7 @@ fn display_simple_results(
         if json_format {
             match no_matches_error.to_json() {
                 Ok(json) => eprintln!("{json}"),
-                Err(_) => eprintln!("{{\"error_type\": \"NoMatches\", \"details\": {{\"query\": \"{}\", \"suggestions\": []}}}}",
-                    query),
+                                        Err(_) => eprintln!("{{\"error_type\": \"NoMatches\", \"details\": {{\"query\": \"{query}\", \"suggestions\": []}}}}"),
             }
         } else {
             eprintln!("{no_matches_error}");

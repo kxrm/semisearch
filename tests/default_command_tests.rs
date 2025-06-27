@@ -21,11 +21,10 @@ async fn test_direct_query_without_subcommand() -> Result<()> {
     let stderr = String::from_utf8(output.stderr)?;
 
     // Should succeed and find results
-    assert!(output.status.success(), "Direct query failed: {}", stderr);
+    assert!(output.status.success(), "Direct query failed: {stderr}");
     assert!(
         stdout.contains("Found") || stdout.contains("matches") || stdout.contains("TODO"),
-        "Should find TODO results: {}",
-        stdout
+        "Should find TODO results: {stdout}"
     );
 
     Ok(())
@@ -54,13 +53,11 @@ async fn test_direct_query_with_flags() -> Result<()> {
     // Should succeed with fuzzy search
     assert!(
         output.status.success(),
-        "Direct query with flags failed: {}",
-        stderr
+        "Direct query with flags failed: {stderr}"
     );
     assert!(
         stdout.contains("Found") || stdout.contains("matches") || stdout.contains("TODO"),
-        "Should find TODO results with fuzzy: {}",
-        stdout
+        "Should find TODO results with fuzzy: {stdout}"
     );
 
     Ok(())
@@ -89,13 +86,11 @@ async fn test_explicit_search_subcommand_still_works() -> Result<()> {
     // Should succeed
     assert!(
         output.status.success(),
-        "Explicit search subcommand failed: {}",
-        stderr
+        "Explicit search subcommand failed: {stderr}"
     );
     assert!(
         stdout.contains("Found") || stdout.contains("matches") || stdout.contains("TODO"),
-        "Should find TODO results with explicit search: {}",
-        stdout
+        "Should find TODO results with explicit search: {stdout}"
     );
 
     Ok(())
@@ -121,11 +116,10 @@ async fn test_non_search_commands_unaffected() -> Result<()> {
     let stderr = String::from_utf8(output.stderr)?;
 
     // Should succeed and show status
-    assert!(output.status.success(), "Status command failed: {}", stderr);
+    assert!(output.status.success(), "Status command failed: {stderr}");
     assert!(
         stdout.contains("Health Check") || stdout.contains("Ready") || stdout.contains("Available"),
-        "Should show status information: {}",
-        stdout
+        "Should show status information: {stdout}"
     );
 
     Ok(())
@@ -153,13 +147,11 @@ async fn test_help_commands_unaffected() -> Result<()> {
     // Should succeed and show help
     assert!(
         output.status.success(),
-        "Help-me command failed: {}",
-        stderr
+        "Help-me command failed: {stderr}"
     );
     assert!(
         stdout.contains("Welcome") || stdout.contains("Usage") || stdout.contains("Examples"),
-        "Should show help information: {}",
-        stdout
+        "Should show help information: {stdout}"
     );
 
     Ok(())
@@ -185,12 +177,11 @@ async fn test_quoted_queries() -> Result<()> {
     let stderr = String::from_utf8(output.stderr)?;
 
     // Should succeed (even if no results found)
-    assert!(output.status.success(), "Quoted query failed: {}", stderr);
+    assert!(output.status.success(), "Quoted query failed: {stderr}");
     // Should either find results or show "No matches found"
     assert!(
         stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("matches"),
-        "Should handle quoted query: {}",
-        stdout
+        "Should handle quoted query: {stdout}"
     );
 
     Ok(())
@@ -218,13 +209,11 @@ async fn test_special_character_queries() -> Result<()> {
     // Should succeed
     assert!(
         output.status.success(),
-        "Special character query failed: {}",
-        stderr
+        "Special character query failed: {stderr}"
     );
     assert!(
         stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("matches"),
-        "Should handle special characters: {}",
-        stdout
+        "Should handle special characters: {stdout}"
     );
 
     Ok(())
@@ -254,13 +243,11 @@ async fn test_direct_query_with_path() -> Result<()> {
     // Should succeed
     assert!(
         output.status.success(),
-        "Direct query with path failed: {}",
-        stderr
+        "Direct query with path failed: {stderr}"
     );
     assert!(
         stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("matches"),
-        "Should handle direct query with path: {}",
-        stdout
+        "Should handle direct query with path: {stdout}"
     );
 
     Ok(())
@@ -291,14 +278,12 @@ async fn test_direct_query_with_advanced_mode() -> Result<()> {
     // Should succeed
     assert!(
         output.status.success(),
-        "Advanced direct query failed: {}",
-        stderr
+        "Advanced direct query failed: {stderr}"
     );
     // Should output JSON or show no results message
     assert!(
         stdout.contains("[") || stdout.contains("No matches") || stdout.contains("Found"),
-        "Should handle advanced direct query: {}",
-        stdout
+        "Should handle advanced direct query: {stdout}"
     );
 
     Ok(())
@@ -326,13 +311,11 @@ async fn test_edge_cases() -> Result<()> {
     // Empty query should succeed and return matches (matches everything)
     assert!(
         output.status.success(),
-        "Empty query should succeed: {}",
-        stderr
+        "Empty query should succeed: {stderr}"
     );
     assert!(
         stdout.contains("Found") || stdout.contains("matches"),
-        "Empty query should find matches: {}",
-        stdout
+        "Empty query should find matches: {stdout}"
     );
 
     Ok(())
@@ -366,15 +349,11 @@ async fn test_command_conflict_detection() -> Result<()> {
         // Should succeed and show command-specific help
         assert!(
             output.status.success(),
-            "Command {} --help failed: {}",
-            command,
-            stderr
+            "Command {command} --help failed: {stderr}"
         );
         assert!(
             stdout.contains("Usage") || stdout.contains("Options") || stdout.contains("help"),
-            "Should show help for command {}: {}",
-            command,
-            stdout
+            "Should show help for command {command}: {stdout}"
         );
     }
 

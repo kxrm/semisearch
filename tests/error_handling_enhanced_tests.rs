@@ -12,7 +12,7 @@ async fn test_enhanced_error_translation_coverage() {
     match translated {
         UserError::FallbackMode { .. } => {
             // Should provide helpful fallback information
-            let display = format!("{}", translated);
+            let display = format!("{translated}");
             assert!(display.contains("basic mode"));
             assert!(display.contains("tip") || display.contains("Tip"));
         }
@@ -34,7 +34,7 @@ async fn test_enhanced_error_translation_coverage() {
     let translated = ErrorTranslator::translate_technical_error(&db_error);
     match translated {
         UserError::Database { .. } => {
-            let display = format!("{}", translated);
+            let display = format!("{translated}");
             assert!(display.contains("database"));
         }
         _ => panic!("Expected Database error for SQLite error"),
@@ -86,7 +86,7 @@ async fn test_error_context_preservation() {
         }
         _ => {
             // Should at least preserve context in suggestions
-            let display = format!("{}", translated);
+            let display = format!("{translated}");
             assert!(display.contains(query) || display.contains("query"));
         }
     }
@@ -225,8 +225,7 @@ async fn test_error_recovery_suggestions() {
 
     assert!(
         suggestions_found,
-        "Directory error should contain actionable suggestions. Got: {}",
-        stderr
+        "Directory error should contain actionable suggestions. Got: {stderr}"
     );
 
     // Test 2: No results error (search in valid directory)
@@ -244,14 +243,13 @@ async fn test_error_recovery_suggestions() {
 
     // For no results, should provide search-specific suggestions
     if stdout.contains("No matches found") || stderr.contains("No matches found") {
-        let combined_output = format!("{}{}", stdout, stderr);
+        let combined_output = format!("{stdout}{stderr}");
         let suggestions_found = combined_output.contains("semisearch")
             && (combined_output.contains("--fuzzy") || combined_output.contains("Try:"));
 
         assert!(
             suggestions_found,
-            "No results should contain search suggestions. Got stdout: {}, stderr: {}",
-            stdout, stderr
+            "No results should contain search suggestions. Got stdout: {stdout}, stderr: {stderr}"
         );
     }
 
