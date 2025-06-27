@@ -1,6 +1,6 @@
 [package]
 name = "search"
-version = "0.4.0"
+version = "0.6.0"
 edition = "2021"
 authors = ["Assistant"]
 description = "A semantic search CLI tool for local files"
@@ -11,6 +11,10 @@ rust-version = "1.85"
 [[bin]]
 name = "semisearch"
 path = "src/main.rs"
+
+[[bin]]
+name = "semisearch-new"
+path = "src/main_new.rs"
 
 [dependencies]
 anyhow = "1.0"
@@ -34,6 +38,7 @@ rustc-hash = "1.1"
 
 # Async runtime
 tokio = { version = "1.0", features = ["full"] }
+
 
 # Dynamic loading for optional features
 libloading = "0.8"

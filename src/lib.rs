@@ -6,8 +6,12 @@ use ignore::WalkBuilder;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+// Phase 1: CLI interface modules
+pub mod cli;
+
 // Phase 2: Core and Storage modules
 pub mod core;
+pub mod errors;
 pub mod storage;
 
 // Phase 3: Text Processing modules

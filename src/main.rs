@@ -12,7 +12,7 @@ use std::time::Instant;
 #[derive(Parser)]
 #[command(name = "semisearch")]
 #[command(about = "Semantic search across local files")]
-#[command(version = "0.4.0")]
+#[command(version = "0.6.0")]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
