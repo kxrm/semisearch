@@ -150,11 +150,11 @@ impl fmt::Display for UserError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             UserError::NoMatches { query, suggestions } => {
-                writeln!(f, "No matches found for '{}'.", query)?;
+                writeln!(f, "No matches found for '{query}'.")?;
                 writeln!(f)?;
                 writeln!(f, "Try:")?;
                 for suggestion in suggestions {
-                    writeln!(f, "  • {}", suggestion)?;
+                    writeln!(f, "  • {suggestion}")?;
                 }
             }
             UserError::DirectoryAccess {
@@ -162,23 +162,23 @@ impl fmt::Display for UserError {
                 reason,
                 suggestions,
             } => {
-                writeln!(f, "Cannot search in {}.", path)?;
-                writeln!(f, "{}", reason)?;
+                writeln!(f, "Cannot search in {path}.")?;
+                writeln!(f, "{reason}")?;
                 writeln!(f)?;
                 writeln!(f, "Try:")?;
                 for suggestion in suggestions {
-                    writeln!(f, "  • {}", suggestion)?;
+                    writeln!(f, "  • {suggestion}")?;
                 }
             }
             UserError::FallbackMode { reason: _, tip } => {
-                write!(f, "{}", tip)?;
+                write!(f, "{tip}")?;
             }
             UserError::Database { issue, suggestions } => {
-                writeln!(f, "Database issue: {}", issue)?;
+                writeln!(f, "Database issue: {issue}")?;
                 writeln!(f)?;
                 writeln!(f, "Try:")?;
                 for suggestion in suggestions {
-                    writeln!(f, "  • {}", suggestion)?;
+                    writeln!(f, "  • {suggestion}")?;
                 }
             }
             UserError::InvalidQuery {
@@ -186,11 +186,11 @@ impl fmt::Display for UserError {
                 issue,
                 suggestions,
             } => {
-                writeln!(f, "Invalid query '{}': {}", query, issue)?;
+                writeln!(f, "Invalid query '{query}': {issue}")?;
                 writeln!(f)?;
                 writeln!(f, "Try:")?;
                 for suggestion in suggestions {
-                    writeln!(f, "  • {}", suggestion)?;
+                    writeln!(f, "  • {suggestion}")?;
                 }
             }
             UserError::Permission {
@@ -198,23 +198,23 @@ impl fmt::Display for UserError {
                 operation,
                 suggestions,
             } => {
-                writeln!(f, "Permission denied: cannot {} in {}", operation, path)?;
+                writeln!(f, "Permission denied: cannot {operation} in {path}")?;
                 writeln!(f)?;
                 writeln!(f, "Try:")?;
                 for suggestion in suggestions {
-                    writeln!(f, "  • {}", suggestion)?;
+                    writeln!(f, "  • {suggestion}")?;
                 }
             }
             UserError::Generic {
                 message,
                 suggestions,
             } => {
-                writeln!(f, "{}", message)?;
+                writeln!(f, "{message}")?;
                 if !suggestions.is_empty() {
                     writeln!(f)?;
                     writeln!(f, "Try:")?;
                     for suggestion in suggestions {
-                        writeln!(f, "  • {}", suggestion)?;
+                        writeln!(f, "  • {suggestion}")?;
                     }
                 }
             }
