@@ -106,7 +106,9 @@ impl ProjectDetector {
                                     if let Ok(metadata) = fs::metadata(entry.path()) {
                                         if metadata.file_type().is_symlink() {
                                             // Resolve symlink and check if we've already visited it
-                                            if let Ok(resolved_path) = fs::canonicalize(entry.path()) {
+                                            if let Ok(resolved_path) =
+                                                fs::canonicalize(entry.path())
+                                            {
                                                 if visited_symlinks.contains(&resolved_path) {
                                                     continue; // Skip to avoid infinite loops
                                                 }
