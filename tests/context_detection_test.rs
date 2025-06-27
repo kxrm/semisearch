@@ -70,14 +70,14 @@ fn test_detect_documentation_project() {
 fn test_detect_mixed_project() {
     let temp_dir = TempDir::new().unwrap();
 
-        // Create equal mix of file types
+    // Create equal mix of file types
     for i in 0..3 {
         let md_file = temp_dir.path().join(format!("doc{i}.md"));
         fs::write(&md_file, "# Documentation").unwrap();
-        
+
         let rs_file = temp_dir.path().join(format!("src{i}.rs"));
         fs::write(&rs_file, "fn main() {}").unwrap();
-        
+
         let js_file = temp_dir.path().join(format!("app{i}.js"));
         fs::write(&js_file, "console.log('test');").unwrap();
     }
@@ -187,12 +187,12 @@ fn test_project_priority_rust_over_others() {
 fn test_mostly_markdown_calculation() {
     let temp_dir = TempDir::new().unwrap();
 
-        // Create exactly 70% markdown files
+    // Create exactly 70% markdown files
     for i in 0..7 {
         let md_file = temp_dir.path().join(format!("doc{i}.md"));
         fs::write(&md_file, "# Documentation").unwrap();
     }
-    
+
     for i in 0..3 {
         let rs_file = temp_dir.path().join(format!("code{i}.rs"));
         fs::write(&rs_file, "fn main() {}").unwrap();
