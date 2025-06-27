@@ -145,10 +145,7 @@ async fn test_help_commands_unaffected() -> Result<()> {
     let stderr = String::from_utf8(output.stderr)?;
 
     // Should succeed and show help
-    assert!(
-        output.status.success(),
-        "Help-me command failed: {stderr}"
-    );
+    assert!(output.status.success(), "Help-me command failed: {stderr}");
     assert!(
         stdout.contains("Welcome") || stdout.contains("Usage") || stdout.contains("Examples"),
         "Should show help information: {stdout}"
