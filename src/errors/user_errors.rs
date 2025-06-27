@@ -131,7 +131,7 @@ impl UserError {
     }
 
     /// Simplify a query for suggestions
-    fn simplify_query(query: &str) -> String {
+    pub fn simplify_query(query: &str) -> String {
         // Common programming terms that can be removed for simplification
         let programming_terms: std::collections::HashSet<&str> = [
             "function",

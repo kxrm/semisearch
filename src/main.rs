@@ -312,37 +312,25 @@ fn display_simple_results(
         println!("💡 Tip: Use more specific terms to narrow results");
     }
 
+    // Show contextual help based on results
+    use search::help::contextual::ContextualHelp;
+    let tips = ContextualHelp::generate_tips(query, results);
+    if !tips.is_empty() {
+        println!();
+        for tip in tips.iter().take(2) {
+            println!("{tip}");
+        }
+    }
+
     Ok(())
 }
 
 /// Handle help-me command with interactive guidance
 async fn handle_help_me() -> Result<()> {
-    println!("👋 Welcome to SemiSearch!");
-    println!("Let's find what you're looking for.\n");
+    use search::help::interactive::InteractiveHelp;
 
-    println!("🔍 Basic Usage:");
-    println!("  semisearch \"what you want to find\"");
-    println!("  semisearch \"TODO\"");
-    println!("  semisearch \"error handling\"");
-    println!();
-
-    println!("🎯 Common Examples:");
-    println!("  • Find TODO comments:");
-    println!("    semisearch \"TODO\"");
-    println!();
-    println!("  • Find functions:");
-    println!("    semisearch \"function login\"");
-    println!();
-    println!("  • Handle typos:");
-    println!("    semisearch \"databse\" --fuzzy");
-    println!();
-    println!("  • Find exact matches:");
-    println!("    semisearch \"exact phrase\" --exact");
-    println!();
-
-    println!("❓ Need more help?");
-    println!("  • Check if everything is working: semisearch status");
-    println!("  • For advanced options: semisearch --advanced --help");
+    // Run the interactive help system
+    InteractiveHelp::run().await?;
 
     Ok(())
 }
@@ -649,6 +637,19 @@ async fn handle_error_with_context(error: anyhow::Error, query: Option<&str>, pa
         }
     } else {
         eprintln!("{user_error}");
+
+        // Add contextual help for common error scenarios
+        if let Some(query) = query {
+            use search::help::contextual::ContextualHelp;
+            let examples = ContextualHelp::generate_usage_examples(query);
+            if !examples.is_empty() {
+                eprintln!();
+                eprintln!("💡 Related examples:");
+                for example in examples.iter().take(3) {
+                    eprintln!("  {example}");
+                }
+            }
+        }
     }
 
     let exit_code = user_error.exit_code();
