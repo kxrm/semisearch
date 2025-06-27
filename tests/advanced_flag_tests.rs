@@ -3,7 +3,10 @@ use std::process::Command;
 
 /// Test that simple mode hides advanced options by default
 #[tokio::test]
-#[cfg_attr(not(feature = "neural-embeddings"), ignore = "Requires neural embeddings")]
+#[cfg_attr(
+    not(feature = "neural-embeddings"),
+    ignore = "Requires neural embeddings"
+)]
 async fn test_simple_mode_hides_advanced_options() -> Result<()> {
     let output = Command::new("cargo")
         .args([
@@ -116,7 +119,10 @@ async fn test_search_subcommand_simple_by_default() -> Result<()> {
 
 /// Test that --advanced flag reveals all options
 #[tokio::test]
-#[cfg_attr(not(feature = "neural-embeddings"), ignore = "Requires neural embeddings")]
+#[cfg_attr(
+    not(feature = "neural-embeddings"),
+    ignore = "Requires neural embeddings"
+)]
 async fn test_advanced_flag_shows_all_options() -> Result<()> {
     let output = Command::new("cargo")
         .args([
@@ -147,7 +153,10 @@ async fn test_advanced_flag_shows_all_options() -> Result<()> {
 
 /// Test that advanced search subcommand shows all options
 #[tokio::test]
-#[cfg_attr(not(feature = "neural-embeddings"), ignore = "Requires neural embeddings")]
+#[cfg_attr(
+    not(feature = "neural-embeddings"),
+    ignore = "Requires neural embeddings"
+)]
 async fn test_advanced_search_shows_all_options() -> Result<()> {
     let output = Command::new("cargo")
         .args([
