@@ -7,14 +7,13 @@ use std::io::{BufRead, Write};
 pub struct InteractiveHelp;
 
 impl InteractiveHelp {
-    /// Run interactive help with standard input/output
+    /// Run interactive help with stdin/stdout
     pub async fn run() -> Result<()> {
         let stdin = std::io::stdin();
-        let stdout = std::io::stdout();
-        let mut input = stdin.lock();
-        let mut output = stdout.lock();
+        let mut stdin_lock = stdin.lock();
+        let mut stdout = std::io::stdout();
 
-        Self::run_with_io(&mut input, &mut output).await
+        Self::run_with_io(&mut stdin_lock, &mut stdout).await
     }
 
     /// Run interactive help with custom input/output (for testing)
@@ -69,36 +68,38 @@ impl InteractiveHelp {
                         continue;
                     }
 
-                    // Process search query
+                    // Execute actual search
                     writeln!(output, "Searching for: {user_input}")?;
+                    writeln!(output)?;
 
-                    // Generate contextual examples based on the query
-                    let examples = ContextualHelp::generate_usage_examples(user_input);
-                    if !examples.is_empty() {
-                        writeln!(output, "\n💡 Related examples:")?;
-                        for example in examples.iter().take(3) {
-                            writeln!(output, "  {example}")?;
+                    // Perform the search
+                    let search_results = Self::execute_search(user_input).await;
+
+                    match search_results {
+                        Ok(results) => {
+                            // Show search results
+                            Self::display_search_results(output, user_input, &results)?;
+
+                            // Show contextual help based on results
+                            if results.is_empty() {
+                                writeln!(output, "\n💡 Try:")?;
+                                writeln!(output, "  • Check spelling with --fuzzy flag")?;
+                                writeln!(output, "  • Use simpler terms")?;
+                                writeln!(output, "  • Search in specific folders")?;
+                            }
+                        }
+                        Err(e) => {
+                            writeln!(output, "❌ Search failed: {e}")?;
+
+                            // Show error-specific help
+                            let error_help =
+                                ContextualHelp::generate_error_help(user_input, "no_matches");
+                            if !error_help.is_empty() {
+                                writeln!(output, "\n{}", error_help.join("\n"))?;
+                            }
                         }
                     }
 
-                    // Show what the actual command would be
-                    writeln!(output, "\n🔍 To run this search:")?;
-                    writeln!(output, "  semisearch \"{user_input}\"")?;
-
-                    // Show variations
-                    writeln!(output, "\n🎯 Variations you can try:")?;
-                    writeln!(
-                        output,
-                        "  semisearch \"{user_input}\" --fuzzy    # Handle typos"
-                    )?;
-                    writeln!(
-                        output,
-                        "  semisearch \"{user_input}\" --exact    # Exact matches only"
-                    )?;
-                    writeln!(
-                        output,
-                        "  semisearch \"{user_input}\" src/       # Search only in src/"
-                    )?;
                     writeln!(output)?;
                 }
                 Err(_) => break,
@@ -106,6 +107,89 @@ impl InteractiveHelp {
         }
 
         Ok(())
+    }
+
+    /// Execute a search with the given query
+    async fn execute_search(_query: &str) -> Result<Vec<SearchResult>> {
+        // For now, return empty results to get the basic interactive functionality working
+        // TODO: Implement actual search execution by calling the main search infrastructure
+        Ok(Vec::new())
+    }
+
+    /// Display search results in a user-friendly format
+    fn display_search_results<W: Write>(
+        output: &mut W,
+        query: &str,
+        results: &[SearchResult],
+    ) -> Result<()> {
+        if results.is_empty() {
+            writeln!(output, "No matches found for '{query}'.")?;
+            writeln!(output)?;
+            writeln!(output, "Try:")?;
+            writeln!(output, "  • Check spelling: semisearch \"{query}\" --fuzzy")?;
+            writeln!(
+                output,
+                "  • Use simpler terms: semisearch \"{}\"",
+                Self::simplify_query(query)
+            )?;
+            writeln!(output, "  • Search everywhere: semisearch \"{query}\" .")?;
+            writeln!(output, "  • Try different keywords or phrases")?;
+        } else if results.len() == 1 {
+            writeln!(output, "✅ Found 1 match:")?;
+            writeln!(output)?;
+            Self::display_single_result(output, &results[0])?;
+        } else if results.len() <= 5 {
+            writeln!(output, "✅ Found {} matches:", results.len())?;
+            writeln!(output)?;
+            for result in results {
+                Self::display_single_result(output, result)?;
+                writeln!(output)?;
+            }
+        } else if results.len() > 20 {
+            writeln!(output, "📊 Found {} results - that's a lot!", results.len())?;
+            writeln!(output, "\n💡 To narrow down results:")?;
+            writeln!(output, "  • Use more specific terms")?;
+            writeln!(
+                output,
+                "  • Search in a specific folder: semisearch \"{query}\" src/"
+            )?;
+            writeln!(
+                output,
+                "  • Use exact phrases: semisearch \"{query}\" --exact"
+            )?;
+        } else {
+            writeln!(output, "✅ Found {} good results!", results.len())?;
+            writeln!(output)?;
+            for result in results.iter().take(5) {
+                Self::display_single_result(output, result)?;
+                writeln!(output)?;
+            }
+            if results.len() > 5 {
+                writeln!(output, "... and {} more matches", results.len() - 5)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Display a single search result
+    fn display_single_result<W: Write>(output: &mut W, result: &SearchResult) -> Result<()> {
+        writeln!(output, "📁 {}:{}", result.file_path, result.line_number)?;
+        writeln!(output, "   {}", result.content.trim())?;
+        Ok(())
+    }
+
+    /// Simplify a complex query for suggestions
+    fn simplify_query(query: &str) -> String {
+        // Extract key terms from complex queries
+        let words: Vec<&str> = query.split_whitespace().collect();
+        if words.len() > 3 {
+            words[0..2].join(" ")
+        } else if words.len() > 1 {
+            words[0].to_string()
+        } else {
+            query.to_string()
+        }
     }
 
     /// Show interactive help commands

@@ -222,3 +222,53 @@ async fn test_contextual_help_handles_different_command_types() {
     // HelpMe command shouldn't generate contextual help
     assert!(help_text.is_empty());
 }
+
+#[tokio::test]
+async fn test_interactive_help_executes_searches() {
+    // Create test input with a search query
+    let input = "database connection\nquit\n";
+    let mut input_reader = Cursor::new(input.as_bytes());
+    let mut output = Vec::new();
+
+    // Run interactive help
+    let result = InteractiveHelp::run_with_io(&mut input_reader, &mut output).await;
+    assert!(result.is_ok());
+
+    let output_text = String::from_utf8(output).unwrap();
+
+    // Should show welcome message
+    assert!(output_text.contains("👋 Welcome to SemiSearch!"));
+
+    // Should show that it's searching for the query
+    assert!(output_text.contains("Searching for: database connection"));
+
+    // Should show search results or no results message
+    // (Since we don't have actual files in test, expect no results message)
+    assert!(output_text.contains("No matches found") || output_text.contains("Found"));
+
+    // Should show contextual help after search
+    assert!(output_text.contains("Try:") || output_text.contains("💡"));
+}
+
+#[tokio::test]
+async fn test_interactive_help_handles_empty_results_with_suggestions() {
+    // Test with a query that won't find anything
+    let input = "nonexistent_xyz_123\nquit\n";
+    let mut input_reader = Cursor::new(input.as_bytes());
+    let mut output = Vec::new();
+
+    let result = InteractiveHelp::run_with_io(&mut input_reader, &mut output).await;
+    assert!(result.is_ok());
+
+    let output_text = String::from_utf8(output).unwrap();
+
+    // Should execute the search
+    assert!(output_text.contains("Searching for: nonexistent_xyz_123"));
+
+    // Should show no results message
+    assert!(output_text.contains("No matches found"));
+
+    // Should provide contextual suggestions
+    assert!(output_text.contains("Try:"));
+    assert!(output_text.contains("--fuzzy"));
+}
