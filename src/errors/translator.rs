@@ -248,9 +248,7 @@ impl ErrorTranslator {
 
         // Add context-specific suggestions
         if let Some(q) = query {
-            suggestions.push(format!(
-                "Try a simpler search: semisearch \"{q}\" --fuzzy"
-            ));
+            suggestions.push(format!("Try a simpler search: semisearch \"{q}\" --fuzzy"));
         }
         if path.is_some() {
             suggestions.push("Check that the search path exists and is accessible".to_string());
