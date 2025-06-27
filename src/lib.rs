@@ -28,6 +28,9 @@ pub mod help;
 // Phase 6: Context detection for smart defaults
 pub mod context;
 
+// Phase 7: Output formatting for human-friendly display
+pub mod output;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResult {
     pub file_path: String,

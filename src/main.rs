@@ -184,7 +184,12 @@ async fn run_main() -> Result<()> {
                     println!("{}", result.file_path);
                 }
             } else {
-                display_simple_results(&results, &args.query, search_time)?;
+                // Check if advanced mode is enabled for different formatting
+                if cli.advanced {
+                    display_advanced_results(&results, &args.query, search_time)?;
+                } else {
+                    display_simple_results(&results, &args.query, search_time)?;
+                }
             }
         }
         Commands::HelpMe => {
@@ -201,6 +206,54 @@ async fn run_main() -> Result<()> {
         }
         Commands::Doctor => {
             run_doctor().await?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Display search results with advanced technical details
+fn display_advanced_results(
+    results: &[SearchResult],
+    query: &str,
+    search_time: std::time::Duration,
+) -> Result<()> {
+    use search::output::HumanFormatter;
+
+    if results.is_empty() {
+        // Create no matches error and exit with proper code
+        let no_matches_error = ErrorTranslator::handle_no_results(query);
+        let exit_code = no_matches_error.exit_code();
+
+        // Check if JSON format was requested
+        let args: Vec<String> = std::env::args().collect();
+        let json_format = args
+            .windows(2)
+            .any(|w| w[0] == "--format" && w[1] == "json");
+
+        if json_format {
+            match no_matches_error.to_json() {
+                Ok(json) => eprintln!("{json}"),
+                Err(_) => eprintln!("{{\"error_type\": \"NoMatches\", \"details\": {{\"query\": \"{query}\", \"suggestions\": []}}}}"),
+            }
+        } else {
+            eprintln!("{no_matches_error}");
+        }
+
+        std::process::exit(exit_code);
+    }
+
+    // Use advanced formatting with technical details
+    let formatted_output = HumanFormatter::format_results_advanced(results, query, search_time);
+    print!("{formatted_output}");
+
+    // Show contextual help based on results
+    use search::help::contextual::ContextualHelp;
+    let tips = ContextualHelp::generate_tips(query, results);
+    if !tips.is_empty() {
+        println!();
+        for tip in tips.iter().take(2) {
+            println!("{tip}");
         }
     }
 
@@ -265,6 +318,8 @@ fn display_simple_results(
     query: &str,
     search_time: std::time::Duration,
 ) -> Result<()> {
+    use search::output::HumanFormatter;
+
     if results.is_empty() {
         // Create no matches error and exit with proper code
         let no_matches_error = ErrorTranslator::handle_no_results(query);
@@ -279,7 +334,7 @@ fn display_simple_results(
         if json_format {
             match no_matches_error.to_json() {
                 Ok(json) => eprintln!("{json}"),
-                                        Err(_) => eprintln!("{{\"error_type\": \"NoMatches\", \"details\": {{\"query\": \"{query}\", \"suggestions\": []}}}}"),
+                Err(_) => eprintln!("{{\"error_type\": \"NoMatches\", \"details\": {{\"query\": \"{query}\", \"suggestions\": []}}}}"),
             }
         } else {
             eprintln!("{no_matches_error}");
@@ -288,29 +343,9 @@ fn display_simple_results(
         std::process::exit(exit_code);
     }
 
-    println!(
-        "Found {} matches in {:.2}s:",
-        results.len(),
-        search_time.as_secs_f64()
-    );
-    println!();
-
-    for result in results.iter().take(10) {
-        println!("📁 {}", result.file_path);
-        println!("   Line {}: {}", result.line_number, result.content.trim());
-
-        if let Some(score) = result.score {
-            if score < 1.0 {
-                println!("   Relevance: {:.1}%", score * 100.0);
-            }
-        }
-        println!();
-    }
-
-    if results.len() > 10 {
-        println!("... and {} more matches", results.len() - 10);
-        println!("💡 Tip: Use more specific terms to narrow results");
-    }
+    // Use human-friendly formatting
+    let formatted_output = HumanFormatter::format_results(results, query, search_time);
+    print!("{formatted_output}");
 
     // Show contextual help based on results
     use search::help::contextual::ContextualHelp;
