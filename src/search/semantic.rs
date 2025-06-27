@@ -192,7 +192,7 @@ impl SemanticReranker {
         boosted_score.min(1.0)
     }
 
-    /// Boost results from recently modified files  
+    /// Boost results from recently modified files
     pub fn boost_recent_files(result: &SemanticSearchResult, _query: &str) -> f32 {
         // This would need file modification time from chunk metadata
         // For now, return unchanged score

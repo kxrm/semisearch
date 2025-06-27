@@ -62,7 +62,7 @@ case $choice in
     4|5)
         log_info "Installing cross-compilation tools..."
         cargo install --locked cross && log_success "cross installed" || log_warning "Failed to install cross"
-        
+
         log_info "Adding cross-compilation targets..."
         rustup target add x86_64-unknown-linux-musl
         rustup target add aarch64-unknown-linux-gnu
@@ -116,4 +116,4 @@ log_success "Additional tools installation complete!"
 echo ""
 echo "🎉 Your development environment is now enhanced!"
 echo "Run 'source ~/.zshrc' to activate new aliases"
-echo "Or just restart your terminal." 
+echo "Or just restart your terminal."

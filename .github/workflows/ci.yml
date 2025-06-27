@@ -38,7 +38,7 @@ jobs:
         include:
           - os: ubuntu-latest
             rust: 1.85.0  # MSRV (Minimum Supported Rust Version)
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -120,7 +120,7 @@ jobs:
     name: Feature Tests
     runs-on: ubuntu-latest
     needs: test
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -172,7 +172,7 @@ jobs:
   security:
     name: Security Audit
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -198,7 +198,7 @@ jobs:
   docs:
     name: Documentation
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -240,7 +240,7 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin     # Apple Silicon (M1/M2)
             binary-suffix: ""
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -281,7 +281,7 @@ jobs:
     name: Architecture Plan Compliance
     runs-on: ubuntu-latest
     needs: test
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -292,42 +292,42 @@ jobs:
     - name: Install ONNX Runtime and verify MVP features
       run: |
         echo "Installing ONNX Runtime for neural embeddings testing..."
-        
+
         # Download and install ONNX Runtime
         ONNX_VERSION="1.16.0"
         wget -q https://github.com/microsoft/onnxruntime/releases/download/v${ONNX_VERSION}/onnxruntime-linux-x64-${ONNX_VERSION}.tgz
         tar -xzf onnxruntime-linux-x64-${ONNX_VERSION}.tgz
-        
+
         # Set up environment variables
         export LD_LIBRARY_PATH="$PWD/onnxruntime-linux-x64-${ONNX_VERSION}/lib"
         echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
-        
+
         # Verify installation and debug
         echo "=== ONNX Runtime Installation Debug ==="
         ls -la onnxruntime-linux-x64-${ONNX_VERSION}/lib/
         echo "Current LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
         echo "PWD: $PWD"
         echo "ONNX Runtime installed successfully"
-        
+
         echo "Checking MVP feature implementation..."
-        
+
         # Build and test basic functionality with neural embeddings
         cargo build --release --features neural-embeddings
-        
+
         # Copy ONNX Runtime library to target directory for binary to find
         cp onnxruntime-linux-x64-${ONNX_VERSION}/lib/libonnxruntime.so* target/release/
-        
+
         # Debug binary and library path
         echo "=== Binary Debug ==="
         ls -la target/release/semisearch
         echo "ONNX Runtime libraries in target/release/:"
         ls -la target/release/libonnxruntime.so*
         echo "LD_LIBRARY_PATH after build: $LD_LIBRARY_PATH"
-        
+
         # Test if binary can find library
         echo "=== Library Loading Test ==="
         ldd target/release/semisearch | grep onnx || echo "No ONNX dependencies found in ldd output"
-        
+
         # Test CLI interface
         echo "=== Testing CLI Interface ==="
         ./target/release/semisearch --help | grep -q "search" || (echo "❌ Search command missing" && exit 1)
@@ -335,64 +335,64 @@ jobs:
         ./target/release/semisearch --help | grep -q "config" || (echo "❌ Config command missing" && exit 1)
         ./target/release/semisearch --help | grep -q "status" || (echo "❌ Status command missing" && exit 1)
         ./target/release/semisearch --help | grep -q "doctor" || (echo "❌ Doctor command missing" && exit 1)
-        
+
         # Create test file for functionality verification
         echo "TODO: Test item" > test_mvp.txt
-        
+
         # Test basic search functionality
         ./target/release/semisearch search "TODO" --path ./test_mvp.txt | grep -q "TODO: Test item" || (echo "❌ Basic search not working" && exit 1)
-        
+
         # Test JSON output
-        ./target/release/semisearch search "TODO" --path ./test_mvp.txt --format json | jq . > /dev/null || (echo "❌ JSON output not working" && exit 1)
-        
+        ./target/release/semisearch --advanced search "TODO" --path ./test_mvp.txt --format json | jq . > /dev/null || (echo "❌ JSON output not working" && exit 1)
+
         # Test regex mode
-        ./target/release/semisearch search "TODO.*:" --path ./test_mvp.txt --mode regex | wc -l | grep -q -v "^0$" || (echo "❌ Regex search not working" && exit 1)
-        
+        ./target/release/semisearch --advanced search "TODO.*:" --path ./test_mvp.txt --mode regex | wc -l | grep -q -v "^0$" || (echo "❌ Regex search not working" && exit 1)
+
         # Test fuzzy mode (includes typo tolerance)
-        ./target/release/semisearch search "TODO" --path ./test_mvp.txt --mode fuzzy | wc -l | grep -q -v "^0$" || (echo "❌ Fuzzy search not working" && exit 1)
-        
+        ./target/release/semisearch --advanced search "TODO" --path ./test_mvp.txt --mode fuzzy | wc -l | grep -q -v "^0$" || (echo "❌ Fuzzy search not working" && exit 1)
+
         # Cleanup
         rm test_mvp.txt
-        
+
         echo "✅ All MVP features are working correctly"
 
     - name: Verify project structure matches plan
       run: |
         echo "Checking project structure compliance..."
-        
+
         # Check required directories exist
         test -d src/ || (echo "❌ Missing src/ directory" && exit 1)
         test -d tests/ || (echo "❌ Missing tests/ directory" && exit 1)
         test -d docs/ || (echo "❌ Missing docs/ directory" && exit 1)
-        
+
         # Check required files exist
         test -f src/lib.rs || (echo "❌ Missing src/lib.rs" && exit 1)
         test -f src/main.rs || (echo "❌ Missing src/main.rs" && exit 1)
         test -f tests/integration_tests.rs || (echo "❌ Missing integration tests" && exit 1)
         test -f docs/SEMANTIC_SEARCH_ARCHITECTURE_PLAN.md || (echo "❌ Missing architecture plan" && exit 1)
-        
+
         # Check test scripts are executable
         test -x tests/run-all.sh || (echo "❌ run-all.sh not executable" && exit 1)
         test -x tests/test-search.sh || (echo "❌ test-search.sh not executable" && exit 1)
         test -x tests/test-performance.sh || (echo "❌ test-performance.sh not executable" && exit 1)
-        
+
         echo "✅ Project structure complies with architecture plan"
 
     - name: Verify Phase 2 completion
       run: |
         echo "Verifying Phase 2 Enhanced Search completion..."
-        
+
         # Count test cases to ensure comprehensive coverage
         UNIT_TESTS=$(cargo test --lib 2>&1 | grep "test result:" | grep -o "[0-9]\+ passed" | cut -d' ' -f1)
         INTEGRATION_TESTS=$(cargo test --test integration_tests 2>&1 | grep "test result:" | grep -o "[0-9]\+ passed" | cut -d' ' -f1)
-        
+
         echo "Unit tests: $UNIT_TESTS"
         echo "Integration tests: $INTEGRATION_TESTS"
-        
+
         # Verify minimum test coverage per architecture plan
         test "$UNIT_TESTS" -ge 10 || (echo "❌ Insufficient unit tests (need ≥10, have $UNIT_TESTS)" && exit 1)
         test "$INTEGRATION_TESTS" -ge 8 || (echo "❌ Insufficient integration tests (need ≥8, have $INTEGRATION_TESTS)" && exit 1)
-        
+
         echo "✅ Phase 2 test coverage meets architecture plan requirements"
 
   # Final Status Check
@@ -401,7 +401,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test, feature-tests, security, docs, build, architecture-compliance]
     if: always()
-    
+
     steps:
     - name: Check all jobs succeeded
       run: |
@@ -415,4 +415,4 @@ jobs:
           exit 1
         fi
         echo "✅ All CI jobs completed successfully!"
-        echo "🎉 Ready for Phase 3 implementation or production deployment" 
+        echo "🎉 Ready for Phase 3 implementation or production deployment"

@@ -16,4 +16,4 @@ max-struct-bools = 5
 
 # Performance tuning
 vec-box-size-threshold = 4096
-trivial-copy-size-limit = 128 
+trivial-copy-size-limit = 128

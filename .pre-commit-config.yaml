@@ -37,4 +37,4 @@ repos:
         language: system
         types: [rust]
         pass_filenames: false
-        stages: [manual]  # Optional: only run on manual pre-commit run 
+        stages: [manual]  # Optional: only run on manual pre-commit run

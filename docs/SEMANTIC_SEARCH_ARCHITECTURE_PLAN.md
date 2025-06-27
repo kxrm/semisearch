@@ -2,11 +2,11 @@
 
 ## Project Overview
 
-**Tool Name:** `semisearch` (Semantic Search CLI)  
-**Purpose:** Privacy-first CLI tool for semantic search across local files  
-**Target Users:** Developers, researchers, knowledge workers  
-**Privacy Model:** 100% local processing, no network requests after initial setup  
-**Development Philosophy:** Progressive enhancement - start simple, add features based on system capabilities  
+**Tool Name:** `semisearch` (Semantic Search CLI)
+**Purpose:** Privacy-first CLI tool for semantic search across local files
+**Target Users:** Developers, researchers, knowledge workers
+**Privacy Model:** 100% local processing, no network requests after initial setup
+**Development Philosophy:** Progressive enhancement - start simple, add features based on system capabilities
 **Hardware Requirements:** Minimal - works on systems as low-powered as Raspberry Pi
 
 ## High-Level Architecture
@@ -53,7 +53,7 @@ The tool is designed with a "start simple, enhance gradually" approach:
 #### Primary: Rust Implementation
 Best for production use with optimal performance.
 
-#### Alternative: Python Implementation  
+#### Alternative: Python Implementation
 For junior developers or rapid prototyping:
 - **CLI:** `typer` (simpler than clap)
 - **Database:** `sqlite3` (built-in, no external deps)
@@ -210,30 +210,30 @@ pub enum Commands {
     Search {
         /// Search query
         query: String,
-        
+
         /// Target directory (default: current directory)
         #[arg(short, long, default_value = ".")]
         path: String,
-        
+
         /// Minimum similarity score (0.0-1.0)
         #[arg(short, long, default_value = "0.7")]
         score: f32,
-        
+
         /// Maximum number of results
         #[arg(short, long, default_value = "10")]
         limit: usize,
-        
+
         /// Output format
         #[arg(short, long, default_value = "plain")]
         format: String,
     },
-    
+
     /// Index files in directory
     Index {
         /// Directory to index
         path: String,
     },
-    
+
     /// Show configuration
     Config,
 }
@@ -308,7 +308,7 @@ impl Config {
     pub fn auto_detect() -> Self {
         let available_memory = sys_info::mem_info().unwrap_or_default().total;
         let cpu_count = num_cpus::get();
-        
+
         if available_memory < 2_000_000 { // Less than 2GB RAM
             Config::minimal()
         } else if cpu_count < 4 {
@@ -317,7 +317,7 @@ impl Config {
             Config::default()
         }
     }
-    
+
     pub fn minimal() -> Self {
         Self {
             privacy: Config::default().privacy,
@@ -329,7 +329,7 @@ impl Config {
             },
         }
     }
-    
+
     pub fn conservative() -> Self {
         Self {
             privacy: Config::default().privacy,
@@ -401,26 +401,26 @@ impl Database {
         conn.execute_batch(include_str!("../../migrations/001_initial.sql"))?;
         Ok(Self { conn })
     }
-    
+
     pub fn insert_file(&self, path: &str, hash: &str, modified_at: i64, size_bytes: i64) -> Result<i64> {
         let mut stmt = self.conn.prepare(
-            "INSERT OR REPLACE INTO files (path, hash, modified_at, size_bytes, indexed_at) 
+            "INSERT OR REPLACE INTO files (path, hash, modified_at, size_bytes, indexed_at)
              VALUES (?1, ?2, ?3, ?4, ?5)"
         )?;
-        
+
         stmt.execute(params![path, hash, modified_at, size_bytes, chrono::Utc::now().timestamp()])?;
         Ok(self.conn.last_insert_rowid())
     }
-    
-    pub fn insert_chunk(&self, file_id: i64, line_number: usize, start_char: usize, 
+
+    pub fn insert_chunk(&self, file_id: i64, line_number: usize, start_char: usize,
                        end_char: usize, content: &str, embedding: Option<&[f32]>) -> Result<()> {
         let embedding_bytes = embedding.map(|e| bytemuck::cast_slice(e));
-        
+
         let mut stmt = self.conn.prepare(
-            "INSERT INTO chunks (file_id, line_number, start_char, end_char, content, embedding) 
+            "INSERT INTO chunks (file_id, line_number, start_char, end_char, content, embedding)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)"
         )?;
-        
+
         stmt.execute(params![file_id, line_number, start_char, end_char, content, embedding_bytes])?;
         Ok(())
     }
@@ -451,11 +451,11 @@ struct SemanticSearch;     // ML-based understanding
 // Developers can implement one at a time
 impl SearchStrategy for KeywordSearch {
     fn name(&self) -> &str { "keyword" }
-    
+
     fn search(&self, query: &str, options: &SearchOptions) -> Result<Vec<SearchResult>> {
         // Simple implementation - just 50 lines of code
     }
-    
+
     fn required_resources(&self) -> ResourceRequirements {
         ResourceRequirements {
             min_memory_mb: 10,
@@ -487,10 +487,10 @@ impl TextProcessor {
         let stop_words = [
             "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by"
         ].iter().map(|&s| s.to_string()).collect();
-        
+
         Self { stop_words }
     }
-    
+
     pub fn process_file(&self, content: &str) -> Vec<TextChunk> {
         content
             .lines()
@@ -509,7 +509,7 @@ impl TextProcessor {
             })
             .collect()
     }
-    
+
     fn clean_text(&self, text: &str) -> String {
         text.trim()
             .replace('\t', " ")
@@ -517,7 +517,7 @@ impl TextProcessor {
             .collect::<Vec<_>>()
             .join(" ")
     }
-    
+
     fn tokenize(&self, text: &str) -> Vec<String> {
         text.unicode_words()
             .map(|w| w.to_lowercase())
@@ -578,23 +578,23 @@ impl LocalEmbedder {
         if !model_path.exists() {
             Self::download_model(model_path).await?;
         }
-        
+
         let environment = Environment::builder()
             .with_name("semantic_search")
             .with_execution_providers([ExecutionProvider::CPU(Default::default())])
             .build()?;
-            
+
         let session = SessionBuilder::new(&environment)?
             .with_model_from_file(model_path)?;
-            
+
         let tokenizer = tokenizers::Tokenizer::from_pretrained("sentence-transformers/all-MiniLM-L6-v2", None)?;
-        
+
         Ok(Self { session, tokenizer })
     }
-    
+
     async fn download_model(model_path: &Path) -> anyhow::Result<()> {
         println!("Downloading embedding model (first time setup)...");
-        
+
         // Create progress bar
         let pb = indicatif::ProgressBar::new(100);
         pb.set_style(
@@ -602,53 +602,53 @@ impl LocalEmbedder {
                 .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
                 .unwrap()
         );
-        
+
         // Download from HuggingFace
         let url = "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx";
         let response = reqwest::get(url).await?;
         let total_size = response.content_length().unwrap_or(0);
         pb.set_length(total_size);
-        
+
         let mut file = fs::File::create(model_path).await?;
         let mut downloaded = 0u64;
         let mut stream = response.bytes_stream();
-        
+
         while let Some(chunk) = stream.next().await {
             let chunk = chunk?;
             file.write_all(&chunk).await?;
             downloaded += chunk.len() as u64;
             pb.set_position(downloaded);
         }
-        
+
         pb.finish_with_message("Model downloaded successfully");
         Ok(())
     }
-    
+
     pub fn embed(&self, text: &str) -> anyhow::Result<Vec<f32>> {
         let encoding = self.tokenizer.encode(text, false)?;
         let tokens = encoding.get_ids();
         let attention_mask = encoding.get_attention_mask();
-        
+
         let input_ids = Value::from_array(self.session.allocator(), &[1, tokens.len()], tokens)?;
         let attention_mask = Value::from_array(self.session.allocator(), &[1, attention_mask.len()], attention_mask)?;
-        
+
         let outputs = self.session.run([input_ids, attention_mask])?;
         let embeddings = outputs[0].try_extract::<f32>()?;
-        
+
         // Mean pooling
         let embedding_dim = embeddings.len() / tokens.len();
         let mut pooled = vec![0.0; embedding_dim];
-        
+
         for i in 0..tokens.len() {
             for j in 0..embedding_dim {
                 pooled[j] += embeddings[i * embedding_dim + j];
             }
         }
-        
+
         // Normalize
         let norm: f32 = pooled.iter().map(|x| x * x).sum::<f32>().sqrt();
         pooled.iter_mut().for_each(|x| *x /= norm);
-        
+
         Ok(pooled)
     }
 }
@@ -682,10 +682,10 @@ impl SearchEngine {
             (None, "none") => SearchMode::Basic,
             (None, _) => SearchMode::Hybrid,
         };
-        
+
         Self { database, embedder, config, mode }
     }
-    
+
     pub async fn search(&self, query: &str, options: SearchOptions) -> anyhow::Result<Vec<SearchResult>> {
         match self.mode {
             SearchMode::Full => {
@@ -693,13 +693,13 @@ impl SearchEngine {
                 let query_embedding = self.embedder.as_ref()
                     .ok_or_else(|| anyhow::anyhow!("Embedder not available"))?
                     .embed(query)?;
-                
+
                 // Parallel search strategies
                 let (keyword_results, semantic_results) = tokio::try_join!(
                     self.keyword_search(query, &options),
                     self.semantic_search(&query_embedding, &options)
                 )?;
-                
+
                 // Merge and rank results
                 Ok(self.merge_results(keyword_results, semantic_results))
             }
@@ -715,11 +715,11 @@ impl SearchEngine {
             }
         }
     }
-    
+
     async fn keyword_search(&self, query: &str, options: &SearchOptions) -> anyhow::Result<Vec<SearchResult>> {
         let query_tokens = self.tokenize_query(query);
         let mut results = Vec::new();
-        
+
         for chunk in self.database.get_all_chunks()? {
             let score = self.calculate_keyword_score(&query_tokens, &chunk.tokens);
             if score >= options.min_score {
@@ -732,13 +732,13 @@ impl SearchEngine {
                 });
             }
         }
-        
+
         Ok(results)
     }
-    
+
     async fn semantic_search(&self, query_embedding: &[f32], options: &SearchOptions) -> anyhow::Result<Vec<SearchResult>> {
         let mut results = Vec::new();
-        
+
         for chunk in self.database.get_chunks_with_embeddings()? {
             if let Some(embedding) = chunk.embedding {
                 let similarity = cosine_similarity(query_embedding, &embedding);
@@ -753,19 +753,19 @@ impl SearchEngine {
                 }
             }
         }
-        
+
         Ok(results)
     }
-    
+
     fn merge_results(&self, keyword_results: Vec<SearchResult>, semantic_results: Vec<SearchResult>) -> Vec<SearchResult> {
         let mut combined = HashMap::new();
-        
+
         // Add keyword results
         for result in keyword_results {
             let key = format!("{}:{}", result.file_path, result.line_number);
             combined.insert(key, result);
         }
-        
+
         // Add semantic results, boosting score if already exists
         for result in semantic_results {
             let key = format!("{}:{}", result.file_path, result.line_number);
@@ -776,11 +776,11 @@ impl SearchEngine {
                 combined.insert(key, result);
             }
         }
-        
+
         let mut results: Vec<_> = combined.into_values().collect();
         results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
         results.truncate(self.config.performance.max_results);
-        
+
         results
     }
 }
@@ -789,7 +789,7 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     let dot_product: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
     let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
     let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
-    
+
     dot_product / (norm_a * norm_b)
 }
 ```
@@ -814,13 +814,13 @@ impl FileIndexer {
     pub async fn index_directory(&self, path: &str) -> anyhow::Result<IndexStats> {
         let mut stats = IndexStats::default();
         let excluded_dirs: HashSet<_> = self.config.privacy.exclude_directories.iter().collect();
-        
+
         println!("Scanning directory: {}", path);
         let pb = indicatif::ProgressBar::new_spinner();
         pb.set_style(indicatif::ProgressStyle::default_spinner()
             .template("{spinner:.green} {msg}")
             .unwrap());
-        
+
         for entry in WalkDir::new(path)
             .follow_links(false)
             .into_iter()
@@ -828,7 +828,7 @@ impl FileIndexer {
         {
             let entry = entry?;
             pb.set_message(format!("Processing: {}", entry.path().display()));
-            
+
             if entry.file_type().is_file() {
                 match self.process_file(entry.path()).await {
                     Ok(file_stats) => {
@@ -842,26 +842,26 @@ impl FileIndexer {
                 }
             }
         }
-        
+
         pb.finish_with_message(format!("Indexing complete: {} files processed", stats.files_processed));
         Ok(stats)
     }
-    
+
     async fn process_file(&self, path: &Path) -> anyhow::Result<FileStats> {
         let content = fs::read_to_string(path).await?;
         let metadata = fs::metadata(path).await?;
-        
+
         // Skip large files
         if metadata.len() > self.config.performance.max_file_size_mb * 1024 * 1024 {
             return Err(anyhow::anyhow!("File too large"));
         }
-        
+
         // Check if file needs reindexing
         let file_hash = self.calculate_file_hash(&content);
         if !self.database.needs_reindexing(path.to_str().unwrap(), &file_hash)? {
             return Ok(FileStats { chunks_created: 0 });
         }
-        
+
         // Process text into chunks
         let chunks = self.text_processor.process_file(&content);
         let file_id = self.database.insert_file(
@@ -870,7 +870,7 @@ impl FileIndexer {
             metadata.modified()?.duration_since(UNIX_EPOCH)?.as_secs() as i64,
             metadata.len() as i64,
         )?;
-        
+
         // Generate embeddings and store chunks
         for chunk in chunks {
             let embedding = self.embedder.embed(&chunk.content)?;
@@ -883,7 +883,7 @@ impl FileIndexer {
                 Some(&embedding),
             )?;
         }
-        
+
         Ok(FileStats { chunks_created: chunks.len() })
     }
 }
@@ -906,20 +906,20 @@ impl OutputFormatter {
             _ => Self::format_plain(results),
         }
     }
-    
+
     fn format_plain(results: &[SearchResult]) -> String {
         results
             .iter()
-            .map(|r| format!("{}:{}:{:.2} {}", 
-                r.file_path, 
-                r.line_number, 
+            .map(|r| format!("{}:{}:{:.2} {}",
+                r.file_path,
+                r.line_number,
                 r.score,
                 r.content.chars().take(100).collect::<String>()
             ))
             .collect::<Vec<_>>()
             .join("\n")
     }
-    
+
     fn format_json(results: &[SearchResult]) -> String {
         serde_json::to_string_pretty(results).unwrap_or_default()
     }
@@ -935,27 +935,27 @@ use tempfile::TempDir;
 #[tokio::test]
 async fn test_end_to_end_search() {
     let temp_dir = TempDir::new().unwrap();
-    
+
     // Create test files
     std::fs::write(
         temp_dir.path().join("movies.txt"),
         "Ghostbusters\nSilence of the Lambs\nAce Ventura: Pet Detective\nIt's a Wonderful Life"
     ).unwrap();
-    
+
     // Initialize search engine
     let config = Config::default();
     let db_path = temp_dir.path().join("test.db");
     let database = Database::new(&db_path).unwrap();
     let embedder = LocalEmbedder::new(&temp_dir.path().join("model.onnx")).await.unwrap();
     let search_engine = SearchEngine::new(database, embedder, config);
-    
+
     // Index files
     let indexer = FileIndexer::new(/* ... */);
     indexer.index_directory(temp_dir.path().to_str().unwrap()).await.unwrap();
-    
+
     // Search
     let results = search_engine.search("Jim Carrey", SearchOptions::default()).await.unwrap();
-    
+
     // Verify results
     assert!(!results.is_empty());
     assert!(results.iter().any(|r| r.content.contains("Ace Ventura")));
@@ -1021,7 +1021,7 @@ Each checkpoint produces a working, useful tool:
 
 #### Week 1-2: Foundation
 - [ ] Setup development environment
-- [ ] Create project structure  
+- [ ] Create project structure
 - [ ] Implement CLI interface with clap
 - [ ] Setup configuration management
 - [ ] Basic error handling framework
@@ -1056,7 +1056,7 @@ A companion repository `semisearch-test-data` provides:
 ```
 test-data/
 ├── small/          # 10 files, good for unit tests
-├── medium/         # 1000 files, integration tests  
+├── medium/         # 1000 files, integration tests
 ├── large/          # 10000 files, performance tests
 ├── edge-cases/     # Special characters, encodings
 └── scripts/        # Test automation scripts
@@ -1120,7 +1120,7 @@ cross build --target x86_64-apple-darwin --release
 
 ### Installation Methods
 1. **Direct download:** Pre-built binaries from releases
-2. **Cargo install:** `cargo install semisearch` 
+2. **Cargo install:** `cargo install semisearch`
 3. **Package managers:** Homebrew, APT, etc.
 
 ## Platform-Specific Considerations
@@ -1185,7 +1185,7 @@ Performance targets adjust based on system capabilities:
   - Per 1000 files: < 20MB
 
 #### Standard Systems (4GB+ RAM)
-- **Startup Time:** 
+- **Startup Time:**
   - Cold start: < 500ms
   - Warm start: < 100ms
 - **Search Performance:**
@@ -1225,7 +1225,7 @@ Performance targets adjust based on system capabilities:
 ### Common Issues
 
 #### Model/ML Related
-1. **Model download fails:** 
+1. **Model download fails:**
    - Check internet connection and disk space
    - Use `--no-semantic` flag to skip ML features
    - Manually download model to `~/.semisearch/models/`
@@ -1236,7 +1236,7 @@ Performance targets adjust based on system capabilities:
    - Check CPU architecture compatibility
 
 #### Performance Issues
-3. **Large files cause OOM:** 
+3. **Large files cause OOM:**
    - Adjust `max_file_size_mb` in config
    - Use `--streaming` mode for large files
    - Enable swap space on low-memory systems
@@ -1288,7 +1288,7 @@ RUST_LOG=debug semisearch search "query" --verbose
 
 ## Summary
 
-This architectural plan provides a comprehensive roadmap for building a privacy-first semantic search CLI tool that works on ANY system - from a Raspberry Pi to a high-end workstation. 
+This architectural plan provides a comprehensive roadmap for building a privacy-first semantic search CLI tool that works on ANY system - from a Raspberry Pi to a high-end workstation.
 
 ### Key Principles
 
@@ -1304,11 +1304,11 @@ This architectural plan provides a comprehensive roadmap for building a privacy-
 
 ### Implementation Path
 
-**Week 1:** Get a working MVP with basic search  
-**Week 2:** Add persistence and caching  
-**Week 3-4:** Enhance search quality with fuzzy/TF-IDF  
-**Week 5-6:** Add semantic search for capable systems  
-**Week 7-8:** Polish, optimize, and package  
+**Week 1:** Get a working MVP with basic search
+**Week 2:** Add persistence and caching
+**Week 3-4:** Enhance search quality with fuzzy/TF-IDF
+**Week 5-6:** Add semantic search for capable systems
+**Week 7-8:** Polish, optimize, and package
 
 Remember: Each week produces a useful, working tool. You don't need to implement everything to have something valuable.
 

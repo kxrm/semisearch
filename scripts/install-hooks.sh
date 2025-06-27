@@ -10,7 +10,7 @@ echo "🔧 Installing pre-commit hooks for semisearch..."
 # Check if pre-commit is installed
 if ! command -v pre-commit &> /dev/null; then
     echo "❌ pre-commit is not installed. Installing..."
-    
+
     # Try different installation methods
     if command -v pip &> /dev/null; then
         pip install pre-commit
@@ -51,4 +51,4 @@ echo "💡 Usage:"
 echo "   • Hooks run automatically on commit"
 echo "   • Run manually: pre-commit run --all-files"
 echo "   • Run specific hook: pre-commit run rust-clippy"
-echo "   • Skip hooks: git commit --no-verify" 
+echo "   • Skip hooks: git commit --no-verify"

@@ -139,13 +139,13 @@ fi
 # Performance test (if test data exists)
 if [ -d "test-data" ]; then
     log_info "Running performance tests on test data..."
-    
+
     # Time a search operation
     start_time=$(date +%s.%N)
     cargo run --quiet -- search "TODO" test-data --limit 50 > /dev/null 2>&1 || true
     end_time=$(date +%s.%N)
     duration=$(echo "$end_time - $start_time" | bc -l 2>/dev/null || echo "unknown")
-    
+
     if [ "$duration" != "unknown" ]; then
         log_info "Search performance: ${duration}s"
         # Warn if search takes too long
@@ -176,4 +176,4 @@ echo "  • Fix formatting: cargo fmt"
 echo "  • Fix clippy issues: cargo clippy --fix"
 echo "  • Create test data: mkdir test-data && echo 'sample' > test-data/file.txt"
 echo "  • Test features: bash tests/test_phase2_features.sh"
-echo "" 
+echo ""

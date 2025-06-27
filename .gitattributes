@@ -30,4 +30,4 @@ LICENSE* text eol=lf
 *.bin binary
 *.db binary
 *.sqlite binary
-*.sqlite3 binary 
+*.sqlite3 binary

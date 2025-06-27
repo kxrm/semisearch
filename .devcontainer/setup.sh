@@ -71,7 +71,7 @@ cd /workspaces/semisearch
 # Handy aliases
 alias ll='ls -la'
 alias cb='cargo build'
-alias ct='cargo test' 
+alias ct='cargo test'
 alias cr='cargo run'
 alias cc='cargo check'
 alias fmt='cargo fmt'
@@ -108,12 +108,12 @@ search_help() {
 create_test_data() {
     echo "📝 Creating test data..."
     mkdir -p /workspaces/semisearch/test-data/{small,medium}
-    
+
     # Create some test files
     echo "Ghostbusters is a classic movie" > /workspaces/semisearch/test-data/small/movies.txt
     echo "Jim Carrey stars in Ace Ventura" >> /workspaces/semisearch/test-data/small/movies.txt
     echo "The Silence of the Lambs won many awards" >> /workspaces/semisearch/test-data/small/movies.txt
-    
+
     echo "✅ Test data created in /workspaces/semisearch/test-data/"
 }
 
@@ -163,12 +163,12 @@ enum Commands {
     Search {
         /// Search query
         query: String,
-        
+
         /// Target directory (default: current directory)
         #[arg(short, long, default_value = ".")]
         path: String,
     },
-    
+
     /// Index files in directory
     Index {
         /// Directory to index
@@ -178,7 +178,7 @@ enum Commands {
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-    
+
     match cli.command {
         Commands::Search { query, path } => {
             println!("🔍 Searching for '{}' in '{}'", query, path);
@@ -189,7 +189,7 @@ fn main() -> anyhow::Result<()> {
             println!("(This is where indexing logic will go)");
         }
     }
-    
+
     Ok(())
 }
 RUST
@@ -264,4 +264,4 @@ echo ""
 echo "🎓 New to the project?"
 echo "  Run: bash .devcontainer/scripts/new-developer-setup.sh"
 echo ""
-echo "Happy coding! 🦀✨" 
+echo "Happy coding! 🦀✨"

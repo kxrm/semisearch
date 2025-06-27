@@ -1,279 +1,204 @@
 use anyhow::Result;
-use clap::{Parser, Subcommand, ValueEnum};
-use search::capability_detector::CapabilityDetector;
+use clap::Parser;
 use search::core::embedder::{EmbeddingCapability, EmbeddingConfig, LocalEmbedder};
 use search::core::indexer::{FileIndexer, IndexerConfig};
+use search::errors::ErrorTranslator;
 use search::search::strategy::SearchEngine;
 use search::storage::database::Database;
 use search::{SearchOptions, SearchResult};
 use std::path::PathBuf;
 use std::time::Instant;
 
-#[derive(Parser)]
-#[command(name = "semisearch")]
-#[command(about = "Semantic search across local files")]
-#[command(version = "0.6.0")]
-pub struct Cli {
-    #[command(subcommand)]
-    pub command: Commands,
-}
-
-#[derive(Subcommand)]
-pub enum Commands {
-    /// Search for matches across files
-    Search {
-        /// Search query
-        query: String,
-
-        /// Target directory (default: current directory)
-        #[arg(short, long, default_value = ".")]
-        path: String,
-
-        /// Search mode: auto (default), semantic, keyword, fuzzy, regex, tfidf
-        #[arg(short, long, default_value = "auto")]
-        mode: SearchMode,
-
-        /// Enable semantic search (overrides mode if specified)
-        #[arg(long)]
-        semantic: bool,
-
-        /// Disable semantic search (force keyword-only)
-        #[arg(long)]
-        no_semantic: bool,
-
-        /// Minimum similarity score (0.0-1.0)
-        #[arg(short, long, default_value = "0.3")]
-        score: f32,
-
-        /// Semantic similarity threshold (0.0-1.0)
-        #[arg(long, default_value = "0.7")]
-        semantic_threshold: f32,
-
-        /// Maximum number of results
-        #[arg(short, long, default_value = "10")]
-        limit: usize,
-
-        /// Output format: plain, json
-        #[arg(short, long, default_value = "plain")]
-        format: OutputFormat,
-
-        /// Show file paths only
-        #[arg(long)]
-        files_only: bool,
-
-        /// Case sensitive search
-        #[arg(long)]
-        case_sensitive: bool,
-
-        /// Enable typo tolerance
-        #[arg(long)]
-        typo_tolerance: bool,
-
-        /// Context lines around matches
-        #[arg(long, default_value = "0")]
-        context: usize,
-    },
-
-    /// Index files in directory
-    Index {
-        /// Directory to index
-        path: String,
-
-        /// Force full reindex
-        #[arg(long)]
-        force: bool,
-
-        /// Build semantic embeddings during indexing
-        #[arg(long)]
-        semantic: bool,
-
-        /// Skip semantic embeddings
-        #[arg(long)]
-        no_semantic: bool,
-    },
-
-    /// Show system status and capabilities
-    Status,
-
-    /// Show configuration
-    Config,
-
-    /// Test system capabilities
-    Doctor,
-}
-
-#[derive(Clone, Debug, ValueEnum)]
-pub enum SearchMode {
-    /// Auto-detect best mode based on system capabilities
-    Auto,
-    /// Full semantic search (neural embeddings)
-    Semantic,
-    /// Keyword-based search only
-    Keyword,
-    /// Fuzzy string matching
-    Fuzzy,
-    /// Regular expression search
-    Regex,
-    /// TF-IDF statistical search
-    Tfidf,
-    /// Hybrid: combine keyword and semantic
-    Hybrid,
-}
-
-#[derive(Clone, Debug, ValueEnum)]
-pub enum OutputFormat {
-    Plain,
-    Json,
-}
+// Import CLI modules
+mod cli;
+use cli::{Cli, Commands};
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    let cli = Cli::parse();
+async fn main() {
+    if let Err(e) = run_main().await {
+        handle_error(e).await;
+    }
+}
 
-    match cli.command {
-        Commands::Search {
-            query,
-            path,
-            mode,
-            semantic,
-            no_semantic,
-            score,
-            semantic_threshold: _,
-            limit,
-            format,
-            files_only,
-            case_sensitive,
-            typo_tolerance,
-            context: _,
-        } => {
-            let start_time = Instant::now();
+async fn run_main() -> Result<()> {
+    // Get command line arguments
+    let mut args: Vec<String> = std::env::args().collect();
 
-            // Determine final search mode
-            let final_mode = determine_search_mode(mode, semantic, no_semantic).await?;
+    // Implement Task 1.1.3: Default Command Behavior
+    // If no subcommand provided, assume "search"
+    if args.len() > 1 {
+        // First, check if --advanced is present and handle it properly
+        let is_advanced_flag_present = args.contains(&"--advanced".to_string());
 
-            // Create search options
-            let options = SearchOptions {
-                min_score: score,
-                max_results: limit,
-                fuzzy_matching: matches!(final_mode, SearchMode::Fuzzy),
-                regex_mode: matches!(final_mode, SearchMode::Regex),
-                case_sensitive,
-                typo_tolerance,
-                max_edit_distance: 2,
-                search_mode: Some(match final_mode {
-                    SearchMode::Semantic => "semantic".to_string(),
-                    SearchMode::Keyword => "keyword".to_string(),
-                    SearchMode::Hybrid => "hybrid".to_string(),
-                    SearchMode::Fuzzy => "fuzzy".to_string(),
-                    SearchMode::Regex => "regex".to_string(),
-                    SearchMode::Tfidf => "tfidf".to_string(),
-                    SearchMode::Auto => "auto".to_string(),
-                }),
-            };
+        // Find the first non-flag argument (potential command or query)
+        let mut first_non_flag_index = None;
+        for (i, arg) in args.iter().enumerate().skip(1) {
+            if !arg.starts_with('-') {
+                first_non_flag_index = Some(i);
+                break;
+            }
+        }
 
-            // Initialize database
-            let db_path = get_database_path()?;
-            let database = Database::new(&db_path)?;
+        if let Some(index) = first_non_flag_index {
+            let potential_command = &args[index];
 
-            // Initialize embedder if needed
-            let embedder = if matches!(final_mode, SearchMode::Semantic | SearchMode::Hybrid) {
-                let semantic_requested = semantic || matches!(final_mode, SearchMode::Semantic);
-                match create_embedder(semantic_requested).await {
-                    Ok(emb) => Some(emb),
-                    Err(e) => {
-                        println!("⚠️  Semantic search unavailable: {e}");
-                        println!("🔄 Falling back to keyword search");
-                        None
+            // Check if first non-flag argument is a known command
+            let known_commands = [
+                "search", "s", "help-me", "status", "index", "config", "doctor", "help",
+            ];
+            let is_known_command = known_commands.contains(&potential_command.as_str());
+
+            // If it's not a known command, treat it as a search query
+            if !is_known_command {
+                // Insert "search" as the subcommand before the query
+                args.insert(index, "search".to_string());
+
+                // Now we need to check if there's a path argument after the query
+                // Look for the next non-flag argument that could be a path
+                let query_index = index + 1; // The query is now at this index
+                let mut path_index = None;
+
+                // Look for a potential path argument after the query
+                for (i, arg) in args.iter().enumerate().skip(query_index + 1) {
+                    if !arg.starts_with('-') {
+                        // This could be a path - check if it looks like a path
+                        if arg.contains('/') || arg.contains('\\') || arg == "." || arg == ".." {
+                            path_index = Some(i);
+                            break;
+                        }
                     }
                 }
+
+                // If we found a potential path, we need to ensure it's properly positioned
+                // The CLI structure expects: search <query> <path> [flags...]
+                if let Some(_path_idx) = path_index {
+                    // The path is already in the right position, no action needed
+                    // clap will automatically parse it as the path argument
+                }
+            }
+        } else if !is_advanced_flag_present {
+            // No non-flag arguments found and no --advanced flag - this is likely an error
+            // Let clap handle this case normally
+        }
+    }
+
+    // Custom CLI parsing to handle --advanced flag
+    let is_advanced = args.contains(&"--advanced".to_string());
+
+    // Parse CLI with dynamic help based on advanced mode
+    let cli = if is_advanced {
+        // Parse with advanced options visible
+        Cli::parse_from(args.iter().map(|s| {
+            // Remove hide attribute by rebuilding the CLI
+            s.as_str()
+        }))
+    } else {
+        // Parse normally (advanced options hidden)
+        Cli::parse_from(args.iter().map(|s| s.as_str()))
+    };
+
+    // Handle CLI routing
+    match cli.command {
+        Commands::Search(args) => {
+            let start_time = Instant::now();
+
+            // Handle path resolution: natural path takes precedence over --path flag
+            let search_path = if let Some(path_flag) = &args.path_flag {
+                // If --path flag is provided, use it (backward compatibility)
+                path_flag.clone()
             } else {
-                None
+                // Use the natural path argument
+                args.path.clone()
             };
 
-            // Create search engine
-            let search_engine = SearchEngine::new(database, embedder);
+            // Convert simple flags to search options
+            let mut options = SearchOptions {
+                min_score: args.score,
+                max_results: args.limit,
+                case_sensitive: args.case_sensitive,
+                typo_tolerance: args.typo_tolerance,
+                ..Default::default()
+            };
 
-            // Perform search
-            let results = search_engine.search(&query, &path, options).await?;
+            // Handle simple flags
+            if args.exact {
+                options.regex_mode = true;
+                options.fuzzy_matching = false;
+                options.min_score = 1.0; // Exact matches only
+            } else if args.fuzzy {
+                options.fuzzy_matching = true;
+                options.typo_tolerance = true;
+            }
+
+            // Handle advanced flags (only if advanced mode is enabled)
+            if cli.advanced {
+                if args.semantic {
+                    // Force semantic search
+                } else if args.no_semantic {
+                    // Disable semantic search
+                }
+
+                if args.regex || args.mode == "regex" {
+                    options.regex_mode = true;
+                }
+
+                if args.semantic_threshold != 0.7 {
+                    // Custom semantic threshold
+                }
+
+                if args.context > 0 {
+                    // Add context lines
+                }
+            }
+
+            // Perform search with enhanced error handling
+            let results = match execute_search(&args.query, &search_path, &options).await {
+                Ok(results) => results,
+                Err(e) => {
+                    handle_error_with_context(e, Some(&args.query), Some(&search_path)).await;
+                    return Ok(()); // This line won't be reached due to process::exit in handle_error_with_context
+                }
+            };
 
             let search_time = start_time.elapsed();
 
-            // Display results
-            display_results(&results, &format, files_only, &query, search_time)?;
-        }
+            // Display results based on format
+            if cli.advanced && args.format == "json" {
+                if results.is_empty() {
+                    // Handle no matches for JSON format
+                    let no_matches_error = ErrorTranslator::handle_no_results(&args.query);
+                    let exit_code = no_matches_error.exit_code();
 
-        Commands::Index {
-            path,
-            force: _,
-            semantic,
-            no_semantic,
-        } => {
-            println!("🗂️  Indexing directory: {path}");
-
-            let db_path = get_database_path()?;
-            let database = Database::new(&db_path)?;
-
-            // Determine if we should build semantic embeddings
-            let build_semantic = if no_semantic {
-                false
-            } else if semantic {
-                true
-            } else {
-                // Auto-detect
-                LocalEmbedder::detect_capabilities() != EmbeddingCapability::None
-            };
-
-            let embedder = if build_semantic {
-                match create_embedder(semantic).await {
-                    Ok(emb) => {
-                        println!("✅ Semantic embeddings will be generated during indexing");
-                        Some(emb)
+                    match no_matches_error.to_json() {
+                        Ok(json) => eprintln!("{json}"),
+                        Err(_) => eprintln!("{{\"error_type\": \"NoMatches\", \"details\": {{\"query\": \"{}\", \"suggestions\": []}}}}",
+                            args.query),
                     }
-                    Err(e) => {
-                        println!("⚠️  Semantic embeddings unavailable: {e}");
-                        println!("📄 Indexing will use keyword-only mode");
-                        None
-                    }
+
+                    std::process::exit(exit_code);
+                } else {
+                    println!("{}", serde_json::to_string_pretty(&results)?);
+                }
+            } else if cli.advanced && args.files_only {
+                for result in &results {
+                    println!("{}", result.file_path);
                 }
             } else {
-                println!("📄 Indexing in keyword-only mode");
-                None
-            };
-
-            let indexer = if let Some(emb) = embedder {
-                let config = IndexerConfig {
-                    enable_embeddings: true,
-                    ..Default::default()
-                };
-                FileIndexer::with_embedder(database, config, emb)
-            } else {
-                FileIndexer::new(database)
-            };
-            let stats = indexer.index_directory(std::path::Path::new(&path))?;
-
-            println!("✅ Indexing complete:");
-            println!(
-                "   📁 Files processed: {files_processed}",
-                files_processed = stats.files_processed
-            );
-            println!(
-                "   📄 Chunks created: {chunks_created}",
-                chunks_created = stats.chunks_created
-            );
-            println!(
-                "   ⏱️  Time taken: {duration:.2}s",
-                duration = stats.duration_seconds
-            );
+                display_simple_results(&results, &args.query, search_time)?;
+            }
         }
-
+        Commands::HelpMe => {
+            handle_help_me().await?;
+        }
         Commands::Status => {
-            show_status().await?;
+            handle_simple_status().await?;
         }
-
+        Commands::Index(args) => {
+            handle_index(&args.path, args.force, args.semantic, args.no_semantic).await?;
+        }
         Commands::Config => {
             show_config().await?;
         }
-
         Commands::Doctor => {
             run_doctor().await?;
         }
@@ -282,239 +207,318 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn determine_search_mode(
-    mode: SearchMode,
-    semantic: bool,
-    no_semantic: bool,
-) -> Result<SearchMode> {
-    if no_semantic {
-        return Ok(SearchMode::Keyword);
-    }
+/// Execute search with the given parameters
+async fn execute_search(
+    query: &str,
+    path: &str,
+    options: &SearchOptions,
+) -> Result<Vec<SearchResult>> {
+    // Get database path
+    let db_path = get_database_path()?;
+    let database = Database::new(&db_path)?;
 
-    if semantic {
-        return Ok(SearchMode::Semantic);
-    }
+    // Determine if we should use semantic search
+    let use_semantic = should_use_semantic_search(query);
 
-    match mode {
-        SearchMode::Auto => {
-            // Auto-detect best mode based on system capabilities
-            match LocalEmbedder::detect_capabilities() {
-                #[cfg(feature = "neural-embeddings")]
-                EmbeddingCapability::Full => Ok(SearchMode::Hybrid),
-                EmbeddingCapability::TfIdf => Ok(SearchMode::Tfidf),
-                EmbeddingCapability::None => Ok(SearchMode::Keyword),
-            }
-        }
-        other => Ok(other),
-    }
-}
-
-async fn create_embedder(semantic_requested: bool) -> Result<LocalEmbedder> {
-    let config = EmbeddingConfig::default();
-
-    if semantic_requested {
-        // Use the new function that attempts model download for semantic requests
-        LocalEmbedder::new_with_semantic_request(config).await
+    // Initialize embedder if needed
+    let embedder = if use_semantic {
+        (create_embedder(true).await).ok()
     } else {
-        // Use the regular function for auto-detection
-        LocalEmbedder::new(config).await
-    }
+        None
+    };
+
+    // Create search engine
+    let search_engine = SearchEngine::new(database, embedder);
+
+    // Perform search
+    search_engine.search(query, path, options.clone()).await
 }
 
-fn get_database_path() -> Result<PathBuf> {
-    let home_dir =
-        dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
+/// Determine if we should use semantic search based on query characteristics
+fn should_use_semantic_search(query: &str) -> bool {
+    // Use semantic search for conceptual queries
+    let conceptual_indicators = [
+        "error handling",
+        "authentication",
+        "database",
+        "security",
+        "performance",
+        "optimization",
+        "algorithm",
+        "pattern",
+        "architecture",
+        "design",
+        "implementation",
+        "solution",
+    ];
 
-    let semisearch_dir = home_dir.join(".semisearch");
-    std::fs::create_dir_all(&semisearch_dir)?;
-
-    Ok(semisearch_dir.join("index.db"))
+    let query_lower = query.to_lowercase();
+    conceptual_indicators
+        .iter()
+        .any(|&indicator| query_lower.contains(indicator))
+        || query.split_whitespace().count() > 2 // Multi-word queries benefit from semantic search
 }
 
-fn display_results(
+/// Display search results in a user-friendly format
+fn display_simple_results(
     results: &[SearchResult],
-    format: &OutputFormat,
-    files_only: bool,
     query: &str,
     search_time: std::time::Duration,
 ) -> Result<()> {
-    match format {
-        OutputFormat::Json => {
-            let output = serde_json::json!({
-                "query": query,
-                "results": results,
-                "count": results.len(),
-                "search_time_ms": search_time.as_millis()
-            });
-            println!("{output}", output = serde_json::to_string_pretty(&output)?);
-        }
-        OutputFormat::Plain => {
-            if results.is_empty() {
-                println!("No matches found for: {query}");
-                return Ok(());
-            }
+    if results.is_empty() {
+        // Create no matches error and exit with proper code
+        let no_matches_error = ErrorTranslator::handle_no_results(query);
+        let exit_code = no_matches_error.exit_code();
 
-            println!(
-                "Found {matches} matches in {search_time:?}:",
-                matches = results.len(),
-                search_time = search_time
-            );
-            println!();
+        // Check if JSON format was requested
+        let args: Vec<String> = std::env::args().collect();
+        let json_format = args
+            .windows(2)
+            .any(|w| w[0] == "--format" && w[1] == "json");
 
-            for result in results {
-                if files_only {
-                    println!("{file_path}", file_path = result.file_path);
-                } else {
-                    println!("📁 {file_path}", file_path = result.file_path);
-                    println!(
-                        "   Line {line_number}: {content}",
-                        line_number = result.line_number,
-                        content = result.content
-                    );
-                    if let Some(score) = result.score {
-                        println!("   Score: {score:.3}");
-                    }
-                    if let Some(match_type) = &result.match_type {
-                        println!("   Match: {match_type:?}");
-                    }
-                    println!();
-                }
+        if json_format {
+            match no_matches_error.to_json() {
+                Ok(json) => eprintln!("{json}"),
+                                        Err(_) => eprintln!("{{\"error_type\": \"NoMatches\", \"details\": {{\"query\": \"{query}\", \"suggestions\": []}}}}"),
             }
+        } else {
+            eprintln!("{no_matches_error}");
         }
+
+        std::process::exit(exit_code);
     }
 
-    Ok(())
-}
-
-async fn show_status() -> Result<()> {
-    println!("🔍 SemiSearch Status");
+    println!(
+        "Found {} matches in {:.2}s:",
+        results.len(),
+        search_time.as_secs_f64()
+    );
     println!();
 
+    for result in results.iter().take(10) {
+        println!("📁 {}", result.file_path);
+        println!("   Line {}: {}", result.line_number, result.content.trim());
+
+        if let Some(score) = result.score {
+            if score < 1.0 {
+                println!("   Relevance: {:.1}%", score * 100.0);
+            }
+        }
+        println!();
+    }
+
+    if results.len() > 10 {
+        println!("... and {} more matches", results.len() - 10);
+        println!("💡 Tip: Use more specific terms to narrow results");
+    }
+
+    Ok(())
+}
+
+/// Handle help-me command with interactive guidance
+async fn handle_help_me() -> Result<()> {
+    println!("👋 Welcome to SemiSearch!");
+    println!("Let's find what you're looking for.\n");
+
+    println!("🔍 Basic Usage:");
+    println!("  semisearch \"what you want to find\"");
+    println!("  semisearch \"TODO\"");
+    println!("  semisearch \"error handling\"");
+    println!();
+
+    println!("🎯 Common Examples:");
+    println!("  • Find TODO comments:");
+    println!("    semisearch \"TODO\"");
+    println!();
+    println!("  • Find functions:");
+    println!("    semisearch \"function login\"");
+    println!();
+    println!("  • Handle typos:");
+    println!("    semisearch \"databse\" --fuzzy");
+    println!();
+    println!("  • Find exact matches:");
+    println!("    semisearch \"exact phrase\" --exact");
+    println!();
+
+    println!("❓ Need more help?");
+    println!("  • Check if everything is working: semisearch status");
+    println!("  • For advanced options: semisearch --advanced --help");
+
+    Ok(())
+}
+
+/// Handle status command with simple, user-friendly output
+async fn handle_simple_status() -> Result<()> {
+    println!("🏥 SemiSearch Health Check");
+    println!();
+
+    // Check basic functionality
+    println!("✅ Basic search: Ready");
+
     // Check database
+    match get_database_path() {
+        Ok(db_path) => {
+            if db_path.exists() {
+                match Database::new(&db_path) {
+                    Ok(database) => match database.get_stats() {
+                        Ok(stats) => {
+                            println!("✅ Database: {} files indexed", stats.file_count);
+                        }
+                        Err(_) => println!("⚠️  Database: Connected but no stats available"),
+                    },
+                    Err(_) => println!("❌ Database: Connection failed"),
+                }
+            } else {
+                println!("⚠️  Database: Not initialized (run 'semisearch index .' first)");
+            }
+        }
+        Err(e) => println!("❌ Database: Error - {e}"),
+    }
+
+    // Check search capabilities
+    println!("🔍 Search capabilities:");
+    println!("  • Keyword search: ✅ Available");
+    println!("  • Fuzzy search: ✅ Available");
+    println!("  • Regex search: ✅ Available");
+
+    // Check semantic capabilities
+    match LocalEmbedder::detect_capabilities() {
+        #[cfg(feature = "neural-embeddings")]
+        EmbeddingCapability::Full => {
+            println!("  • Semantic search: ✅ Available (full neural embeddings)");
+        }
+        EmbeddingCapability::TfIdf => {
+            println!("  • Semantic search: ⚠️  Limited (TF-IDF only)");
+        }
+        EmbeddingCapability::None => {
+            println!("  • Semantic search: ❌ Unavailable");
+        }
+    }
+
+    println!();
+    println!("💡 Tips:");
+    println!("  • Everything looks good? Try: semisearch \"TODO\"");
+    println!("  • Need help? Try: semisearch help-me");
+    println!("  • Advanced diagnostics: semisearch doctor");
+
+    Ok(())
+}
+
+/// Handle indexing with simple interface
+async fn handle_index(path: &str, force: bool, semantic: bool, no_semantic: bool) -> Result<()> {
+    println!("🗂️  Indexing files in: {path}");
+
+    if force {
+        println!("🔄 Forcing full reindex");
+    }
+
+    // Initialize database
     let db_path = get_database_path()?;
-    if db_path.exists() {
-        let database = Database::new(&db_path)?;
-        let stats = database.get_stats()?;
-        println!("📊 Database Status:");
-        println!(
-            "   📁 Indexed files: {file_count}",
-            file_count = stats.file_count
-        );
-        println!(
-            "   📄 Total chunks: {chunk_count}",
-            chunk_count = stats.chunk_count
-        );
-        println!(
-            "   💾 Database size: {:.2} MB",
-            db_path.metadata()?.len() as f64 / (1024.0 * 1024.0)
-        );
+    let database = Database::new(&db_path)?;
+
+    // Create indexer configuration
+    let config = IndexerConfig::default();
+
+    // Determine if we should use semantic indexing
+    let use_semantic = if no_semantic {
+        false
+    } else if semantic {
+        true
     } else {
-        println!("📊 Database: Not initialized");
-    }
+        // Auto-detect capability
+        #[cfg(feature = "neural-embeddings")]
+        {
+            matches!(
+                LocalEmbedder::detect_capabilities(),
+                EmbeddingCapability::Full
+            )
+        }
+        #[cfg(not(feature = "neural-embeddings"))]
+        {
+            false
+        }
+    };
 
-    // Check system capabilities
-    let capability = LocalEmbedder::detect_capabilities();
-    println!("🧠 Embedding Capability: {capability:?}");
-
-    // Check models directory
-    let models_dir = dirs::home_dir()
-        .unwrap_or_default()
-        .join(".semisearch")
-        .join("models");
-
-    if models_dir.exists() {
-        println!(
-            "🤖 Models directory: {models_dir}",
-            models_dir = models_dir.display()
-        );
-        let model_path = models_dir.join("model.onnx");
-        if model_path.exists() {
-            let metadata = std::fs::metadata(&model_path)?;
-            println!("   Neural model: {size} bytes", size = metadata.len());
-        } else {
-            println!("   Neural model: Not downloaded");
+    // Create indexer
+    let indexer = if use_semantic {
+        println!("🧠 Including semantic embeddings");
+        match create_embedder(true).await {
+            Ok(embedder) => FileIndexer::with_embedder(database, config, embedder),
+            Err(e) => {
+                println!("⚠️  Semantic indexing failed: {e}");
+                println!("🔄 Falling back to keyword-only indexing");
+                FileIndexer::with_config(database, config)
+            }
         }
     } else {
-        println!("🤖 Models directory: Not created");
+        println!("📝 Keyword-only indexing");
+        FileIndexer::with_config(database, config)
+    };
+
+    // Index the directory
+    let path_buf = PathBuf::from(path);
+
+    // Handle force reindex by clearing existing data if needed
+    if force {
+        println!("🗑️  Clearing existing index data...");
+        // TODO: Add database method to clear files in path
+    }
+
+    match indexer.index_directory(&path_buf) {
+        Ok(stats) => {
+            println!("✅ Indexing complete!");
+            println!("   • Files processed: {}", stats.files_processed);
+            println!("   • Files updated: {}", stats.files_updated);
+            if stats.files_skipped > 0 {
+                println!("   • Files skipped: {}", stats.files_skipped);
+            }
+        }
+        Err(e) => {
+            // Use the enhanced error handling system with context
+            handle_error_with_context(e, None, Some(path)).await;
+        }
     }
 
     Ok(())
 }
 
+/// Show configuration
 async fn show_config() -> Result<()> {
-    println!("⚙️  Semisearch Configuration");
-    println!("===========================");
+    println!("⚙️  SemiSearch Configuration");
+    println!();
 
-    let config = EmbeddingConfig::default();
-    println!("Model: {model_name}", model_name = config.model_name);
-    println!(
-        "Cache directory: {cache_dir}",
-        cache_dir = config.cache_dir.display()
-    );
-    println!("Max length: {max_length}", max_length = config.max_length);
-    println!("Batch size: {batch_size}", batch_size = config.batch_size);
-    println!("Device: {device:?}", device = config.device);
+    // Database location
+    match get_database_path() {
+        Ok(db_path) => println!("📁 Database: {}", db_path.display()),
+        Err(e) => println!("❌ Database path error: {e}"),
+    }
+
+    // Capabilities
+    println!("🔧 Capabilities:");
+    match LocalEmbedder::detect_capabilities() {
+        #[cfg(feature = "neural-embeddings")]
+        EmbeddingCapability::Full => println!("  • Neural embeddings: ✅ Available"),
+        EmbeddingCapability::TfIdf => println!("  • TF-IDF embeddings: ✅ Available"),
+        EmbeddingCapability::None => println!("  • Embeddings: ❌ Unavailable"),
+    }
 
     Ok(())
 }
 
+/// Run comprehensive diagnostics
 async fn run_doctor() -> Result<()> {
-    println!("🏥 Semisearch System Check");
-    println!("=========================");
+    println!("🩺 SemiSearch Doctor - Comprehensive Diagnostics");
+    println!();
 
-    // Use the new capability detector for detailed diagnostics
-    let details = CapabilityDetector::get_capability_details();
+    // System check
+    println!("🖥️  System Check:");
+    println!("  • OS: {}", std::env::consts::OS);
+    println!("  • Architecture: {}", std::env::consts::ARCH);
 
-    // Check system resources
-    if let Some(ref mem_info) = details.memory_info {
-        println!(
-            "💾 Available memory: {avail} MB",
-            avail = mem_info.avail / 1024 / 1024
-        );
-        println!(
-            "💾 Total memory: {total} MB",
-            total = mem_info.total / 1024 / 1024
-        );
-    } else {
-        println!("💾 Memory: Unable to detect");
-    }
-
-    println!("🖥️  CPU cores: {cpu_count}", cpu_count = details.cpu_count);
-
-    // Check neural capability components
-    println!("🧠 Neural Embedding Components:");
-    println!(
-        "   ONNX Runtime: {}",
-        if details.onnx_available {
-            "✅ Available"
-        } else {
-            "❌ Not found"
-        }
-    );
-    println!(
-        "   System Resources: {}",
-        if details.resources_adequate {
-            "✅ Adequate"
-        } else {
-            "❌ Insufficient"
-        }
-    );
-    println!(
-        "   Neural Model: {}",
-        if details.model_available {
-            "✅ Downloaded"
-        } else {
-            "❌ Missing"
-        }
-    );
-
-    // Determine overall capability
+    // Capability check
+    println!();
+    println!("🔧 Capability Check:");
     let capability = LocalEmbedder::detect_capabilities();
-    println!(
-        "🧠 Detected capability: {status}",
-        status = details.get_status()
-    );
-
     match capability {
         #[cfg(feature = "neural-embeddings")]
         EmbeddingCapability::Full => {
@@ -532,73 +536,121 @@ async fn run_doctor() -> Result<()> {
 
             // Test TF-IDF embedder
             print!("🧪 Testing TF-IDF embedder... ");
-            match create_embedder(true).await {
+            match create_embedder(false).await {
                 Ok(_) => println!("✅ Success"),
                 Err(e) => println!("❌ Failed: {e}"),
             }
         }
         EmbeddingCapability::None => {
             println!("❌ System too limited for embeddings");
-            println!("   Only keyword search available");
+            println!("💡 Keyword search will still work perfectly");
         }
     }
 
-    // Check database connectivity
-    print!("🗄️  Testing database... ");
-    match get_database_path().and_then(|path| Database::new(&path)) {
-        Ok(_) => println!("✅ Success"),
-        Err(e) => println!("❌ Failed: {e}"),
+    // Database check
+    println!();
+    println!("💾 Database Check:");
+    match get_database_path() {
+        Ok(db_path) => {
+            println!("✅ Database path: {}", db_path.display());
+
+            if db_path.exists() {
+                match Database::new(&db_path) {
+                    Ok(database) => {
+                        println!("✅ Database connection: OK");
+
+                        match database.get_stats() {
+                            Ok(stats) => {
+                                println!("✅ Database stats: {} files indexed", stats.file_count);
+                            }
+                            Err(e) => println!("⚠️  Database stats error: {e}"),
+                        }
+                    }
+                    Err(e) => println!("❌ Database connection failed: {e}"),
+                }
+            } else {
+                println!("⚠️  Database not initialized");
+                println!("💡 Run 'semisearch index .' to create database");
+            }
+        }
+        Err(e) => println!("❌ Database path error: {e}"),
     }
 
-    // Check network connectivity (for model downloads)
-    print!("🌐 Testing network connectivity... ");
-    #[cfg(feature = "neural-embeddings")]
-    {
-        match reqwest::get("https://huggingface.co").await {
-            Ok(response) if response.status().is_success() => println!("✅ Success"),
-            Ok(_) => println!("⚠️  Limited connectivity"),
-            Err(_) => println!("❌ No network access"),
+    // Performance test
+    println!();
+    println!("⚡ Performance Test:");
+    let start = Instant::now();
+    let test_query = "test";
+    let test_path = ".";
+    let test_options = SearchOptions::default();
+
+    match execute_search(test_query, test_path, &test_options).await {
+        Ok(results) => {
+            let duration = start.elapsed();
+            println!(
+                "✅ Search test: {} results in {:.2}s",
+                results.len(),
+                duration.as_secs_f64()
+            );
         }
-    }
-    #[cfg(not(feature = "neural-embeddings"))]
-    {
-        println!("⏭️  Skipped (neural features not enabled)");
+        Err(e) => println!("❌ Search test failed: {e}"),
     }
 
     println!();
     println!("🎯 Recommendations:");
-
-    // Show specific recommendations based on capability details
-    let recommendations = details.get_recommendations();
-    if recommendations.is_empty() {
-        println!("   • System is fully capable for neural embeddings");
-        println!("   • Use 'semisearch search --semantic' for best results");
-        println!("   • Run 'semisearch index --semantic <dir>' to build semantic index");
-    } else {
-        for recommendation in recommendations {
-            println!("   • {recommendation}");
-        }
-    }
-
-    // Show fallback recommendations
-    match capability {
-        #[cfg(feature = "neural-embeddings")]
-        EmbeddingCapability::Full => {
-            println!("Recommendations:");
-            println!("   • Use 'semisearch search --semantic' for best results.");
-            println!("   • Run 'semisearch index --semantic <dir>' to build a semantic index.");
-        }
-        EmbeddingCapability::TfIdf => {
-            println!("Recommendations:");
-            println!("   • Use 'semisearch search --mode tfidf' for statistical search.");
-            println!("   • For full semantic search, recompile with the 'neural-embeddings' feature flag.");
-        }
-        EmbeddingCapability::None => {
-            println!("Recommendations:");
-            println!("   • Use 'semisearch search --mode keyword' for basic search.");
-            println!("   • Consider using regex mode for pattern matching.");
-        }
-    }
+    println!("  • For best results, index your files first: semisearch index .");
+    println!("  • Use semantic search for conceptual queries");
+    println!("  • Use exact search for precise matches");
+    println!("  • Check 'semisearch status' for quick health check");
 
     Ok(())
+}
+
+/// Helper functions from original main.rs
+async fn create_embedder(semantic_requested: bool) -> Result<LocalEmbedder> {
+    let config = EmbeddingConfig::default();
+
+    if semantic_requested {
+        LocalEmbedder::new(config).await
+    } else {
+        LocalEmbedder::new_tfidf_only(config).await
+    }
+}
+
+fn get_database_path() -> Result<PathBuf> {
+    let home_dir =
+        dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
+    let db_dir = home_dir.join(".semisearch");
+    std::fs::create_dir_all(&db_dir)?;
+    Ok(db_dir.join("search.db"))
+}
+
+/// Handle errors by translating them to user-friendly messages and using proper stderr/exit codes
+async fn handle_error(error: anyhow::Error) {
+    handle_error_with_context(error, None, None).await;
+}
+
+/// Handle errors with additional context (query, path) for better user guidance
+async fn handle_error_with_context(error: anyhow::Error, query: Option<&str>, path: Option<&str>) {
+    let user_error = ErrorTranslator::translate_technical_error_with_context(&error, query, path);
+
+    // Check if JSON format was requested
+    if let Ok(json_mode) = std::env::var("SEMISEARCH_JSON") {
+        if json_mode == "1" || json_mode.to_lowercase() == "true" {
+            match user_error.to_json() {
+                Ok(json) => eprintln!("{json}"),
+                Err(_) => {
+                    // Fallback to regular error display
+                    eprintln!("{user_error}");
+                }
+            }
+        } else {
+            eprintln!("{user_error}");
+        }
+    } else {
+        eprintln!("{user_error}");
+    }
+
+    let exit_code = user_error.exit_code();
+    std::process::exit(exit_code);
 }

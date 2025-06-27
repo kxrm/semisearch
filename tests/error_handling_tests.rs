@@ -10,7 +10,7 @@ async fn test_user_friendly_error_messages() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--",
             "TODO",
             "/nonexistent/path/that/does/not/exist",
@@ -62,7 +62,7 @@ async fn test_no_matches_helpful_suggestions() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--",
             "NONEXISTENT_TERM_XYZ123",
             temp_dir.path().to_str().unwrap(),
@@ -102,7 +102,7 @@ async fn test_json_error_format() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--",
             "--advanced",
             "TODO",
@@ -171,7 +171,7 @@ async fn test_proper_exit_codes() -> Result<()> {
 
     // Test 1: Invalid arguments (should be exit code 2)
     let output = Command::new("cargo")
-        .args(["run", "--bin", "semisearch-new", "--", "--invalid-flag"])
+        .args(["run", "--bin", "semisearch", "--", "--invalid-flag"])
         .output()?;
 
     assert!(!output.status.success(), "Invalid arguments should fail");
@@ -182,7 +182,7 @@ async fn test_proper_exit_codes() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--",
             "TODO",
             "/nonexistent/path",
@@ -205,7 +205,7 @@ async fn test_technical_error_translation() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--",
             "TODO",
             "/root/protected_directory_that_requires_permissions",
@@ -242,7 +242,7 @@ async fn test_consistent_error_formatting() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--",
             "TODO",
             "/nonexistent/directory",
@@ -253,7 +253,7 @@ async fn test_consistent_error_formatting() -> Result<()> {
 
     // Test 2: Permission denied (if possible)
     let output2 = Command::new("cargo")
-        .args(["run", "--bin", "semisearch-new", "--", "TODO", "/root"])
+        .args(["run", "--bin", "semisearch", "--", "TODO", "/root"])
         .output()?;
 
     let stderr2 = String::from_utf8(output2.stderr)?;
@@ -288,7 +288,7 @@ async fn test_stderr_stdout_separation() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--",
             "TODO",
             temp_dir.path().to_str().unwrap(),
@@ -340,7 +340,7 @@ async fn test_stderr_stdout_separation() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--",
             "TODO",
             "/nonexistent/path",
@@ -370,7 +370,7 @@ async fn test_error_context_information() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--",
             "specific_query_term",
             "/nonexistent/specific/path",

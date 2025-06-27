@@ -1,7 +1,7 @@
 {
   "name": "Semantic Search CLI Development",
   "image": "mcr.microsoft.com/devcontainers/rust:1-1-bullseye",
-  
+
   "features": {
     "ghcr.io/devcontainers/features/common-utils:2": {
       "installZsh": true,
@@ -144,4 +144,4 @@
   "postCreateCommand": "bash -c 'echo \"🚀 Semantic Search CLI Development Environment\" && rustc --version && cargo --version && rustup component add clippy rustfmt && mkdir -p ~/semisearch-dev && echo \"✅ Ready! Create project: cd ~/semisearch-dev && cargo new semisearch --bin\"'",
 
   "remoteUser": "vscode"
-} 
+}

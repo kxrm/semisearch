@@ -9,7 +9,7 @@ async fn test_direct_query_without_subcommand() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "TODO",
@@ -37,7 +37,7 @@ async fn test_direct_query_with_flags() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "TODO",
@@ -69,7 +69,7 @@ async fn test_explicit_search_subcommand_still_works() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "search",
@@ -101,7 +101,7 @@ async fn test_non_search_commands_unaffected() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "status",
@@ -129,7 +129,7 @@ async fn test_help_commands_unaffected() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "help-me",
@@ -157,7 +157,7 @@ async fn test_quoted_queries() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "error handling",
@@ -186,7 +186,7 @@ async fn test_special_character_queries() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "function()",
@@ -217,7 +217,7 @@ async fn test_direct_query_with_path() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "TODO",
@@ -250,7 +250,7 @@ async fn test_direct_query_with_advanced_mode() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "--advanced",
@@ -285,7 +285,7 @@ async fn test_edge_cases() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "",
@@ -321,7 +321,7 @@ async fn test_command_conflict_detection() -> Result<()> {
             .args([
                 "run",
                 "--bin",
-                "semisearch-new",
+                "semisearch",
                 "--no-default-features",
                 "--",
                 command,
@@ -356,7 +356,7 @@ async fn test_functionality_preservation() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "TODO",
@@ -369,7 +369,7 @@ async fn test_functionality_preservation() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "databse",
@@ -383,7 +383,7 @@ async fn test_functionality_preservation() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "TODO:",
@@ -397,7 +397,7 @@ async fn test_functionality_preservation() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "TODO",
@@ -415,7 +415,7 @@ async fn test_functionality_preservation() -> Result<()> {
         .args([
             "run",
             "--bin",
-            "semisearch-new",
+            "semisearch",
             "--no-default-features",
             "--",
             "TODO",

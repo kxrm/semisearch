@@ -15,7 +15,7 @@ test_failed=0
 check_command() {
     local cmd=$1
     local name=$2
-    
+
     if command -v $cmd >/dev/null 2>&1; then
         echo -e "${GREEN}✅ $name found${NC}"
         ((test_passed++))
@@ -28,7 +28,7 @@ check_command() {
 check_rust_tool() {
     local cmd=$1
     local name=$2
-    
+
     if cargo --list | grep -q $cmd; then
         echo -e "${GREEN}✅ $name (cargo) found${NC}"
         ((test_passed++))
@@ -92,4 +92,4 @@ else
     echo -e "${YELLOW}⚠️  Some tools are missing but basic development should work.${NC}"
     echo "You can install missing tools later with cargo or the update script."
     exit 0
-fi 
+fi

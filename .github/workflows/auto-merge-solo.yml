@@ -17,9 +17,9 @@ jobs:
     name: Auto-merge for solo development
     runs-on: ubuntu-latest
     if: |
-      github.event.workflow_run.conclusion == 'success' && 
+      github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.actor.login == 'kxrm'
-    
+
     steps:
     - name: Get PR information
       id: get-pr
@@ -33,13 +33,13 @@ jobs:
             head: `${context.repo.owner}:${context.payload.workflow_run.head_branch}`,
             state: 'open'
           });
-          
+
           if (prs.length === 0) {
             console.log('No open PR found for this branch');
             core.setOutput('pr_number', '');
             return;
           }
-          
+
           const pr = prs[0];
           console.log(`Found PR #${pr.number}: ${pr.title}`);
           core.setOutput('pr_number', pr.number.toString());
@@ -57,9 +57,9 @@ jobs:
           const prNumber = parseInt('${{ steps.get-pr.outputs.pr_number }}');
           const prTitle = process.env.PR_TITLE || 'Auto-merge';
           const prBody = process.env.PR_BODY || 'Auto-merged by workflow';
-          
+
           console.log(`🚀 CI completed successfully, auto-merging PR #${prNumber}...`);
-          
+
           try {
             await github.rest.pulls.merge({
               owner: context.repo.owner,
@@ -69,9 +69,9 @@ jobs:
               commit_title: `${prTitle} (#${prNumber})`,
               commit_message: prBody
             });
-            
+
             console.log('✅ PR merged successfully');
-            
+
             // Add success comment
             await github.rest.issues.createComment({
               owner: context.repo.owner,
@@ -79,18 +79,18 @@ jobs:
               issue_number: prNumber,
               body: '🤖 **Auto-merged successfully!**\n\n✅ All CI checks passed\n✅ Branch follows naming conventions\n✅ Solo development mode active\n\nSquash-merged to maintain clean commit history.'
             });
-            
+
           } catch (error) {
             console.log('❌ Auto-merge failed:', error.message);
-            
-            // Add failure comment  
+
+            // Add failure comment
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: prNumber,
               body: `❌ **Auto-merge failed**: ${error.message}\n\nPlease merge manually or check for conflicts.`
             });
-            
+
             throw error;
           }
 
@@ -100,7 +100,7 @@ jobs:
       with:
         script: |
           console.log('🔄 Triggering CI workflow on main branch...');
-          
+
           try {
             await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
@@ -112,7 +112,7 @@ jobs:
                 merged_pr: '${{ steps.get-pr.outputs.pr_number }}'
               }
             });
-            
+
             console.log('✅ Main branch CI workflow triggered');
           } catch (error) {
             console.log('⚠️ Failed to trigger main branch CI:', error.message);
@@ -128,4 +128,4 @@ jobs:
         echo "Actor: ${{ github.event.workflow_run.actor.login }}"
         echo "Branch: ${{ github.event.workflow_run.head_branch }}"
         echo "PR Number: ${{ steps.get-pr.outputs.pr_number }}"
-        echo "===============================" 
+        echo "==============================="
