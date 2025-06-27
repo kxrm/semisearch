@@ -82,7 +82,7 @@ log_success "Test data created"
 
 # Test basic search
 log_info "Testing basic search..."
-RESULT=$(cargo run --quiet -- search "$QUERY" --path "$TEMP_DIR" 2>&1)
+RESULT=$(./target/release/semisearch search "$QUERY" --path "$TEMP_DIR" 2>&1)
 if [ $? -eq 0 ]; then
     log_success "Basic search completed"
     echo "$RESULT"
@@ -96,13 +96,16 @@ echo ""
 
 # Test JSON output
 log_info "Testing JSON output..."
-JSON_RESULT=$(cargo run --quiet -- search "$QUERY" --path "$TEMP_DIR" --format json 2>&1)
-if [ $? -eq 0 ] && echo "$JSON_RESULT" | jq . >/dev/null 2>&1; then
-    log_success "JSON output is valid"
-    echo "$JSON_RESULT" | jq .
-elif [ $? -eq 0 ]; then
-    log_success "JSON output completed (jq not available for validation)"
-    echo "$JSON_RESULT"
+JSON_RESULT=$(./target/release/semisearch search "$QUERY" --path "$TEMP_DIR" --format json 2>&1)
+JSON_EXIT_CODE=$?
+if [ $JSON_EXIT_CODE -eq 0 ]; then
+    if echo "$JSON_RESULT" | jq . >/dev/null 2>&1; then
+        log_success "JSON output is valid"
+        echo "$JSON_RESULT" | jq .
+    else
+        log_success "JSON output completed (jq not available for validation)"
+        echo "$JSON_RESULT"
+    fi
 else
     log_error "JSON output failed"
     echo "$JSON_RESULT"
@@ -112,7 +115,7 @@ echo ""
 
 # Test fuzzy search
 log_info "Testing fuzzy search..."
-FUZZY_RESULT=$(cargo run --quiet -- search "${QUERY}O" --path "$TEMP_DIR" --mode fuzzy 2>&1)  # Introduce typo
+FUZZY_RESULT=$(./target/release/semisearch search "${QUERY}O" --path "$TEMP_DIR" --mode fuzzy 2>&1)  # Introduce typo
 if [ $? -eq 0 ]; then
     log_success "Fuzzy search completed"
     echo "$FUZZY_RESULT"
@@ -125,7 +128,7 @@ echo ""
 
 # Test regex search
 log_info "Testing regex search..."
-REGEX_RESULT=$(cargo run --quiet -- search "TODO.*:" --path "$TEMP_DIR" --mode regex 2>&1)
+REGEX_RESULT=$(./target/release/semisearch search "TODO.*:" --path "$TEMP_DIR" --mode regex 2>&1)
 if [ $? -eq 0 ]; then
     log_success "Regex search completed"
     echo "$REGEX_RESULT"
@@ -139,7 +142,7 @@ echo ""
 # Test semantic search
 log_info "Testing semantic search..."
 set +e  # Temporarily disable exit on error
-SEMANTIC_RESULT=$(cargo run --quiet -- search "$QUERY" --path "$TEMP_DIR" --mode semantic 2>&1)
+SEMANTIC_RESULT=$(./target/release/semisearch search "$QUERY" --path "$TEMP_DIR" --mode semantic 2>&1)
 SEMANTIC_EXIT_CODE=$?
 set -e  # Re-enable exit on error
 
@@ -155,7 +158,7 @@ echo ""
 
 # Test with limits
 log_info "Testing result limits..."
-LIMIT_RESULT=$(cargo run --quiet -- search "$QUERY" --path "$TEMP_DIR" --limit 2 2>&1)
+LIMIT_RESULT=$(./target/release/semisearch search "$QUERY" --path "$TEMP_DIR" --limit 2 2>&1)
 if [ $? -eq 0 ]; then
     log_success "Limited search completed"
     echo "$LIMIT_RESULT"
