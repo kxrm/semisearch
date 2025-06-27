@@ -1,7 +1,12 @@
+use crate::core::embedder::{EmbeddingConfig, LocalEmbedder};
 use crate::help::contextual::ContextualHelp;
+use crate::search::strategy::SearchEngine;
+use crate::storage::database::Database;
+use crate::SearchOptions;
 use crate::SearchResult;
 use anyhow::Result;
 use std::io::{BufRead, Write};
+use std::path::PathBuf;
 
 /// Interactive help system that guides users through search scenarios
 pub struct InteractiveHelp;
@@ -68,13 +73,12 @@ impl InteractiveHelp {
                         continue;
                     }
 
-                    // Execute actual search
+                    // Process search query - ACTUALLY EXECUTE THE SEARCH
                     writeln!(output, "Searching for: {user_input}")?;
                     writeln!(output)?;
 
-                    // Perform the search
+                    // Execute real search
                     let search_results = Self::execute_search(user_input).await;
-
                     match search_results {
                         Ok(results) => {
                             // Show search results
@@ -99,7 +103,6 @@ impl InteractiveHelp {
                             }
                         }
                     }
-
                     writeln!(output)?;
                 }
                 Err(_) => break,
@@ -109,11 +112,82 @@ impl InteractiveHelp {
         Ok(())
     }
 
-    /// Execute a search with the given query
-    async fn execute_search(_query: &str) -> Result<Vec<SearchResult>> {
-        // For now, return empty results to get the basic interactive functionality working
-        // TODO: Implement actual search execution by calling the main search infrastructure
-        Ok(Vec::new())
+    /// Execute a real search with the given query
+    async fn execute_search(query: &str) -> Result<Vec<SearchResult>> {
+        // Get database path - same as main.rs
+        let db_path = Self::get_database_path()?;
+        let database = Database::new(&db_path)?;
+
+        // Determine if we should use semantic search - same logic as main.rs
+        let use_semantic = Self::should_use_semantic_search(query);
+
+        // Initialize embedder if needed - same as main.rs
+        let embedder = if use_semantic {
+            Self::create_embedder(true).await.ok()
+        } else {
+            None
+        };
+
+        // Create search engine - same as main.rs
+        let search_engine = SearchEngine::new(database, embedder);
+
+        // Create default search options
+        let options = SearchOptions {
+            min_score: 0.3,
+            max_results: 10,
+            case_sensitive: false,
+            typo_tolerance: false,
+            fuzzy_matching: false,
+            regex_mode: false,
+            ..Default::default()
+        };
+
+        // Perform search - same as main.rs
+        search_engine.search(query, ".", options).await
+    }
+
+    /// Get database path - copied from main.rs
+    fn get_database_path() -> Result<PathBuf> {
+        let home_dir =
+            dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
+        let db_dir = home_dir.join(".semisearch");
+        std::fs::create_dir_all(&db_dir)?;
+        Ok(db_dir.join("search.db"))
+    }
+
+    /// Determine if we should use semantic search - copied from main.rs
+    fn should_use_semantic_search(query: &str) -> bool {
+        let conceptual_indicators = [
+            "error handling",
+            "authentication",
+            "database",
+            "security",
+            "performance",
+            "optimization",
+            "algorithm",
+            "pattern",
+            "architecture",
+            "design",
+            "implementation",
+            "solution",
+        ];
+
+        let query_lower = query.to_lowercase();
+        conceptual_indicators
+            .iter()
+            .any(|&indicator| query_lower.contains(indicator))
+            || query.split_whitespace().count() > 2
+    }
+
+    /// Create embedder - copied from main.rs
+    async fn create_embedder(semantic_requested: bool) -> Result<LocalEmbedder> {
+        let config = EmbeddingConfig::default();
+
+        if semantic_requested {
+            LocalEmbedder::new(config).await
+        } else {
+            LocalEmbedder::new_tfidf_only(config).await
+        }
     }
 
     /// Display search results in a user-friendly format
@@ -174,22 +248,27 @@ impl InteractiveHelp {
 
     /// Display a single search result
     fn display_single_result<W: Write>(output: &mut W, result: &SearchResult) -> Result<()> {
-        writeln!(output, "📁 {}:{}", result.file_path, result.line_number)?;
-        writeln!(output, "   {}", result.content.trim())?;
+        writeln!(output, "📁 {}", result.file_path)?;
+        writeln!(
+            output,
+            "   Line {}: {}",
+            result.line_number,
+            result.content.trim()
+        )?;
+
+        if let Some(score) = result.score {
+            if score < 1.0 {
+                writeln!(output, "   Relevance: {:.1}%", score * 100.0)?;
+            }
+        }
+
         Ok(())
     }
 
-    /// Simplify a complex query for suggestions
+    /// Simplify query for suggestions - copied from user_errors.rs
     fn simplify_query(query: &str) -> String {
-        // Extract key terms from complex queries
-        let words: Vec<&str> = query.split_whitespace().collect();
-        if words.len() > 3 {
-            words[0..2].join(" ")
-        } else if words.len() > 1 {
-            words[0].to_string()
-        } else {
-            query.to_string()
-        }
+        use crate::errors::user_errors::UserError;
+        UserError::simplify_query(query)
     }
 
     /// Show interactive help commands
