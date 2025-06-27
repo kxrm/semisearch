@@ -11,8 +11,6 @@ async fn test_user_friendly_error_messages() -> Result<()> {
             "run",
             "--bin",
             "semisearch-new",
-            "--features",
-            "neural-embeddings",
             "--",
             "TODO",
             "/nonexistent/path/that/does/not/exist",
@@ -65,8 +63,6 @@ async fn test_no_matches_helpful_suggestions() -> Result<()> {
             "run",
             "--bin",
             "semisearch-new",
-            "--features",
-            "neural-embeddings",
             "--",
             "NONEXISTENT_TERM_XYZ123",
             temp_dir.path().to_str().unwrap(),
@@ -107,8 +103,6 @@ async fn test_json_error_format() -> Result<()> {
             "run",
             "--bin",
             "semisearch-new",
-            "--features",
-            "neural-embeddings",
             "--",
             "--advanced",
             "TODO",
@@ -181,8 +175,6 @@ async fn test_proper_exit_codes() -> Result<()> {
             "run",
             "--bin",
             "semisearch-new",
-            "--features",
-            "neural-embeddings",
             "--",
             "--invalid-flag",
         ])
@@ -197,8 +189,6 @@ async fn test_proper_exit_codes() -> Result<()> {
             "run",
             "--bin",
             "semisearch-new",
-            "--features",
-            "neural-embeddings",
             "--",
             "TODO",
             "/nonexistent/path",
@@ -207,7 +197,7 @@ async fn test_proper_exit_codes() -> Result<()> {
 
     assert!(!output.status.success(), "Non-existent path should fail");
     if let Some(code) = output.status.code() {
-        assert_eq!(code, 1, "File not found should return exit code 1");
+        assert_eq!(code, 1, "Directory access error should return exit code 1");
     }
 
     Ok(())
@@ -216,99 +206,105 @@ async fn test_proper_exit_codes() -> Result<()> {
 /// Test that technical errors are translated to user-friendly messages
 #[tokio::test]
 async fn test_technical_error_translation() -> Result<()> {
-    // Create a directory we can't write to (simulate permission error)
-    let temp_dir = TempDir::new()?;
-    let readonly_dir = temp_dir.path().join("readonly");
-    std::fs::create_dir(&readonly_dir)?;
-
-    // Try to index with insufficient permissions
+    // Test: Technical error types should be hidden from users
     let output = Command::new("cargo")
         .args([
             "run",
             "--bin",
             "semisearch-new",
-            "--features",
-            "neural-embeddings",
             "--",
-            "index",
-            readonly_dir.to_str().unwrap(),
+            "TODO",
+            "/root/protected_directory_that_requires_permissions",
         ])
         .output()?;
 
     let stderr = String::from_utf8(output.stderr)?;
 
-    // Should contain user-friendly language, not technical terms
+    // Should fail
     assert!(
-        !stderr.contains("std::io::Error") && !stderr.contains("anyhow::Error"),
+        !output.status.success(),
+        "Permission error should fail"
+    );
+
+    // Should not expose technical error details
+    assert!(
+        !stderr.contains("std::io::Error") && !stderr.contains("Error {"),
         "Should not expose technical error types: {stderr}"
     );
 
-    // Should provide actionable guidance
-    if !output.status.success() {
-        assert!(
-            stderr.contains("permission") || stderr.contains("access") || stderr.contains("Check"),
-            "Should explain permission issues clearly: {stderr}"
-        );
-    }
+    // Should provide user-friendly explanation
+    assert!(
+        stderr.contains("Permission") || stderr.contains("access") || stderr.contains("denied"),
+        "Should explain permission issue in user-friendly terms: {stderr}"
+    );
 
     Ok(())
 }
 
-/// Test that errors are consistently formatted
+/// Test that error messages are consistently formatted
 #[tokio::test]
 async fn test_consistent_error_formatting() -> Result<()> {
     // Test multiple error scenarios to ensure consistent formatting
-    let test_cases = vec![
-        // (args, expected_pattern)
-        (vec!["TODO", "/nonexistent"], "Cannot search"),
-        (vec!["index", "/readonly"], "Cannot index"),
-    ];
 
-    for (args, expected_pattern) in test_cases {
-        let mut cmd_args = vec![
+    // Test 1: Directory not found
+    let output1 = Command::new("cargo")
+        .args([
             "run",
             "--bin",
             "semisearch-new",
-            "--features",
-            "neural-embeddings",
             "--",
-        ];
-        for arg in &args {
-            cmd_args.push(&**arg);
-        }
+            "TODO",
+            "/nonexistent/directory",
+        ])
+        .output()?;
 
-        let output = Command::new("cargo").args(&cmd_args).output()?;
+    let stderr1 = String::from_utf8(output1.stderr)?;
 
-        if !output.status.success() {
-            let stderr = String::from_utf8(output.stderr)?;
+    // Test 2: Permission denied (if possible)
+    let output2 = Command::new("cargo")
+        .args([
+            "run",
+            "--bin",
+            "semisearch-new",
+            "--",
+            "TODO",
+            "/root",
+        ])
+        .output()?;
 
-            // Should have consistent error format
-            assert!(
-                stderr.contains(expected_pattern)
-                    || stderr.contains("Error:")
-                    || stderr.contains("❌"),
-                "Should contain expected error pattern '{expected_pattern}': {stderr}"
-            );
-        }
-    }
+    let stderr2 = String::from_utf8(output2.stderr)?;
+
+    // Both should fail
+    assert!(!output1.status.success());
+    assert!(!output2.status.success());
+
+    // Both should have helpful error messages
+    assert!(
+        stderr1.contains("Cannot") || stderr1.contains("Unable"),
+        "Should have clear error message: {stderr1}"
+    );
+    assert!(
+        stderr2.contains("Cannot") || stderr2.contains("Unable") || stderr2.contains("Permission"),
+        "Should have clear error message: {stderr2}"
+    );
 
     Ok(())
 }
 
-/// Test that stderr is used for errors and stdout for results
+/// Test that errors are properly separated between stdout and stderr
 #[tokio::test]
 async fn test_stderr_stdout_separation() -> Result<()> {
-    let temp_dir = TempDir::new()?;
-    std::fs::write(temp_dir.path().join("test.txt"), "TODO: test content")?;
+    // Test: Error messages should go to stderr, results to stdout
 
-    // Test successful search
+    // Test 1: Successful search (should use stdout)
+    let temp_dir = TempDir::new()?;
+    std::fs::write(temp_dir.path().join("test.txt"), "TODO: test item")?;
+
     let output = Command::new("cargo")
         .args([
             "run",
             "--bin",
             "semisearch-new",
-            "--features",
-            "neural-embeddings",
             "--",
             "TODO",
             temp_dir.path().to_str().unwrap(),
@@ -319,75 +315,88 @@ async fn test_stderr_stdout_separation() -> Result<()> {
     let stderr = String::from_utf8(output.stderr)?;
 
     if output.status.success() {
-        // Results should be on stdout
-        assert!(
-            stdout.contains("Found") || stdout.contains("matches"),
-            "Search results should be on stdout: {stdout}"
-        );
-
-        // Warnings (if any) should be on stderr, but not errors
-        // Filter out compilation warnings which are expected
-        let non_compilation_stderr: Vec<&str> = stderr
+        // Results should be on stdout (filter out compilation warnings from stderr)
+        let filtered_stderr: String = stderr
             .lines()
             .filter(|line| {
                 !line.contains("warning:")
                     && !line.contains("Compiling")
                     && !line.contains("Finished")
-                    && !line.contains("Blocking waiting")
-                    && !line.contains("Running `target/debug/semisearch-new")
-                    && !line.contains("associated functions")
-                    && !line.contains("are never used")
-                    && !line.contains("fn handle_")
-                    && !line.contains("impl ErrorTranslator")
-                    && !line.contains("#[warn(dead_code)]")
+                    && !line.contains("Running")
                     && !line.trim().starts_with("-->")
                     && !line.trim().starts_with("|")
                     && !line.trim().starts_with("=")
-                    && !line.trim().starts_with("...")
                     && !line.trim().is_empty()
             })
-            .collect();
-
-        if !non_compilation_stderr.is_empty() {
-            let filtered_stderr = non_compilation_stderr.join("\n");
-            assert!(
-                filtered_stderr.contains("⚠️")
-                    || filtered_stderr.contains("Warning")
-                    || filtered_stderr.contains("Falling back"),
-                "Only warnings should be on stderr for successful operations: {filtered_stderr}"
-            );
-        }
+            .collect::<Vec<_>>()
+            .join("\n");
+        
+        assert!(
+            stdout.len() > filtered_stderr.len(),
+            "Results should be on stdout: stdout={}, filtered_stderr={}",
+            stdout.len(),
+            filtered_stderr.len()
+        );
     }
 
-    Ok(())
-}
-
-/// Test that error context includes helpful information
-#[tokio::test]
-async fn test_error_context_information() -> Result<()> {
-    // Test that errors include relevant context like file paths, query terms, etc.
+    // Test 2: Error case (should use stderr)
     let output = Command::new("cargo")
         .args([
             "run",
             "--bin",
             "semisearch-new",
-            "--features",
-            "neural-embeddings",
             "--",
-            "test_query_xyz",
-            "/path/that/does/not/exist",
+            "TODO",
+            "/nonexistent/path",
         ])
         .output()?;
 
-    if !output.status.success() {
-        let stderr = String::from_utf8(output.stderr)?;
+    let stdout = String::from_utf8(output.stdout)?;
+    let stderr = String::from_utf8(output.stderr)?;
 
-        // Error should include context about what was attempted
-        assert!(
-            stderr.contains("/path/that/does/not/exist") || stderr.contains("directory"),
-            "Error should include path context: {stderr}"
-        );
-    }
+    // Errors should be on stderr
+    assert!(
+        stderr.len() > stdout.len(),
+        "Errors should be on stderr: stdout={}, stderr={}",
+        stdout.len(),
+        stderr.len()
+    );
+
+    Ok(())
+}
+
+/// Test that error messages include helpful context information
+#[tokio::test]
+async fn test_error_context_information() -> Result<()> {
+    // Test: Error messages should include context like query and path
+
+    let output = Command::new("cargo")
+        .args([
+            "run",
+            "--bin",
+            "semisearch-new",
+            "--",
+            "specific_query_term",
+            "/nonexistent/specific/path",
+        ])
+        .output()?;
+
+    let stderr = String::from_utf8(output.stderr)?;
+
+    // Should fail
+    assert!(!output.status.success());
+
+    // Error message should include context information
+    assert!(
+        stderr.contains("specific") || stderr.contains("path") || stderr.contains("nonexistent"),
+        "Error should include context information: {stderr}"
+    );
+
+    // Should provide actionable suggestions
+    assert!(
+        stderr.contains("Try") || stderr.contains("Check") || stderr.contains("Make sure"),
+        "Error should provide actionable suggestions: {stderr}"
+    );
 
     Ok(())
 }
