@@ -22,6 +22,9 @@ pub mod text;
 // Phase 4: Capability detection for progressive enhancement
 pub mod capability_detector;
 
+// Phase 5: Help system for user guidance
+pub mod help;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResult {
     pub file_path: String,

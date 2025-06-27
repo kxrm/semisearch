@@ -43,15 +43,42 @@ cargo build --release
 ### Basic Usage
 
 ```bash
-# Search for content in the current directory
-semisearch search "database connection"
+# Simple search (no subcommand needed)
+semisearch "database connection"
 
 # Search in a specific directory
-semisearch search "user authentication" --path ./src
+semisearch "user authentication" src/
 
-# Get results in JSON format
-semisearch search "async functions" --format json
+# Handle typos automatically
+semisearch "databse" --fuzzy
+
+# Get interactive help
+semisearch help-me
 ```
+
+### Getting Help
+
+SemiSearch includes a comprehensive help system:
+
+```bash
+# Interactive help with examples and guidance
+semisearch help-me
+
+# Check if everything is working
+semisearch status
+
+# Quick command reference
+semisearch --help
+
+# Advanced options for power users
+semisearch --advanced --help
+```
+
+The interactive help (`semisearch help-me`) is perfect for beginners. It provides:
+- Real-time examples based on your queries
+- Personalized suggestions
+- Step-by-step guidance
+- Common use cases for your situation
 
 ## Understanding Search Modes
 
