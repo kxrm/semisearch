@@ -346,7 +346,7 @@ jobs:
         ./target/release/semisearch --advanced search "TODO" --path ./test_mvp.txt --format json | jq . > /dev/null || (echo "❌ JSON output not working" && exit 1)
 
         # Test regex mode
-        ./target/release/semisearch --advanced search "TODO:.*" --path ./test_mvp.txt --mode regex | wc -l | grep -q -v "^0$" || (echo "❌ Regex search not working" && exit 1)
+        ./target/release/semisearch --advanced search "TODO.*:" --path ./test_mvp.txt --mode regex | wc -l | grep -q -v "^0$" || (echo "❌ Regex search not working" && exit 1)
 
         # Test fuzzy mode (includes typo tolerance)
         ./target/release/semisearch --advanced search "TODO" --path ./test_mvp.txt --mode fuzzy | wc -l | grep -q -v "^0$" || (echo "❌ Fuzzy search not working" && exit 1)

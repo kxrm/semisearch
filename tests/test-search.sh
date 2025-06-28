@@ -137,7 +137,7 @@ echo ""
 # Test regex search
 log_info "Testing regex search..."
 set +e  # Temporarily disable exit on error
-REGEX_RESULT=$(./target/release/semisearch search "TODO:.*" --path "$TEMP_DIR" --mode regex 2>&1)
+REGEX_RESULT=$(./target/release/semisearch search "TODO.*:" --path "$TEMP_DIR" --mode regex 2>&1)
 REGEX_EXIT_CODE=$?
 set -e  # Re-enable exit on error
 

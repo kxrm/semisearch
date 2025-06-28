@@ -55,7 +55,7 @@ async fn test_regex_like_strategy() {
     let auto_strategy = AutoStrategy::new();
 
     // Test regex-like queries
-    let results = auto_strategy.search("TODO:.*", "./src").await.unwrap();
+    let results = auto_strategy.search("TODO.*:", "./src").await.unwrap();
 
     // Should use regex search for regex-like patterns
     assert!(!results.is_empty() || results.is_empty()); // Just checking it doesn't panic
