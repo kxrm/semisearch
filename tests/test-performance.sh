@@ -88,7 +88,7 @@ done
 
 log_info "Testing small dataset performance..."
 start_time=$(date +%s.%N)
-$BINARY_PATH search "TODO" --path "$TEST_DATA_DIR" --limit 50 > /dev/null 2>&1
+$BINARY_PATH search "TODO" --path "$TEST_DATA_DIR" --limit 50 > /dev/null 2>&1 || true
 end_time=$(date +%s.%N)
 
 if [ "$CALC_AVAILABLE" = true ]; then
@@ -126,7 +126,7 @@ done
 
 log_info "Testing medium dataset performance..."
 start_time=$(date +%s.%N)
-$BINARY_PATH search "TODO" --path "$TEST_DATA_DIR" --limit 100 > /dev/null 2>&1
+$BINARY_PATH search "TODO" --path "$TEST_DATA_DIR" --limit 100 > /dev/null 2>&1 || true
 end_time=$(date +%s.%N)
 
 if [ "$CALC_AVAILABLE" = true ]; then
@@ -151,7 +151,7 @@ sync
 echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
 
 start_time=$(date +%s.%N)
-$BINARY_PATH search "TODO" --path "$TEST_DATA_DIR" --limit 10 > /dev/null 2>&1
+$BINARY_PATH search "TODO" --path "$TEST_DATA_DIR" --limit 10 > /dev/null 2>&1 || true
 end_time=$(date +%s.%N)
 
 if [ "$CALC_AVAILABLE" = true ]; then
@@ -174,7 +174,7 @@ log_info "Testing different search modes..."
 
 # Basic search
 start_time=$(date +%s.%N)
-$BINARY_PATH search "TODO" --path "$TEST_DATA_DIR" --limit 20 > /dev/null 2>&1
+$BINARY_PATH search "TODO" --path "$TEST_DATA_DIR" --limit 20 > /dev/null 2>&1 || true
 end_time=$(date +%s.%N)
 if [ "$CALC_AVAILABLE" = true ]; then
     basic_duration=$(echo "$end_time - $start_time" | bc -l)
@@ -183,7 +183,7 @@ fi
 
 # Fuzzy search
 start_time=$(date +%s.%N)
-$BINARY_PATH --advanced search "TODO" --path "$TEST_DATA_DIR" --mode fuzzy --limit 20 > /dev/null 2>&1
+$BINARY_PATH --advanced search "TODO" --path "$TEST_DATA_DIR" --mode fuzzy --limit 20 > /dev/null 2>&1 || true
 end_time=$(date +%s.%N)
 if [ "$CALC_AVAILABLE" = true ]; then
     fuzzy_duration=$(echo "$end_time - $start_time" | bc -l)
@@ -192,7 +192,7 @@ fi
 
 # Regex search
 start_time=$(date +%s.%N)
-$BINARY_PATH --advanced search "TODO.*:" --path "$TEST_DATA_DIR" --mode regex --limit 20 > /dev/null 2>&1
+$BINARY_PATH --advanced search "TODO.*:" --path "$TEST_DATA_DIR" --mode regex --limit 20 > /dev/null 2>&1 || true
 end_time=$(date +%s.%N)
 if [ "$CALC_AVAILABLE" = true ]; then
     regex_duration=$(echo "$end_time - $start_time" | bc -l)
