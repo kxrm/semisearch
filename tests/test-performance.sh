@@ -192,7 +192,7 @@ fi
 
 # Regex search
 start_time=$(date +%s.%N)
-$BINARY_PATH --advanced search "TODO.*:" --path "$TEST_DATA_DIR" --mode regex --limit 20 > /dev/null 2>&1
+$BINARY_PATH --advanced search "TODO:.*" --path "$TEST_DATA_DIR" --mode regex --limit 20 > /dev/null 2>&1
 end_time=$(date +%s.%N)
 if [ "$CALC_AVAILABLE" = true ]; then
     regex_duration=$(echo "$end_time - $start_time" | bc -l)

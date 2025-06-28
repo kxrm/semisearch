@@ -39,7 +39,7 @@ run_command cargo run -- search "TOOD" --mode fuzzy --path src/ --limit 3
 
 echo ""
 echo -e "${BLUE}🔍 Test 3: Regex Pattern Matching${NC}"
-run_command cargo run -- search "TODO.*:" --mode regex --path src/ --limit 3
+run_command cargo run -- search "TODO:.*" --mode regex --path src/ --limit 3
 
 echo ""
 echo -e "${BLUE}🔠 Test 4: Case-Sensitive Search${NC}"
