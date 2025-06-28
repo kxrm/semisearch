@@ -107,17 +107,16 @@ impl RegexSearch {
 
     /// Check if query looks like a regex pattern
     fn is_regex_pattern(&self, query: &str) -> bool {
-        // Simple heuristics to detect regex patterns
-        query.contains('[')
-            || query.contains('(')
-            || query.contains('{')
-            || query.contains('*')
-            || query.contains('+')
-            || query.contains('?')
-            || query.contains('^')
-            || query.contains('$')
-            || query.contains('|')
-            || query.contains('\\')
+        // More robust heuristics to detect regex patterns
+        let has_metacharacters = query.chars().any(|c| ".+*?^$|()[]{}".contains(c));
+        let has_escaped_sequences = query.contains('\\');
+
+        // Avoid treating common strings like filenames as regex
+        if query.contains('.') && !query.chars().any(|c| "*+?()[]{}".contains(c)) {
+            return false;
+        }
+
+        has_metacharacters || has_escaped_sequences
     }
 
     /// Find all regex matches in content
@@ -386,12 +385,14 @@ mod tests {
 
         assert!(search.is_regex_pattern(r"\d+"));
         assert!(search.is_regex_pattern("test*"));
+        assert!(search.is_regex_pattern("TODO:.+"));
         assert!(search.is_regex_pattern("(hello|world)"));
         assert!(search.is_regex_pattern("[a-z]+"));
         assert!(search.is_regex_pattern("^start"));
         assert!(search.is_regex_pattern("end$"));
 
         assert!(!search.is_regex_pattern("simple text"));
+        assert!(!search.is_regex_pattern("file.txt"));
         assert!(!search.is_regex_pattern("hello world"));
     }
 
@@ -521,6 +522,17 @@ mod tests {
 
         let content2 = "Thistest works";
         assert!(!search.is_word_boundary_match(&regex_match, content2));
+    }
+
+    #[test]
+    fn test_todo_regex_with_new_heuristic() {
+        let search = RegexSearch::new();
+        let options = SearchOptions::default();
+        let chunks = vec![create_test_chunk(1, "TODO: Test item")];
+
+        // This should be treated as a regex and find a match.
+        let results = search.search_chunks("TODO:.+", &chunks, &options).unwrap();
+        assert_eq!(results.len(), 1);
     }
 
     #[test]
