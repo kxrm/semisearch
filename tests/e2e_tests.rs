@@ -21,5 +21,4 @@ mod advanced_features_tests;
 fn dummy_test_to_ensure_e2e_tests_are_included() {
     // This test does nothing but ensures that this file is compiled
     // and the e2e test modules are included
-    assert!(true);
 }
