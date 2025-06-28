@@ -1,0 +1,80 @@
+{
+  "appName": "DataProcessor",
+  "version": "1.0.0",
+  "environment": "development",
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "name": "app_data",
+    "user": "app_user",
+    "password": "password123",
+    "maxConnections": 10,
+    "timeout": 30000
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 3000,
+    "timeout": 30000,
+    "corsEnabled": true,
+    "allowedOrigins": [
+      "http://localhost:8080",
+      "https://example.com"
+    ],
+    "maxRequestSize": "10mb"
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "output": ["console", "file"],
+    "fileOptions": {
+      "path": "./logs",
+      "filename": "app.log",
+      "maxSize": "10m",
+      "maxFiles": 5
+    }
+  },
+  "features": {
+    "authentication": true,
+    "caching": true,
+    "rateLimit": {
+      "enabled": true,
+      "maxRequests": 100,
+      "timeWindow": 60000
+    },
+    "notifications": {
+      "email": false,
+      "sms": false,
+      "push": true
+    }
+  },
+  "paths": {
+    "uploads": "./uploads",
+    "temp": "./temp",
+    "public": "./public"
+  },
+  "security": {
+    "jwtSecret": "your-secret-key-here",
+    "jwtExpiration": 86400,
+    "bcryptRounds": 10,
+    "enableHttps": false,
+    "csrfProtection": true
+  },
+  "thirdParty": {
+    "emailService": {
+      "provider": "sendgrid",
+      "apiKey": "SG.example-key",
+      "fromEmail": "noreply@example.com"
+    },
+    "storage": {
+      "provider": "local",
+      "options": {
+        "basePath": "./storage"
+      }
+    },
+    "analytics": {
+      "enabled": false,
+      "provider": "google",
+      "trackingId": "UA-XXXXX-Y"
+    }
+  }
+} 

@@ -1,0 +1,62 @@
+TODO LIST - Updated 2023-04-15
+
+URGENT:
+- Call dentist to reschedule appointment
+- Submit expense report for March (deadline: April 20)
+- Finish project proposal for client meeting
+- Pay credit card bill
+- Order new laptop charger
+
+WORK:
+- Complete code review for PR #342
+- Update documentation for API changes
+- Fix bug in login form validation
+- Prepare slides for team meeting
+- Research new testing framework
+- Schedule 1:1 with manager
+- Reply to emails from marketing team
+- Update dependencies in project
+- TODO: Refactor database access layer
+- FIXME: Memory leak in image processing module
+
+HOME:
+- Schedule plumber for leaky faucet
+- Return Amazon package
+- Clean out garage
+- Mow lawn
+- Order birthday gift for mom
+- Research vacation options for summer
+- Organize digital photos
+- Back up important documents
+
+ERRANDS:
+- Grocery shopping
+  * Milk
+  * Eggs
+  * Bread
+  * Vegetables
+  * Coffee
+- Pick up dry cleaning
+- Post office (mail tax forms)
+- Get oil change for car
+
+PERSONAL DEVELOPMENT:
+- Finish Rust programming tutorial
+- Read chapter 5 of "Clean Code"
+- Complete 2 LeetCode problems
+- Watch conference talk on microservices
+- Practice Spanish (30 minutes)
+
+HEALTH:
+- Schedule annual physical
+- 30 minutes exercise (M/W/F)
+- Meal prep for the week
+- Order new running shoes
+- Research meditation apps
+
+SOCIAL:
+- Call parents this weekend
+- Reply to John's email about reunion
+- Plan dinner with Sarah and Mike
+- RSVP to wedding invitation
+- Send thank you note to David 

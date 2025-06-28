@@ -49,7 +49,7 @@ venv/
 .env
 
 # Test data
-test-data/
+test-examples/
 benchmarks/
 *.test
 
@@ -69,6 +69,7 @@ tmp/
 temp/
 *.tmp
 *.bak
+*.backup
 
 # Security - Never commit these
 *.pem
