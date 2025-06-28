@@ -1,4 +1,5 @@
 pub mod auto_strategy;
+pub mod file_type_strategy;
 pub mod fuzzy;
 pub mod keyword;
 pub mod regex_search;
