@@ -25,6 +25,7 @@ dirs = "5.0"
 unicode-segmentation = "1.10"
 sys-info = "0.9"
 tempfile = "3.8"
+async-trait = "0.1"
 
 # Search dependencies
 fuzzy-matcher = "0.3"

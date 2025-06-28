@@ -1,9 +1,12 @@
 use crate::core::{EmbeddingConfig, LocalEmbedder};
 use crate::query::analyzer::{QueryAnalyzer, QueryType};
-use crate::search::{fuzzy::FuzzySearch, keyword::KeywordSearch, regex_search::RegexSearch};
+use crate::search::{
+    file_type_strategy::FileTypeStrategy, fuzzy::FuzzySearch, keyword::KeywordSearch,
+    regex_search::RegexSearch,
+};
 use crate::SearchResult;
 use anyhow::Result;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// Represents the context of a project to help determine search strategy
@@ -60,6 +63,7 @@ pub struct AutoStrategy {
     keyword_search: KeywordSearch,
     fuzzy_search: FuzzySearch,
     regex_search: RegexSearch,
+    file_type_strategy: FileTypeStrategy,
     semantic_search: Option<crate::search::semantic::SemanticSearch>,
 }
 
@@ -72,6 +76,7 @@ impl AutoStrategy {
             keyword_search: KeywordSearch::new(),
             fuzzy_search: FuzzySearch::new(),
             regex_search: RegexSearch::new(),
+            file_type_strategy: FileTypeStrategy::new(),
             semantic_search: None,
         }
     }
@@ -80,14 +85,14 @@ impl AutoStrategy {
     pub async fn with_semantic_search() -> Result<Self> {
         let config = EmbeddingConfig::default();
         let embedder = LocalEmbedder::new(config).await?;
+        let embedder_arc = Arc::new(embedder);
 
         Ok(Self {
             keyword_search: KeywordSearch::new(),
             fuzzy_search: FuzzySearch::new(),
             regex_search: RegexSearch::new(),
-            semantic_search: Some(crate::search::semantic::SemanticSearch::new(Arc::new(
-                embedder,
-            ))),
+            file_type_strategy: FileTypeStrategy::with_semantic_search(embedder_arc.clone()),
+            semantic_search: Some(crate::search::semantic::SemanticSearch::new(embedder_arc)),
         })
     }
 
@@ -95,6 +100,14 @@ impl AutoStrategy {
     pub async fn search(&self, query: &str, path: &str) -> Result<Vec<SearchResult>> {
         let query_type = QueryAnalyzer::analyze(query);
         let context = ProjectContext::detect(path)?;
+
+        // Get all files in the path
+        let files = self.get_files_in_path(path)?;
+
+        // For file extension queries, use file type strategy
+        if query_type == QueryType::FileExtension {
+            return self.file_type_strategy.search(query, &files).await;
+        }
 
         match (query_type, context, &self.semantic_search) {
             // Code patterns in code projects use regex
@@ -116,12 +129,44 @@ impl AutoStrategy {
             // Regex-like patterns use regex search
             (QueryType::RegexLike, _, _) => self.regex_search.search(query, path).await,
 
-            // File extensions use keyword search with file filtering
-            (QueryType::FileExtension, _, _) => self.keyword_search.search(query, path).await,
+            // For mixed context or documentation context, use file type strategy
+            (_, ProjectContext::Documentation, _) | (_, ProjectContext::Mixed, _) => {
+                self.file_type_strategy.search(query, &files).await
+            }
 
             // Default to fuzzy for typo tolerance
             _ => self.fuzzy_search.search(query, path).await,
         }
+    }
+
+    /// Get all files in a path recursively
+    fn get_files_in_path(&self, path: &str) -> Result<Vec<PathBuf>> {
+        let mut files = Vec::new();
+        let path = Path::new(path);
+
+        if path.is_file() {
+            files.push(path.to_path_buf());
+            return Ok(files);
+        }
+
+        // Simple recursive directory traversal
+        fn visit_dirs(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
+            if dir.is_dir() {
+                for entry in std::fs::read_dir(dir)? {
+                    let entry = entry?;
+                    let path = entry.path();
+                    if path.is_dir() {
+                        visit_dirs(&path, files)?;
+                    } else {
+                        files.push(path);
+                    }
+                }
+            }
+            Ok(())
+        }
+
+        visit_dirs(path, &mut files)?;
+        Ok(files)
     }
 
     /// Converts code patterns to regex patterns
