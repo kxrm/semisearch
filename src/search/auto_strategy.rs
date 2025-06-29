@@ -104,38 +104,46 @@ impl AutoStrategy {
         // Get all files in the path
         let files = self.get_files_in_path(path)?;
 
-        // For file extension queries, use file type strategy
+        // For file extension queries, extract file extension and filter files
         if query_type == QueryType::FileExtension {
-            return self.file_type_strategy.search(query, &files).await;
+            return self.search_with_file_extension_filter(query, &files).await;
         }
 
-        match (query_type, context, &self.semantic_search) {
+        // Try primary search strategy
+        let primary_results = match (query_type.clone(), context, &self.semantic_search) {
             // Code patterns in code projects use regex
             (QueryType::CodePattern, ProjectContext::Code, _) => {
                 let regex_query = self.code_pattern_to_regex(query);
-                self.regex_search.search(&regex_query, path).await
+                self.regex_search.search(&regex_query, path).await?
             }
 
             // Conceptual queries use semantic search if available
             (QueryType::Conceptual, _, Some(_semantic)) => {
                 // For now, fallback to fuzzy since semantic search doesn't have path-based search
                 // In a real implementation, this would use the semantic search with file chunks
-                self.fuzzy_search.search(query, path).await
+                self.fuzzy_search.search(query, path).await?
             }
 
             // Exact phrases use keyword search
-            (QueryType::ExactPhrase, _, _) => self.keyword_search.search(query, path).await,
+            (QueryType::ExactPhrase, _, _) => self.keyword_search.search(query, path).await?,
 
             // Regex-like patterns use regex search
-            (QueryType::RegexLike, _, _) => self.regex_search.search(query, path).await,
+            (QueryType::RegexLike, _, _) => self.regex_search.search(query, path).await?,
 
             // For mixed context or documentation context, use file type strategy
             (_, ProjectContext::Documentation, _) | (_, ProjectContext::Mixed, _) => {
-                self.file_type_strategy.search(query, &files).await
+                self.file_type_strategy.search(query, &files).await?
             }
 
-            // Default to fuzzy for typo tolerance
-            _ => self.fuzzy_search.search(query, path).await,
+            // Default to keyword search first
+            _ => self.keyword_search.search(query, path).await?,
+        };
+
+        // If no results found, automatically try fuzzy search for typo tolerance
+        if primary_results.is_empty() && !matches!(query_type, QueryType::RegexLike) {
+            self.fuzzy_search.search(query, path).await
+        } else {
+            Ok(primary_results)
         }
     }
 
@@ -191,6 +199,115 @@ impl AutoStrategy {
             "AWAIT" => r"await\s+.*".to_string(),
             _ => format!(r"{}.*", regex::escape(pattern)),
         }
+    }
+
+    /// Search with file extension filtering
+    async fn search_with_file_extension_filter(
+        &self,
+        query: &str,
+        files: &[PathBuf],
+    ) -> Result<Vec<SearchResult>> {
+        // Extract file extensions from query
+        let extensions = self.extract_file_extensions(query);
+
+        // Filter files by extensions if any were found
+        let filtered_files: Vec<PathBuf> = if !extensions.is_empty() {
+            files
+                .iter()
+                .filter(|file| {
+                    if let Some(ext) = file.extension() {
+                        let ext_str = format!(".{}", ext.to_string_lossy().to_lowercase());
+                        extensions.contains(&ext_str)
+                    } else {
+                        false
+                    }
+                })
+                .cloned()
+                .collect()
+        } else {
+            files.to_vec()
+        };
+
+        // Extract the actual search term (remove file extension references)
+        let clean_query = self.clean_query_from_extensions(query);
+
+        // Search in filtered files using the appropriate strategy
+        let mut results = Vec::new();
+        for file in &filtered_files {
+            if let Ok(file_results) = self
+                .keyword_search
+                .search(&clean_query, file.to_str().unwrap_or("."))
+                .await
+            {
+                results.extend(file_results);
+            }
+        }
+
+        // If no results with filtered files, fall back to fuzzy search in all files
+        if results.is_empty() && !filtered_files.is_empty() {
+            for file in &filtered_files {
+                if let Ok(file_results) = self
+                    .fuzzy_search
+                    .search(&clean_query, file.to_str().unwrap_or("."))
+                    .await
+                {
+                    results.extend(file_results);
+                }
+            }
+        }
+
+        Ok(results)
+    }
+
+    /// Extract file extensions from query
+    fn extract_file_extensions(&self, query: &str) -> Vec<String> {
+        let file_extensions = [
+            ".rs", ".py", ".js", ".ts", ".md", ".txt", ".json", ".toml", ".yaml", ".yml", ".xml",
+            ".html", ".css", ".scss", ".sass", ".less", ".sql", ".sh", ".bash", ".zsh", ".fish",
+            ".ps1", ".bat", ".cmd", ".exe", ".dll", ".so", ".dylib",
+        ];
+
+        file_extensions
+            .iter()
+            .filter(|ext| query.contains(*ext))
+            .map(|ext| ext.to_string())
+            .collect()
+    }
+
+    /// Clean query by removing file extension references
+    fn clean_query_from_extensions(&self, query: &str) -> String {
+        let mut clean = query.to_string();
+
+        // Remove common file extension patterns
+        let patterns_to_remove = [
+            ".rs files",
+            ".py files",
+            ".js files",
+            ".ts files",
+            ".md files",
+            ".rs",
+            ".py",
+            ".js",
+            ".ts",
+            ".md",
+            ".txt",
+            ".json",
+            ".toml",
+            "files",
+            "file",
+        ];
+
+        for &pattern in patterns_to_remove.iter() {
+            clean = clean.replace(pattern, "");
+        }
+
+        // Clean up extra whitespace
+        clean
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .trim()
+            .to_string()
     }
 }
 

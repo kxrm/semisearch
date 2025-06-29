@@ -3,7 +3,7 @@ use anyhow::Result;
 use search::core::embedder::{EmbeddingCapability, EmbeddingConfig, LocalEmbedder};
 use search::core::indexer::{FileIndexer, IndexerConfig};
 use search::errors::ErrorTranslator;
-use search::search::strategy::SearchEngine;
+// Removed unused import
 use search::storage::database::Database;
 use search::{SearchOptions, SearchResult};
 use std::path::PathBuf;
@@ -194,27 +194,25 @@ fn display_advanced_results(
 async fn execute_search(
     query: &str,
     path: &str,
-    options: &SearchOptions,
+    _options: &SearchOptions,
 ) -> Result<Vec<SearchResult>> {
-    // Get database path
-    let db_path = get_database_path()?;
-    let database = Database::new(&db_path)?;
+    use search::search::auto_strategy::AutoStrategy;
 
-    // Determine if we should use semantic search
-    let use_semantic = should_use_semantic_search(query);
-
-    // Initialize embedder if needed
-    let embedder = if use_semantic {
-        (create_embedder(true).await).ok()
+    // Use AutoStrategy for intelligent search mode selection
+    let auto_strategy = if should_use_semantic_search(query) {
+        match AutoStrategy::with_semantic_search().await {
+            Ok(strategy) => strategy,
+            Err(_) => {
+                // Fall back to basic strategy if semantic search fails
+                AutoStrategy::new()
+            }
+        }
     } else {
-        None
+        AutoStrategy::new()
     };
 
-    // Create search engine
-    let search_engine = SearchEngine::new(database, embedder);
-
-    // Perform search
-    search_engine.search(query, path, options.clone()).await
+    // Perform smart search with automatic strategy selection
+    auto_strategy.search(query, path).await
 }
 
 /// Determine if we should use semantic search based on query characteristics

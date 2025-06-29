@@ -175,3 +175,23 @@ fn test_priority_order() {
         QueryType::RegexLike
     ));
 }
+
+#[test]
+fn test_todo_fix_regex_detection() {
+    // Test that TODO.*Fix is detected as regex
+    assert!(matches!(
+        QueryAnalyzer::analyze("TODO.*Fix"),
+        QueryType::RegexLike
+    ));
+
+    // Test other regex patterns
+    assert!(matches!(
+        QueryAnalyzer::analyze("TODO.*:"),
+        QueryType::RegexLike
+    ));
+
+    assert!(matches!(
+        QueryAnalyzer::analyze("function.*login"),
+        QueryType::RegexLike
+    ));
+}
