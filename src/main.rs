@@ -300,11 +300,51 @@ async fn handle_help_me() -> Result<()> {
 
 /// Handle status command with simple, user-friendly output
 async fn handle_simple_status() -> Result<()> {
+    use search::context::{ContextAwareConfig, ProjectDetector};
+
     println!("🏥 SemiSearch Health Check");
     println!();
 
     // Check basic functionality
     println!("✅ Basic search: Ready");
+
+    // Show project context (UX Remediation Plan Task 2.1)
+    let current_path = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let project_type = ProjectDetector::detect(&current_path);
+    let _config = ContextAwareConfig::from_project_type(project_type.clone());
+
+    match project_type {
+        search::context::ProjectType::RustProject => {
+            println!("📦 Project type: Rust project");
+            println!("  • Focused on: src/, tests/ directories");
+            println!("  • File types: *.rs files");
+        }
+        search::context::ProjectType::JavaScriptProject => {
+            println!("📦 Project type: JavaScript/TypeScript project");
+            println!("  • Focused on: src/, lib/ directories");
+            println!("  • File types: *.js, *.ts files");
+        }
+        search::context::ProjectType::PythonProject => {
+            println!("📦 Project type: Python project");
+            println!("  • Focused on: src/, lib/, tests/ directories");
+            println!("  • File types: *.py files");
+        }
+        search::context::ProjectType::Documentation => {
+            println!("📦 Project type: Documentation project");
+            println!("  • Focused on: all directories");
+            println!("  • File types: *.md, *.txt files");
+        }
+        search::context::ProjectType::Mixed => {
+            println!("📦 Project type: Mixed project");
+            println!("  • Focused on: all directories");
+            println!("  • File types: all files");
+        }
+        search::context::ProjectType::Unknown => {
+            println!("📦 Project type: General");
+            println!("  • Focused on: all directories");
+            println!("  • File types: all files");
+        }
+    }
 
     // Check database
     match get_database_path() {
@@ -348,7 +388,36 @@ async fn handle_simple_status() -> Result<()> {
 
     println!();
     println!("💡 Tips:");
-    println!("  • Everything looks good? Try: semisearch \"TODO\"");
+
+    // Provide contextual tips based on project type
+    match project_type {
+        search::context::ProjectType::RustProject => {
+            println!("  • Find TODO comments: semisearch \"TODO\"");
+            println!("  • Find functions: semisearch \"fn main\"");
+            println!("  • Search tests: semisearch \"#[test]\"");
+        }
+        search::context::ProjectType::JavaScriptProject => {
+            println!("  • Find TODO comments: semisearch \"TODO\"");
+            println!("  • Find functions: semisearch \"function\"");
+            println!("  • Find imports: semisearch \"import\"");
+        }
+        search::context::ProjectType::PythonProject => {
+            println!("  • Find TODO comments: semisearch \"TODO\"");
+            println!("  • Find functions: semisearch \"def \"");
+            println!("  • Find classes: semisearch \"class \"");
+        }
+        search::context::ProjectType::Documentation => {
+            println!("  • Find sections: semisearch \"# Introduction\"");
+            println!("  • Find todos: semisearch \"TODO\"");
+            println!("  • Find examples: semisearch \"example\"");
+        }
+        _ => {
+            println!("  • Everything looks good? Try: semisearch \"TODO\"");
+            println!("  • Find files: semisearch \"config\"");
+            println!("  • Search content: semisearch \"error\"");
+        }
+    }
+
     println!("  • Need help? Try: semisearch help-me");
     println!("  • Advanced diagnostics: semisearch doctor");
 

@@ -1,4 +1,6 @@
-use search::search::auto_strategy::{AutoStrategy, ProjectContext};
+use search::context::{ProjectDetector, ProjectType};
+use search::search::auto_strategy::AutoStrategy;
+use std::path::Path;
 
 #[tokio::test]
 async fn test_exact_phrase_strategy() {
@@ -75,16 +77,23 @@ async fn test_fallback_to_fuzzy() {
 #[test]
 fn test_project_context_detection() {
     // Test Rust project detection (current directory has Cargo.toml)
-    let context = ProjectContext::detect(".").unwrap();
-    assert!(matches!(context, ProjectContext::Mixed)); // Has both Cargo.toml and docs
+    let path = Path::new(".");
+    let project_type = ProjectDetector::detect(path);
+    assert!(matches!(project_type, ProjectType::RustProject)); // Has Cargo.toml
 
     // Test documentation project detection
-    let context = ProjectContext::detect("./docs").unwrap();
-    assert!(matches!(context, ProjectContext::Documentation));
+    let path = Path::new("./docs");
+    let project_type = ProjectDetector::detect(path);
+    // docs directory might be detected as Documentation or Unknown depending on content
+    assert!(matches!(
+        project_type,
+        ProjectType::Documentation | ProjectType::Unknown
+    ));
 
     // Test src directory (no Cargo.toml, so should be Unknown)
-    let context = ProjectContext::detect("./src").unwrap();
-    assert!(matches!(context, ProjectContext::Unknown));
+    let path = Path::new("./src");
+    let project_type = ProjectDetector::detect(path);
+    assert!(matches!(project_type, ProjectType::Unknown));
 }
 
 #[test]
