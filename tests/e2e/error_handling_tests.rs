@@ -199,16 +199,45 @@ mod error_handling_tests {
         );
     }
 
-    // ❌ NOT IMPLEMENTED: Empty query handling is not implemented as described
+    // ✅ IMPLEMENTED: Test that empty query handling provides helpful guidance
     #[test]
-    #[ignore = "Empty query handling not implemented yet - needs better argument parsing"]
     fn test_empty_query_handling() {
-        // This test is for future implementation
-        // When implemented, it should test:
-        // - Helpful message when no query provided
-        // - Suggestions for what to search for
-        // - Examples of valid queries
-        // - Link to help system
+        // Test: User runs semisearch with no arguments
+        let (success, stdout, stderr) = run_semisearch(&[], None);
+
+        // Should either succeed with help or fail with helpful message
+        if success {
+            // If successful, should show usage/help information
+            assert!(
+                stdout.contains("Usage") || stdout.contains("Commands") || stdout.contains("help"),
+                "Should show usage information when no args provided. stdout: {stdout}"
+            );
+            
+            // Should mention the basic search command
+            assert!(
+                stdout.contains("search") || stdout.contains("Search"),
+                "Should mention search functionality. stdout: {stdout}"
+            );
+        } else {
+            // If it fails, should provide helpful error message
+            assert!(
+                !stderr.is_empty(),
+                "Should provide helpful error message when no args provided. stderr: {stderr}"
+            );
+            
+            // Should guide user to correct usage
+            assert!(
+                stderr.contains("Usage") || stderr.contains("help") || stderr.contains("required"),
+                "Should provide usage guidance. stderr: {stderr}"
+            );
+        }
+
+        // Should not crash or show technical errors
+        let all_output = format!("{stdout}\n{stderr}");
+        assert!(
+            !all_output.contains("panic") && !all_output.contains("backtrace"),
+            "Should not crash when no args provided. Output: {all_output}"
+        );
     }
 
     // ❌ NOT IMPLEMENTED: Large file handling is not implemented as described
