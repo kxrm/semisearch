@@ -46,6 +46,7 @@ async fn run_main() -> Result<()> {
                 typo_tolerance: args.typo_tolerance,
                 include_patterns: args.include.clone(),
                 exclude_patterns: args.exclude.clone(),
+                context_lines: args.context,
                 ..Default::default()
             };
 

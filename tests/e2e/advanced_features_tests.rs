@@ -209,7 +209,7 @@ mod advanced_features_tests {
         }
     }
 
-    // ✅ IMPLEMENTING: Context lines feature
+    // ✅ IMPLEMENTED: Context lines feature
     #[test]
     fn test_context_lines() {
         // Test: Context lines show surrounding content around matches

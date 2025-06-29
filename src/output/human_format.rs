@@ -31,9 +31,26 @@ impl HumanFormatter {
                 current_file = &result.file_path;
             }
 
-            // Show line and content with simple formatting
+            // Show context before if available
+            if let Some(ref context_before) = result.context_before {
+                for (i, line) in context_before.iter().enumerate() {
+                    let line_num = result.line_number.saturating_sub(context_before.len() - i);
+                    output.push_str(&format!("   Line {}: {}\n", line_num, line.trim()));
+                }
+            }
+
+            // Show line and content with simple formatting  
             let content = result.content.trim();
             output.push_str(&format!("   Line {}: {}\n", result.line_number, content));
+
+            // Show context after if available
+            if let Some(ref context_after) = result.context_after {
+                for (i, line) in context_after.iter().enumerate() {
+                    let line_num = result.line_number + i + 1;
+                    output.push_str(&format!("   Line {}: {}\n", line_num, line.trim()));
+                }
+                output.push_str("   ---\n"); // Separator between matches
+            }
         }
 
         // Show truncation message if there are more results
@@ -75,9 +92,28 @@ impl HumanFormatter {
                 current_file = &result.file_path;
             }
 
+            // Show context before if available
+            if let Some(ref context_before) = result.context_before {
+                for (i, line) in context_before.iter().enumerate() {
+                    let line_num = result.line_number.saturating_sub(context_before.len() - i);
+                    output.push_str(&format!("   Line {}: {}\n", line_num, line.trim()));
+                }
+            }
+
             // Show line and content
             let content = result.content.trim();
             output.push_str(&format!("   Line {}: {}\n", result.line_number, content));
+
+            // Show context after if available
+            if let Some(ref context_after) = result.context_after {
+                for (i, line) in context_after.iter().enumerate() {
+                    let line_num = result.line_number + i + 1;
+                    output.push_str(&format!("   Line {}: {}\n", line_num, line.trim()));
+                }
+                if !context_after.is_empty() {
+                    output.push_str("   ---\n"); // Separator between matches
+                }
+            }
 
             // Show technical details in advanced mode
             if let Some(score) = result.score {

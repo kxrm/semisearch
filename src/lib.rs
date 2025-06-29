@@ -40,6 +40,10 @@ pub struct SearchResult {
     pub score: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub match_type: Option<MatchType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context_before: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context_after: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -64,6 +68,7 @@ pub struct SearchOptions {
     pub search_mode: Option<String>,
     pub include_patterns: Vec<String>,
     pub exclude_patterns: Vec<String>,
+    pub context_lines: usize,
 }
 
 impl Default for SearchOptions {
@@ -79,6 +84,7 @@ impl Default for SearchOptions {
             search_mode: None, // Default to None (auto-detect)
             include_patterns: vec![],
             exclude_patterns: vec![],
+            context_lines: 0, // No context by default
         }
     }
 }
@@ -239,6 +245,8 @@ pub fn search_in_file_enhanced(
                 content: line.trim().to_string(),
                 score: Some(score),
                 match_type: Some(match_type),
+                context_before: None, // Will be populated later if context is requested
+                context_after: None,  // Will be populated later if context is requested
             });
         }
     }
@@ -246,6 +254,10 @@ pub fn search_in_file_enhanced(
     if matches.is_empty() {
         Ok(None)
     } else {
+        // Add context lines if requested
+        if options.context_lines > 0 {
+            add_context_lines(&mut matches, &content, options.context_lines);
+        }
         Ok(Some(matches))
     }
 }
@@ -257,6 +269,39 @@ pub fn search_in_file(
 ) -> Result<Option<Vec<SearchResult>>> {
     let options = SearchOptions::default();
     search_in_file_enhanced(file_path, query, &options)
+}
+
+/// Add context lines before and after each match
+fn add_context_lines(matches: &mut [SearchResult], content: &str, context_lines: usize) {
+    let lines: Vec<&str> = content.lines().collect();
+    
+    for result in matches {
+        let line_index = result.line_number.saturating_sub(1);
+        
+        // Add context before
+        let start_line = line_index.saturating_sub(context_lines);
+        if start_line < line_index {
+            let context_before: Vec<String> = lines[start_line..line_index]
+                .iter()
+                .map(|&s| s.to_string())
+                .collect();
+            if !context_before.is_empty() {
+                result.context_before = Some(context_before);
+            }
+        }
+        
+        // Add context after
+        let end_line = (line_index + 1 + context_lines).min(lines.len());
+        if end_line > line_index + 1 {
+            let context_after: Vec<String> = lines[(line_index + 1)..end_line]
+                .iter()
+                .map(|&s| s.to_string())
+                .collect();
+            if !context_after.is_empty() {
+                result.context_after = Some(context_after);
+            }
+        }
+    }
 }
 
 /// Check if a file should be skipped based on include/exclude patterns
