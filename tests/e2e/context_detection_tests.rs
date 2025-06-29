@@ -314,73 +314,81 @@ mod context_detection_tests {
     #[test]
     fn test_context_aware_configuration() {
         // Test: ContextAwareConfig provides appropriate defaults based on project type
-        
+
         // Test 1: Search should work effectively in current Rust project
         let (success, stdout, stderr) = run_semisearch(&["TODO"], None);
-        
+
         // Should succeed with context-aware search
         assert!(
             success,
             "Context-aware search should succeed in Rust project. stderr: {stderr}"
         );
-        
+
         // Should find results or show appropriate no-results message
         assert!(
-            stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+            stdout.contains("Found")
+                || stdout.contains("No matches")
+                || stdout.contains("No results"),
             "Should show context-aware search results. stdout: {stdout}"
         );
-        
+
         // Test 2: Search should work in src/ directory (Rust project search path)
         let src_path = Path::new("src");
         if src_path.exists() {
             let (success, stdout, stderr) = run_semisearch(&["struct"], Some(src_path));
-            
+
             // Should succeed with context-aware search in src/
             assert!(
                 success,
                 "Context-aware search should work in src/ directory. stderr: {stderr}"
             );
-            
+
             // Should find struct definitions or show no results
             assert!(
-                stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+                stdout.contains("Found")
+                    || stdout.contains("No matches")
+                    || stdout.contains("No results"),
                 "Should show struct search results in src/. stdout: {stdout}"
             );
         }
-        
+
         // Test 3: Search should work in tests/ directory (Rust project search path)
         let tests_path = Path::new("tests");
         if tests_path.exists() {
             let (success, stdout, stderr) = run_semisearch(&["test"], Some(tests_path));
-            
+
             // Should succeed with context-aware search in tests/
             assert!(
                 success,
                 "Context-aware search should work in tests/ directory. stderr: {stderr}"
             );
-            
+
             // Should find test-related content or show no results
             assert!(
-                stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+                stdout.contains("Found")
+                    || stdout.contains("No matches")
+                    || stdout.contains("No results"),
                 "Should show test search results in tests/. stdout: {stdout}"
             );
         }
-        
+
         // Test 4: Should handle different file types appropriately
         let (success, stdout, stderr) = run_semisearch(&[".rs"], None);
-        
+
         // Should succeed with file extension search
         assert!(
             success,
             "File extension search should work with context-aware config. stderr: {stderr}"
         );
-        
+
         // Should find .rs files or show no results
         assert!(
-            stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+            stdout.contains("Found")
+                || stdout.contains("No matches")
+                || stdout.contains("No results"),
             "Should show .rs file search results. stdout: {stdout}"
         );
-        
+
         // Test 5: Should not show technical configuration details to users
         let all_output = format!("{stdout}\n{stderr}");
         assert!(
