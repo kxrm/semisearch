@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::Parser;
+
 use search::core::embedder::{EmbeddingCapability, EmbeddingConfig, LocalEmbedder};
 use search::core::indexer::{FileIndexer, IndexerConfig};
 use search::errors::ErrorTranslator;
@@ -21,81 +21,8 @@ async fn main() {
 }
 
 async fn run_main() -> Result<()> {
-    // Get command line arguments
-    let mut args: Vec<String> = std::env::args().collect();
-
-    // Implement Task 1.1.3: Default Command Behavior
-    // If no subcommand provided, assume "search"
-    if args.len() > 1 {
-        // First, check if --advanced is present and handle it properly
-        let is_advanced_flag_present = args.contains(&"--advanced".to_string());
-
-        // Find the first non-flag argument (potential command or query)
-        let mut first_non_flag_index = None;
-        for (i, arg) in args.iter().enumerate().skip(1) {
-            if !arg.starts_with('-') {
-                first_non_flag_index = Some(i);
-                break;
-            }
-        }
-
-        if let Some(index) = first_non_flag_index {
-            let potential_command = &args[index];
-
-            // Check if first non-flag argument is a known command
-            let known_commands = [
-                "search", "s", "help-me", "status", "index", "config", "doctor", "help",
-            ];
-            let is_known_command = known_commands.contains(&potential_command.as_str());
-
-            // If it's not a known command, treat it as a search query
-            if !is_known_command {
-                // Insert "search" as the subcommand before the query
-                args.insert(index, "search".to_string());
-
-                // Now we need to check if there's a path argument after the query
-                // Look for the next non-flag argument that could be a path
-                let query_index = index + 1; // The query is now at this index
-                let mut path_index = None;
-
-                // Look for a potential path argument after the query
-                for (i, arg) in args.iter().enumerate().skip(query_index + 1) {
-                    if !arg.starts_with('-') {
-                        // This could be a path - check if it looks like a path
-                        if arg.contains('/') || arg.contains('\\') || arg == "." || arg == ".." {
-                            path_index = Some(i);
-                            break;
-                        }
-                    }
-                }
-
-                // If we found a potential path, we need to ensure it's properly positioned
-                // The CLI structure expects: search <query> <path> [flags...]
-                if let Some(_path_idx) = path_index {
-                    // The path is already in the right position, no action needed
-                    // clap will automatically parse it as the path argument
-                }
-            }
-        } else if !is_advanced_flag_present {
-            // No non-flag arguments found and no --advanced flag - this is likely an error
-            // Let clap handle this case normally
-        }
-    }
-
-    // Custom CLI parsing to handle --advanced flag
-    let is_advanced = args.contains(&"--advanced".to_string());
-
     // Parse CLI with dynamic help based on advanced mode
-    let cli = if is_advanced {
-        // Parse with advanced options visible
-        Cli::parse_from(args.iter().map(|s| {
-            // Remove hide attribute by rebuilding the CLI
-            s.as_str()
-        }))
-    } else {
-        // Parse normally (advanced options hidden)
-        Cli::parse_from(args.iter().map(|s| s.as_str()))
-    };
+    let cli = Cli::parse_advanced_aware();
 
     // Handle CLI routing
     match cli.command {

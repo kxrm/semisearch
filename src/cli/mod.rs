@@ -1,4 +1,4 @@
-use clap::{Args, Parser, Subcommand};
+use clap::{Arg, ArgMatches, Args, Command, Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "semisearch")]
@@ -9,8 +9,475 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub advanced: bool,
 
+    /// Allow typos and similar words
+    #[arg(long, global = true)]
+    pub fuzzy: bool,
+
+    /// Find exact matches only
+    #[arg(long, global = true)]
+    pub exact: bool,
+
     #[command(subcommand)]
     pub command: Commands,
+}
+
+impl Cli {
+    /// Parse CLI with dynamic help based on advanced mode
+    pub fn parse_advanced_aware() -> Self {
+        let mut args: Vec<String> = std::env::args().collect();
+
+        // Implement default command behavior (from UX Remediation Plan)
+        // If no subcommand provided, assume "search"
+        if args.len() > 1 {
+            // First, check if --advanced is present and handle it properly
+            let is_advanced_flag_present = args.contains(&"--advanced".to_string());
+
+            // Find the first non-flag argument (potential command or query)
+            let mut first_non_flag_index = None;
+            for (i, arg) in args.iter().enumerate().skip(1) {
+                if !arg.starts_with('-') {
+                    first_non_flag_index = Some(i);
+                    break;
+                }
+            }
+
+            if let Some(index) = first_non_flag_index {
+                let potential_command = &args[index];
+
+                // Check if first non-flag argument is a known command
+                let known_commands = [
+                    "search", "s", "help-me", "status", "index", "config", "doctor", "help",
+                ];
+                let is_known_command = known_commands.contains(&potential_command.as_str());
+
+                // If it's not a known command, treat it as a search query
+                if !is_known_command {
+                    // Insert "search" as the subcommand before the query
+                    args.insert(index, "search".to_string());
+
+                    // Now we need to check if there's a path argument after the query
+                    // Look for the next non-flag argument that could be a path
+                    let query_index = index + 1; // The query is now at this index
+                    let mut _path_index = None;
+
+                    // Look for a potential path argument after the query
+                    for (i, arg) in args.iter().enumerate().skip(query_index + 1) {
+                        if !arg.starts_with('-') {
+                            // This could be a path - check if it looks like a path
+                            if arg.contains('/') || arg.contains('\\') || arg == "." || arg == ".."
+                            {
+                                _path_index = Some(i);
+                                break;
+                            }
+                        }
+                    }
+
+                    // If we found a potential path, we need to ensure it's properly positioned
+                    // The CLI structure expects: search <query> <path> [flags...]
+                    // clap will automatically parse it as the path argument
+                }
+            } else if !is_advanced_flag_present {
+                // No non-flag arguments found and no --advanced flag - this is likely an error
+                // Let clap handle this case normally
+            }
+        }
+
+        let is_advanced = args.contains(&"--advanced".to_string());
+
+        if is_advanced {
+            // Use dynamic CLI with all options visible
+            let app = Self::build_advanced_cli();
+            let matches = app.get_matches_from(args);
+            Self::from_matches(&matches)
+        } else {
+            // Use regular CLI with hidden options
+            Self::parse_from(args)
+        }
+    }
+
+    /// Build CLI structure for advanced mode with all options visible
+    fn build_advanced_cli() -> Command {
+        Command::new("semisearch")
+            .about("Semantic search across local files")
+            .version("0.6.0")
+            .arg(
+                Arg::new("advanced")
+                    .long("advanced")
+                    .help("Enable advanced options (for power users)")
+                    .action(clap::ArgAction::SetTrue)
+                    .global(true),
+            )
+            // Add common search options at the top level (flattened CLI)
+            .arg(
+                Arg::new("fuzzy")
+                    .long("fuzzy")
+                    .help("Allow typos and similar words")
+                    .action(clap::ArgAction::SetTrue)
+                    .global(true),
+            )
+            .arg(
+                Arg::new("exact")
+                    .long("exact")
+                    .help("Find exact matches only")
+                    .action(clap::ArgAction::SetTrue)
+                    .global(true),
+            )
+            // Additional advanced options at top level in advanced mode
+            .arg(
+                Arg::new("mode")
+                    .long("mode")
+                    .help("Search mode: auto, semantic, keyword, fuzzy, regex, tfidf, hybrid")
+                    .default_value("auto")
+                    .value_name("MODE")
+                    .global(true),
+            )
+            .arg(
+                Arg::new("semantic-threshold")
+                    .long("semantic-threshold")
+                    .help("Semantic similarity threshold (0.0-1.0)")
+                    .default_value("0.7")
+                    .value_name("THRESHOLD")
+                    .global(true),
+            )
+            .arg(
+                Arg::new("format")
+                    .short('f')
+                    .long("format")
+                    .help("Output format: plain, json")
+                    .default_value("plain")
+                    .value_name("FORMAT")
+                    .global(true),
+            )
+            .arg(
+                Arg::new("files-only")
+                    .long("files-only")
+                    .help("Show file paths only")
+                    .action(clap::ArgAction::SetTrue)
+                    .global(true),
+            )
+            .arg(
+                Arg::new("context")
+                    .long("context")
+                    .help("Context lines around matches")
+                    .default_value("0")
+                    .value_name("LINES")
+                    .global(true),
+            )
+            .arg(
+                Arg::new("semantic")
+                    .long("semantic")
+                    .help("Enable semantic search")
+                    .action(clap::ArgAction::SetTrue)
+                    .global(true),
+            )
+            .arg(
+                Arg::new("no-semantic")
+                    .long("no-semantic")
+                    .help("Disable semantic search")
+                    .action(clap::ArgAction::SetTrue)
+                    .global(true),
+            )
+            .arg(
+                Arg::new("regex")
+                    .long("regex")
+                    .help("Use regex pattern matching")
+                    .action(clap::ArgAction::SetTrue)
+                    .global(true),
+            )
+            .arg(
+                Arg::new("include-binary")
+                    .long("include-binary")
+                    .help("Include binary files")
+                    .action(clap::ArgAction::SetTrue)
+                    .global(true),
+            )
+            .arg(
+                Arg::new("follow-links")
+                    .long("follow-links")
+                    .help("Follow symbolic links")
+                    .action(clap::ArgAction::SetTrue)
+                    .global(true),
+            )
+            .subcommand(
+                Command::new("search")
+                    .about("Search for text in files (default behavior)")
+                    .visible_alias("s")
+                    .arg(
+                        Arg::new("query")
+                            .help("What to search for")
+                            .required(true)
+                            .value_name("QUERY"),
+                    )
+                    .arg(
+                        Arg::new("path")
+                            .help("Where to search (default: current directory)")
+                            .default_value(".")
+                            .value_name("PATH"),
+                    )
+                    // Basic options (always visible)
+                    .arg(
+                        Arg::new("fuzzy")
+                            .long("fuzzy")
+                            .help("Allow typos and similar words")
+                            .action(clap::ArgAction::SetTrue),
+                    )
+                    .arg(
+                        Arg::new("exact")
+                            .long("exact")
+                            .help("Find exact matches only")
+                            .action(clap::ArgAction::SetTrue),
+                    )
+                    .arg(
+                        Arg::new("score")
+                            .short('s')
+                            .long("score")
+                            .help("Minimum similarity score (0.0-1.0)")
+                            .default_value("0.3")
+                            .value_name("SCORE"),
+                    )
+                    .arg(
+                        Arg::new("limit")
+                            .short('l')
+                            .long("limit")
+                            .help("Maximum number of results")
+                            .default_value("10")
+                            .value_name("LIMIT"),
+                    )
+                    .arg(
+                        Arg::new("case-sensitive")
+                            .long("case-sensitive")
+                            .help("Case sensitive search")
+                            .action(clap::ArgAction::SetTrue),
+                    )
+                    .arg(
+                        Arg::new("typo-tolerance")
+                            .long("typo-tolerance")
+                            .help("Enable typo tolerance")
+                            .action(clap::ArgAction::SetTrue),
+                    )
+                    .arg(
+                        Arg::new("path-flag")
+                            .long("path")
+                            .help(
+                                "Target directory (legacy --path flag for backward compatibility)",
+                            )
+                            .value_name("PATH_FLAG"),
+                    )
+                    // Advanced options (visible in advanced mode)
+                    .arg(
+                        Arg::new("mode")
+                            .long("mode")
+                            .help(
+                                "Search mode: auto, semantic, keyword, fuzzy, regex, tfidf, hybrid",
+                            )
+                            .default_value("auto")
+                            .value_name("MODE"),
+                    )
+                    .arg(
+                        Arg::new("semantic-threshold")
+                            .long("semantic-threshold")
+                            .help("Semantic similarity threshold (0.0-1.0)")
+                            .default_value("0.7")
+                            .value_name("THRESHOLD"),
+                    )
+                    .arg(
+                        Arg::new("format")
+                            .short('f')
+                            .long("format")
+                            .help("Output format: plain, json")
+                            .default_value("plain")
+                            .value_name("FORMAT"),
+                    )
+                    .arg(
+                        Arg::new("files-only")
+                            .long("files-only")
+                            .help("Show file paths only")
+                            .action(clap::ArgAction::SetTrue),
+                    )
+                    .arg(
+                        Arg::new("context")
+                            .long("context")
+                            .help("Context lines around matches")
+                            .default_value("0")
+                            .value_name("LINES"),
+                    )
+                    .arg(
+                        Arg::new("semantic")
+                            .long("semantic")
+                            .help("Enable semantic search")
+                            .action(clap::ArgAction::SetTrue),
+                    )
+                    .arg(
+                        Arg::new("no-semantic")
+                            .long("no-semantic")
+                            .help("Disable semantic search")
+                            .action(clap::ArgAction::SetTrue),
+                    )
+                    .arg(
+                        Arg::new("regex")
+                            .long("regex")
+                            .help("Use regex pattern matching")
+                            .action(clap::ArgAction::SetTrue),
+                    )
+                    .arg(
+                        Arg::new("include-binary")
+                            .long("include-binary")
+                            .help("Include binary files")
+                            .action(clap::ArgAction::SetTrue),
+                    )
+                    .arg(
+                        Arg::new("follow-links")
+                            .long("follow-links")
+                            .help("Follow symbolic links")
+                            .action(clap::ArgAction::SetTrue),
+                    ),
+            )
+            .subcommand(Command::new("help-me").about("Get help for beginners"))
+            .subcommand(Command::new("status").about("Check if tool is working properly"))
+            .subcommand(
+                Command::new("index")
+                    .about("Index files for faster searching")
+                    .arg(
+                        Arg::new("path")
+                            .help("Directory to index")
+                            .required(true)
+                            .value_name("PATH"),
+                    )
+                    .arg(
+                        Arg::new("force")
+                            .long("force")
+                            .help("Force full reindex")
+                            .action(clap::ArgAction::SetTrue),
+                    )
+                    .arg(
+                        Arg::new("semantic")
+                            .long("semantic")
+                            .help("Build semantic embeddings during indexing")
+                            .action(clap::ArgAction::SetTrue),
+                    )
+                    .arg(
+                        Arg::new("no-semantic")
+                            .long("no-semantic")
+                            .help("Skip semantic embeddings")
+                            .action(clap::ArgAction::SetTrue),
+                    )
+                    .arg(
+                        Arg::new("batch-size")
+                            .long("batch-size")
+                            .help("Batch size for processing")
+                            .default_value("100")
+                            .value_name("SIZE"),
+                    )
+                    .arg(
+                        Arg::new("workers")
+                            .long("workers")
+                            .help("Number of worker threads")
+                            .default_value("4")
+                            .value_name("COUNT"),
+                    ),
+            )
+            .subcommand(Command::new("config").about("Show configuration"))
+            .subcommand(Command::new("doctor").about("Test system capabilities"))
+    }
+
+    /// Convert ArgMatches to Cli struct for advanced mode
+    fn from_matches(matches: &ArgMatches) -> Self {
+        let advanced = matches.get_flag("advanced");
+
+        let command = match matches.subcommand() {
+            Some(("search", sub_matches)) => Commands::Search(SearchArgs {
+                query: sub_matches.get_one::<String>("query").unwrap().clone(),
+                path: sub_matches.get_one::<String>("path").unwrap().clone(),
+                fuzzy: sub_matches.get_flag("fuzzy"),
+                exact: sub_matches.get_flag("exact"),
+                score: sub_matches
+                    .get_one::<String>("score")
+                    .unwrap()
+                    .parse()
+                    .unwrap_or(0.3),
+                limit: sub_matches
+                    .get_one::<String>("limit")
+                    .unwrap()
+                    .parse()
+                    .unwrap_or(10),
+                case_sensitive: sub_matches.get_flag("case-sensitive"),
+                typo_tolerance: sub_matches.get_flag("typo-tolerance"),
+                mode: sub_matches
+                    .get_one::<String>("mode")
+                    .unwrap_or(&"auto".to_string())
+                    .clone(),
+                semantic_threshold: sub_matches
+                    .get_one::<String>("semantic-threshold")
+                    .unwrap()
+                    .parse()
+                    .unwrap_or(0.7),
+                format: sub_matches
+                    .get_one::<String>("format")
+                    .unwrap_or(&"plain".to_string())
+                    .clone(),
+                files_only: sub_matches.get_flag("files-only"),
+                context: sub_matches
+                    .get_one::<String>("context")
+                    .unwrap()
+                    .parse()
+                    .unwrap_or(0),
+                semantic: sub_matches.get_flag("semantic"),
+                no_semantic: sub_matches.get_flag("no-semantic"),
+                regex: sub_matches.get_flag("regex"),
+                include_binary: sub_matches.get_flag("include-binary"),
+                follow_links: sub_matches.get_flag("follow-links"),
+                path_flag: sub_matches.get_one::<String>("path-flag").cloned(),
+            }),
+            Some(("help-me", _)) => Commands::HelpMe,
+            Some(("status", _)) => Commands::Status,
+            Some(("index", sub_matches)) => Commands::Index(IndexArgs {
+                path: sub_matches.get_one::<String>("path").unwrap().clone(),
+                force: sub_matches.get_flag("force"),
+                semantic: sub_matches.get_flag("semantic"),
+                no_semantic: sub_matches.get_flag("no-semantic"),
+                batch_size: sub_matches
+                    .get_one::<String>("batch-size")
+                    .unwrap()
+                    .parse()
+                    .unwrap_or(100),
+                workers: sub_matches
+                    .get_one::<String>("workers")
+                    .unwrap()
+                    .parse()
+                    .unwrap_or(4),
+            }),
+            Some(("config", _)) => Commands::Config,
+            Some(("doctor", _)) => Commands::Doctor,
+            _ => Commands::Search(SearchArgs {
+                query: "".to_string(),
+                path: ".".to_string(),
+                fuzzy: false,
+                exact: false,
+                score: 0.3,
+                limit: 10,
+                case_sensitive: false,
+                typo_tolerance: false,
+                mode: "auto".to_string(),
+                semantic_threshold: 0.7,
+                format: "plain".to_string(),
+                files_only: false,
+                context: 0,
+                semantic: false,
+                no_semantic: false,
+                regex: false,
+                include_binary: false,
+                follow_links: false,
+                path_flag: None,
+            }),
+        };
+
+        Self {
+            advanced,
+            fuzzy: matches.get_flag("fuzzy"),
+            exact: matches.get_flag("exact"),
+            command,
+        }
+    }
 }
 
 #[derive(Subcommand)]

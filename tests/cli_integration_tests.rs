@@ -213,6 +213,8 @@ async fn test_index_command() -> Result<()> {
 
     let cli = Cli {
         advanced: false,
+        fuzzy: false,
+        exact: false,
         command: Commands::Index(IndexArgs {
             path: fixture.path().to_string_lossy().to_string(),
             force: false,
@@ -435,6 +437,8 @@ async fn test_unicode_and_special_characters() -> Result<()> {
 async fn test_cli_structure() -> Result<()> {
     let cli = Cli {
         advanced: false,
+        fuzzy: false,
+        exact: false,
         command: Commands::Search(SearchArgs {
             query: "test".to_string(),
             path: ".".to_string(),
