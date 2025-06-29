@@ -336,69 +336,77 @@ mod ux_validation_tests {
     #[test]
     fn test_file_type_strategies() {
         // Test: Different search strategies are applied based on file types
-        
+
         // Test 1: Code files (.rs, .js, .py) - should use code-optimized search
         let (success, stdout, stderr) = run_semisearch(&["function"], None);
-        
+
         // Should succeed with file type strategies
         assert!(
             success,
             "Code file search should succeed with file type strategies. stderr: {stderr}"
         );
-        
+
         // Should find function-related content or show no results
         assert!(
-            stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+            stdout.contains("Found")
+                || stdout.contains("No matches")
+                || stdout.contains("No results"),
             "Should show code search results. stdout: {stdout}"
         );
-        
+
         // Test 2: Documentation files (.md, .txt) - should use doc-optimized search
         let docs_path = Path::new("docs");
         if docs_path.exists() {
             let (success, stdout, stderr) = run_semisearch(&["user experience"], Some(docs_path));
-            
+
             // Should succeed with documentation strategies
             assert!(
                 success,
                 "Documentation search should work with file type strategies. stderr: {stderr}"
             );
-            
+
             // Should find conceptual matches or show no results
             assert!(
-                stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+                stdout.contains("Found")
+                    || stdout.contains("No matches")
+                    || stdout.contains("No results"),
                 "Should show documentation search results. stdout: {stdout}"
             );
         }
-        
+
         // Test 3: Configuration files (.json, .toml, .yaml) - should use exact search
         let (success, stdout, stderr) = run_semisearch(&["name"], None);
-        
+
         // Should succeed with configuration strategies
         assert!(
             success,
             "Configuration file search should work with file type strategies. stderr: {stderr}"
         );
-        
+
         // Should find config entries or show no results
         assert!(
-            stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+            stdout.contains("Found")
+                || stdout.contains("No matches")
+                || stdout.contains("No results"),
             "Should show configuration search results. stdout: {stdout}"
         );
-        
+
         // Test 4: Mixed file types should be handled appropriately
         let test_data_path = Path::new("tests/test-data");
         if test_data_path.exists() {
             let (success, stdout, stderr) = run_semisearch(&["TODO"], Some(test_data_path));
-            
+
             // Should succeed with mixed file type strategies
             assert!(
                 success,
                 "Mixed file type search should work. stderr: {stderr}"
             );
-            
+
             // Should handle different file types appropriately
             assert!(
-                stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+                stdout.contains("Found")
+                    || stdout.contains("No matches")
+                    || stdout.contains("No results"),
                 "Should show mixed file type search results. stdout: {stdout}"
             );
         }
