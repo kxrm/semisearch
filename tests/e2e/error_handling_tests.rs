@@ -102,16 +102,88 @@ mod error_handling_tests {
         }
     }
 
-    // ❌ NOT IMPLEMENTED: Advanced error recovery suggestions are not implemented
+    // ✅ IMPLEMENTED: Advanced error recovery suggestions work with ErrorTranslator
     #[test]
-    #[ignore = "Advanced error recovery not implemented yet - needs Task 1.2.1 and 1.2.2"]
     fn test_error_recovery_suggestions() {
-        // This test is for future implementation
-        // When implemented, it should test:
-        // - Specific suggestions based on error type
-        // - Contextual help based on what user tried to do
-        // - Alternative commands when current command fails
-        // - Smart suggestions based on query analysis
+        // Test: Error recovery provides specific suggestions based on error type
+        
+        // Test 1: Directory access error provides specific recovery suggestions
+        let (success, _stdout, stderr) = run_semisearch(&["TODO", "/nonexistent/directory/path"], None);
+        assert!(!success, "Should fail for nonexistent directory");
+        
+        // Should provide specific directory access suggestions
+        assert!(
+            stderr.contains("Make sure") || stderr.contains("Check") || stderr.contains("Try"),
+            "Should provide specific recovery suggestions for directory access. stderr: {stderr}"
+        );
+        
+        // Should suggest alternative approaches
+        assert!(
+            stderr.contains("current directory") || stderr.contains("absolute path") || stderr.contains("permission"),
+            "Should suggest alternative approaches. stderr: {stderr}"
+        );
+
+        // Test 2: Invalid flag error provides specific recovery suggestions
+        let (success, _stdout, stderr) = run_semisearch(&["TODO", "--invalid-flag-xyz"], None);
+        assert!(!success, "Should fail for invalid flag");
+        
+        // Should provide flag-related guidance
+        assert!(
+            stderr.contains("invalid") || stderr.contains("unknown") || stderr.contains("error"),
+            "Should indicate invalid flag issue. stderr: {stderr}"
+        );
+
+        // Test 3: No results provides contextual help based on query
+        let (success, stdout, stderr) = run_semisearch(&["xyzABC999impossible"], None);
+        
+        if !success {
+            // If it exits with error, should provide no-results recovery suggestions
+            assert!(
+                stderr.contains("Try") || stderr.contains("Check") || stderr.contains("simpler"),
+                "Should provide no-results recovery suggestions. stderr: {stderr}"
+            );
+            
+            // Should suggest fuzzy search for typos
+            assert!(
+                stderr.contains("fuzzy") || stderr.contains("spelling"),
+                "Should suggest fuzzy search for potential typos. stderr: {stderr}"
+            );
+        } else {
+            // If it succeeds but finds no matches, should still show helpful guidance
+            if stdout.contains("No matches") || stdout.contains("No results") {
+                // The human formatter should include contextual tips
+                assert!(
+                    stdout.contains("Try") || stdout.contains("💡"),
+                    "Should provide contextual tips for no results. stdout: {stdout}"
+                );
+            }
+        }
+
+        // Test 4: Complex query provides smart suggestions based on query analysis
+        let test_queries = [
+            "function validateUser complex query",  // Should suggest simplification
+            "TODO comments in .rs files",          // Should work with file extension analysis
+            "error handling patterns",             // Should work with conceptual analysis
+        ];
+
+        for query in &test_queries {
+            let (success, stdout, stderr) = run_semisearch(&[query], None);
+            let all_output = format!("{stdout}\n{stderr}");
+            
+            // Should not crash and should provide contextual guidance
+            assert!(
+                !all_output.contains("panic") && !all_output.contains("backtrace"),
+                "Query '{query}' should not crash. Output: {all_output}"
+            );
+            
+            // Should provide query-specific suggestions if no results or errors
+            if !success || stdout.contains("No matches") || stdout.contains("No results") {
+                assert!(
+                    all_output.contains("Try") || all_output.contains("simpler") || all_output.contains("💡"),
+                    "Query '{query}' should provide contextual suggestions. Output: {all_output}"
+                );
+            }
+        }
     }
 
     // ✅ IMPLEMENTED: Test that typo handling works with fuzzy search
