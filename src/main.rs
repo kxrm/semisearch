@@ -247,28 +247,28 @@ fn display_simple_results(
     search_time: std::time::Duration,
 ) -> Result<()> {
     use search::output::HumanFormatter;
+    use search::errors::{UserFriendlyError, provide_contextual_suggestions};
+
+    // Check for contextual suggestions based on results
+    if let Some(suggestion) = provide_contextual_suggestions(query, results.len(), "general") {
+        // Handle no results or too many results with user-friendly messages
+        if results.is_empty() {
+            eprintln!("{}", suggestion.display());
+            std::process::exit(1);
+        } else if results.len() > 50 {
+            // Show results but also provide suggestions for narrowing
+            let formatted_output = HumanFormatter::format_results(results, query, search_time);
+            print!("{formatted_output}");
+            println!("\n{}", suggestion.display());
+            return Ok(());
+        }
+    }
 
     if results.is_empty() {
-        // Create no matches error and exit with proper code
-        let no_matches_error = ErrorTranslator::handle_no_results(query);
-        let exit_code = no_matches_error.exit_code();
-
-        // Check if JSON format was requested
-        let args: Vec<String> = std::env::args().collect();
-        let json_format = args
-            .windows(2)
-            .any(|w| w[0] == "--format" && w[1] == "json");
-
-        if json_format {
-            match no_matches_error.to_json() {
-                Ok(json) => eprintln!("{json}"),
-                Err(_) => eprintln!("{{\"error_type\": \"NoMatches\", \"details\": {{\"query\": \"{query}\", \"suggestions\": []}}}}"),
-            }
-        } else {
-            eprintln!("{no_matches_error}");
-        }
-
-        std::process::exit(exit_code);
+        // Fallback if no contextual suggestions were provided
+        let error = UserFriendlyError::no_matches(query, ".");
+        eprintln!("{}", error.display());
+        std::process::exit(1);
     }
 
     // Use human-friendly formatting
@@ -651,39 +651,26 @@ async fn handle_error(error: anyhow::Error) {
 }
 
 /// Handle errors with additional context (query, path) for better user guidance
-async fn handle_error_with_context(error: anyhow::Error, query: Option<&str>, path: Option<&str>) {
-    let user_error = ErrorTranslator::translate_technical_error_with_context(&error, query, path);
+async fn handle_error_with_context(error: anyhow::Error, query: Option<&str>, _path: Option<&str>) {
+    use search::errors::translate_error;
+    
+    let user_friendly_error = translate_error(&error);
 
-    // Check if JSON format was requested
-    if let Ok(json_mode) = std::env::var("SEMISEARCH_JSON") {
-        if json_mode == "1" || json_mode.to_lowercase() == "true" {
-            match user_error.to_json() {
-                Ok(json) => eprintln!("{json}"),
-                Err(_) => {
-                    // Fallback to regular error display
-                    eprintln!("{user_error}");
-                }
-            }
-        } else {
-            eprintln!("{user_error}");
-        }
-    } else {
-        eprintln!("{user_error}");
+    // Display the user-friendly error message
+    eprintln!("{}", user_friendly_error.display());
 
-        // Add contextual help for common error scenarios
-        if let Some(query) = query {
-            use search::help::contextual::ContextualHelp;
-            let examples = ContextualHelp::generate_usage_examples(query);
-            if !examples.is_empty() {
-                eprintln!();
-                eprintln!("💡 Related examples:");
-                for example in examples.iter().take(3) {
-                    eprintln!("  {example}");
-                }
+    // Add contextual help for common error scenarios
+    if let Some(query) = query {
+        use search::help::contextual::ContextualHelp;
+        let examples = ContextualHelp::generate_usage_examples(query);
+        if !examples.is_empty() {
+            eprintln!();
+            eprintln!("💡 Related examples:");
+            for example in examples.iter().take(3) {
+                eprintln!("  {example}");
             }
         }
     }
 
-    let exit_code = user_error.exit_code();
-    std::process::exit(exit_code);
+    std::process::exit(1);
 }
