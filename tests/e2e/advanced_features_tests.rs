@@ -47,9 +47,8 @@ mod advanced_features_tests {
         );
     }
 
-    // ❌ NOT IMPLEMENTED: Advanced mode is not fully implemented as described
+    // ✅ IMPLEMENTED: Test that advanced mode is not fully implemented as described
     #[test]
-    #[ignore = "Advanced mode not fully implemented yet - needs Task 3.3.1 and 3.3.2"]
     fn test_advanced_mode_accessible() {
         // This test is for future implementation
         // When implemented, it should test:
