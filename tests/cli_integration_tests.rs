@@ -62,6 +62,8 @@ async fn test_simple_search_command() -> Result<()> {
         include_binary: false,
         follow_links: false,
         path_flag: None,
+        exclude: vec![],
+        include: vec![],
     };
 
     // Test that search args are created correctly
@@ -99,6 +101,8 @@ async fn test_simple_search_with_fuzzy_flag() -> Result<()> {
         include_binary: false,
         follow_links: false,
         path_flag: None,
+        exclude: vec![],
+        include: vec![],
     };
 
     // Test that fuzzy flag is set correctly
@@ -134,6 +138,8 @@ async fn test_simple_search_with_exact_flag() -> Result<()> {
         include_binary: false,
         follow_links: false,
         path_flag: None,
+        exclude: vec![],
+        include: vec![],
     };
 
     // Test that exact flag is set correctly
@@ -168,6 +174,8 @@ async fn test_cli_commands() -> Result<()> {
         include_binary: false,
         follow_links: false,
         path_flag: None,
+        exclude: vec![],
+        include: vec![],
     });
 
     let help_cmd = Commands::HelpMe;
@@ -260,6 +268,8 @@ async fn test_conflicting_flags_handling() -> Result<()> {
         include_binary: false,
         follow_links: false,
         path_flag: None,
+        exclude: vec![],
+        include: vec![],
     };
 
     // Both flags can be set - the application logic decides precedence
@@ -294,6 +304,8 @@ async fn test_edge_cases() -> Result<()> {
         include_binary: false,
         follow_links: false,
         path_flag: None,
+        exclude: vec![],
+        include: vec![],
     };
 
     assert!(empty_query.query.is_empty());
@@ -321,6 +333,8 @@ async fn test_edge_cases() -> Result<()> {
         include_binary: false,
         follow_links: false,
         path_flag: None,
+        exclude: vec![],
+        include: vec![],
     };
 
     assert_eq!(long_query_args.query, long_query);
@@ -349,6 +363,8 @@ async fn test_edge_cases() -> Result<()> {
             include_binary: false,
             follow_links: false,
             path_flag: None,
+            exclude: vec![],
+            include: vec![],
         };
 
         assert!((0.0..=1.0).contains(&score_args.score));
@@ -378,6 +394,8 @@ async fn test_edge_cases() -> Result<()> {
             include_binary: false,
             follow_links: false,
             path_flag: None,
+            exclude: vec![],
+            include: vec![],
         };
 
         assert!(limit_args.limit > 0);
@@ -424,6 +442,8 @@ async fn test_unicode_and_special_characters() -> Result<()> {
             include_binary: false,
             follow_links: false,
             path_flag: None,
+            exclude: vec![],
+            include: vec![],
         };
 
         // Should handle all characters gracefully
@@ -460,6 +480,8 @@ async fn test_cli_structure() -> Result<()> {
             include_binary: false,
             follow_links: false,
             path_flag: None,
+            exclude: vec![],
+            include: vec![],
         }),
     };
 
@@ -506,6 +528,8 @@ async fn test_default_values() -> Result<()> {
         include_binary: false,
         follow_links: false,
         path_flag: None,
+        exclude: vec![],
+        include: vec![],
     };
 
     // Verify defaults are sensible

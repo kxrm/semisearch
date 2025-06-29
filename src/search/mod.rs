@@ -7,6 +7,7 @@ pub mod semantic;
 pub mod strategy;
 pub mod tfidf;
 
+use crate::SearchOptions;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -16,30 +17,6 @@ pub trait SearchStrategy: Send + Sync {
     fn name(&self) -> &str;
     fn search(&self, query: &str, options: &SearchOptions) -> Result<Vec<SearchResult>>;
     fn required_resources(&self) -> ResourceRequirements;
-}
-
-/// Search configuration options
-#[derive(Debug, Clone)]
-pub struct SearchOptions {
-    pub min_score: f32,
-    pub max_results: usize,
-    pub case_sensitive: bool,
-    pub whole_words: bool,
-    pub include_context: bool,
-    pub context_lines: usize,
-}
-
-impl Default for SearchOptions {
-    fn default() -> Self {
-        Self {
-            min_score: 0.3,
-            max_results: 100,
-            case_sensitive: false,
-            whole_words: false,
-            include_context: false,
-            context_lines: 2,
-        }
-    }
 }
 
 /// Resource requirements for search strategies
@@ -186,14 +163,6 @@ mod tests {
         assert!(strategies.contains(&"fuzzy"));
         assert!(strategies.contains(&"regex"));
         assert!(strategies.contains(&"tfidf"));
-    }
-
-    #[test]
-    fn test_search_options_default() {
-        let options = SearchOptions::default();
-        assert_eq!(options.min_score, 0.3);
-        assert_eq!(options.max_results, 100);
-        assert!(!options.case_sensitive);
     }
 
     #[test]

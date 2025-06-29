@@ -26,7 +26,7 @@ impl KeywordSearch {
 
         for chunk in chunks {
             let score = self.calculate_keyword_score(&query_tokens, &chunk.tokens, options);
-            if score >= options.min_score {
+            if score > 0.0 && score >= options.min_score {
                 // Find the position of the match in the content
                 let (start_char, end_char) =
                     self.find_match_position(&chunk.content, &query_tokens);
@@ -102,15 +102,8 @@ impl KeywordSearch {
         // Bonus for exact phrase matches
         let phrase_bonus = self.calculate_phrase_bonus(query_tokens, content_tokens);
 
-        // Bonus for whole word matches
-        let word_bonus = if options.whole_words {
-            self.calculate_whole_word_bonus(query_tokens, content_tokens)
-        } else {
-            0.0
-        };
-
         // Calculate final score with bonuses, ensuring it stays within 0-1
-        let bonus_total = phrase_bonus + word_bonus;
+        let bonus_total = phrase_bonus;
 
         // If base score is already 1.0, apply bonuses by slightly reducing base and adding bonus
         if base_score >= 1.0 && bonus_total > 0.0 {
@@ -135,24 +128,6 @@ impl KeywordSearch {
         }
 
         0.0
-    }
-
-    /// Calculate bonus for whole word matches
-    fn calculate_whole_word_bonus(
-        &self,
-        query_tokens: &[String],
-        content_tokens: &[String],
-    ) -> f32 {
-        let exact_matches = query_tokens
-            .iter()
-            .filter(|&qt| content_tokens.contains(qt))
-            .count();
-
-        if exact_matches == query_tokens.len() {
-            0.1 // 10% bonus for all words being exact matches
-        } else {
-            0.0
-        }
     }
 
     /// Find the position of the match in the content
@@ -340,17 +315,6 @@ mod tests {
 
         assert!(bonus1 > 0.0);
         assert_eq!(bonus2, 0.0);
-    }
-
-    #[test]
-    fn test_whole_word_bonus() {
-        let search = KeywordSearch::new();
-
-        let query_tokens = vec!["test".to_string()];
-        let content_tokens = vec!["test".to_string(), "other".to_string()];
-
-        let bonus = search.calculate_whole_word_bonus(&query_tokens, &content_tokens);
-        assert!(bonus > 0.0);
     }
 
     #[test]

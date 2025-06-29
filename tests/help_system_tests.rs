@@ -28,6 +28,8 @@ async fn test_contextual_help_no_results() {
         include_binary: false,
         follow_links: false,
         path_flag: None,
+        include: vec![],
+        exclude: vec![],
     });
 
     let help_text = ContextualHelp::generate_help(&last_command, &empty_results);
@@ -51,6 +53,8 @@ async fn test_contextual_help_too_many_results() {
             content: format!("function test{i}"),
             score: Some(0.8),
             match_type: Some(MatchType::Exact),
+            context_before: None,
+            context_after: None,
         })
         .collect();
 
@@ -74,6 +78,8 @@ async fn test_contextual_help_too_many_results() {
         include_binary: false,
         follow_links: false,
         path_flag: None,
+        include: vec![],
+        exclude: vec![],
     });
 
     let help_text = ContextualHelp::generate_help(&last_command, &many_results);
@@ -93,6 +99,8 @@ async fn test_contextual_help_good_results() {
         content: "fn login(user: &str) -> Result<()>".to_string(),
         score: Some(0.9),
         match_type: Some(MatchType::Exact),
+        context_before: None,
+        context_after: None,
     }];
 
     let last_command = Commands::Search(SearchArgs {
@@ -115,6 +123,8 @@ async fn test_contextual_help_good_results() {
         include_binary: false,
         follow_links: false,
         path_flag: None,
+        include: vec![],
+        exclude: vec![],
     });
 
     let help_text = ContextualHelp::generate_help(&last_command, &good_results);
@@ -177,6 +187,8 @@ async fn test_contextual_help_simplifies_complex_queries() {
         include_binary: false,
         follow_links: false,
         path_flag: None,
+        include: vec![],
+        exclude: vec![],
     });
 
     let help_text = ContextualHelp::generate_help(&last_command, &empty_results);

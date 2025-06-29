@@ -189,6 +189,8 @@ mod tests {
                 content: "    // Similar to function".to_string(),
                 score: Some(0.7),
                 match_type: Some(MatchType::Fuzzy),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/exact.rs".to_string(),
@@ -196,6 +198,8 @@ mod tests {
                 content: "    function main() {".to_string(),
                 score: Some(1.0),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/another.rs".to_string(),
@@ -203,6 +207,8 @@ mod tests {
                 content: "    def function_helper():".to_string(),
                 score: Some(0.8),
                 match_type: Some(MatchType::Fuzzy),
+                context_before: None,
+                context_after: None,
             },
         ];
 
@@ -225,6 +231,8 @@ mod tests {
                 content: "    // TODO: first task".to_string(),
                 score: Some(0.9),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/main.rs".to_string(),
@@ -232,6 +240,8 @@ mod tests {
                 content: "    // TODO: second task".to_string(),
                 score: Some(0.9),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/main.rs".to_string(),
@@ -239,6 +249,8 @@ mod tests {
                 content: "    // TODO: third task".to_string(),
                 score: Some(0.9),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/main.rs".to_string(),
@@ -246,6 +258,8 @@ mod tests {
                 content: "    // TODO: fourth task".to_string(),
                 score: Some(0.9),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
         ];
 
@@ -272,6 +286,8 @@ mod tests {
                 content: "    function exact_match() {".to_string(),
                 score: Some(1.0),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
             // Multiple fuzzy matches in same file
             SearchResult {
@@ -280,6 +296,8 @@ mod tests {
                 content: "    // function-like pattern".to_string(),
                 score: Some(0.8),
                 match_type: Some(MatchType::Fuzzy),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/fuzzy.rs".to_string(),
@@ -287,6 +305,8 @@ mod tests {
                 content: "    // another function pattern".to_string(),
                 score: Some(0.7),
                 match_type: Some(MatchType::Fuzzy),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/fuzzy.rs".to_string(),
@@ -294,6 +314,8 @@ mod tests {
                 content: "    // yet another function".to_string(),
                 score: Some(0.75),
                 match_type: Some(MatchType::Fuzzy),
+                context_before: None,
+                context_after: None,
             },
             // Single match in different file
             SearchResult {
@@ -302,6 +324,8 @@ mod tests {
                 content: "    // function reference".to_string(),
                 score: Some(0.6),
                 match_type: Some(MatchType::Fuzzy),
+                context_before: None,
+                context_after: None,
             },
         ];
 
@@ -329,6 +353,8 @@ mod tests {
                 content: "    // TODO: main".to_string(),
                 score: Some(1.0),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/lib.rs".to_string(),
@@ -336,6 +362,8 @@ mod tests {
                 content: "    // TODO: lib".to_string(),
                 score: Some(0.9),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
         ];
 

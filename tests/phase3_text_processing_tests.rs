@@ -1,5 +1,6 @@
-use search::search::{MatchType, SearchEngine, SearchOptions, SearchResult};
+use search::search::SearchEngine;
 use search::text::TextProcessor;
+use search::{MatchType, SearchOptions, SearchResult};
 use std::collections::HashMap;
 use std::fs;
 use tempfile::TempDir;
@@ -68,18 +69,35 @@ impl TestSearchEngine {
                 _ => return Err(anyhow::anyhow!("Unknown strategy: {strategy_name}")),
             };
 
-            // Update file paths in results
-            let mut file_results = search_results;
-            for result in &mut file_results {
-                result.file_path = file_name.clone();
-            }
+            // Map to canonical SearchResult
+            let file_results: Vec<SearchResult> = search_results
+                .into_iter()
+                .map(|r| SearchResult {
+                    file_path: file_name.clone(),
+                    line_number: r.line_number,
+                    content: r.content,
+                    score: Some(r.score),
+                    match_type: Some(match r.match_type {
+                        search::search::MatchType::Keyword => MatchType::Exact,
+                        search::search::MatchType::Exact => MatchType::Exact,
+                        search::search::MatchType::Fuzzy => MatchType::Fuzzy,
+                        search::search::MatchType::Regex => MatchType::Regex,
+                        search::search::MatchType::Semantic => MatchType::Semantic,
+                        search::search::MatchType::TfIdf => MatchType::Hybrid,
+                        search::search::MatchType::Hybrid => MatchType::Hybrid,
+                    }),
+                    context_before: r.context_before,
+                    context_after: r.context_after,
+                })
+                .collect();
             all_results.extend(file_results);
         }
 
         // Sort by score (descending)
         all_results.sort_by(|a, b| {
             b.score
-                .partial_cmp(&a.score)
+                .unwrap_or(0.0)
+                .partial_cmp(&a.score.unwrap_or(0.0))
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
         all_results.truncate(options.max_results);
@@ -103,7 +121,8 @@ impl TestSearchEngine {
         // Sort and deduplicate
         all_results.sort_by(|a, b| {
             b.score
-                .partial_cmp(&a.score)
+                .unwrap_or(0.0)
+                .partial_cmp(&a.score.unwrap_or(0.0))
                 .unwrap_or(std::cmp::Ordering::Equal)
                 .then_with(|| a.file_path.cmp(&b.file_path))
                 .then_with(|| a.line_number.cmp(&b.line_number))
@@ -230,8 +249,8 @@ fn test_keyword_search_comprehensive() {
 
     // Verify result structure
     for result in &results {
-        assert_eq!(result.match_type, MatchType::Keyword);
-        assert!(result.score > 0.0);
+        assert_eq!(result.match_type, Some(MatchType::Exact));
+        assert!(result.score.unwrap() > 0.0);
         assert!(!result.content.is_empty());
         assert!(result.line_number > 0);
     }
@@ -278,14 +297,22 @@ fn test_fuzzy_search_typo_tolerance() {
 
     for typo_query in typo_queries {
         let results = engine.search(typo_query, Some("fuzzy"), &options).unwrap();
+        println!("=== Query: '{typo_query}' ===");
+        println!("Results: {results:?}");
+        for result in &results {
+            println!(
+                "query: '{typo_query}', content: '{}', score: {:?}",
+                result.content, result.score
+            );
+        }
+        if results.is_empty() {
+            println!("No results for query: '{typo_query}'");
+        }
         if !results.is_empty() {
             // Verify fuzzy match type
             for result in &results {
-                assert_eq!(result.match_type, MatchType::Fuzzy);
-                assert!(
-                    result.score > 0.0 && result.score <= 1.0,
-                    "Invalid fuzzy score"
-                );
+                assert_eq!(result.match_type, Some(MatchType::Fuzzy));
+                assert!(result.score.unwrap() > 0.0 && result.score.unwrap() <= 1.0);
             }
         }
         // Note: Not asserting results exist because fuzzy matching may not find very different strings
@@ -321,8 +348,8 @@ fn test_regex_search_patterns() {
         );
 
         for result in &results {
-            assert_eq!(result.match_type, MatchType::Regex);
-            assert!(result.score > 0.0);
+            assert_eq!(result.match_type, Some(MatchType::Regex));
+            assert!(result.score.unwrap() > 0.0);
         }
     }
 }
@@ -356,14 +383,14 @@ fn test_tfidf_search_ranking() {
     if !results.is_empty() {
         // Verify TF-IDF scoring
         for result in &results {
-            assert_eq!(result.match_type, MatchType::TfIdf);
-            assert!(result.score >= 0.0 && result.score <= 1.0);
+            assert_eq!(result.match_type, Some(MatchType::Hybrid));
+            assert!(result.score.unwrap() > 0.0 && result.score.unwrap() <= 1.0);
         }
 
         // Results should be sorted by score (descending)
         for window in results.windows(2) {
             assert!(
-                window[0].score >= window[1].score,
+                window[0].score.unwrap() > window[1].score.unwrap(),
                 "Results should be sorted by score"
             );
         }
@@ -398,9 +425,9 @@ fn test_multi_strategy_search() {
     for result in &results {
         assert!(matches!(
             result.match_type,
-            MatchType::Keyword | MatchType::Fuzzy
+            Some(MatchType::Exact) | Some(MatchType::Fuzzy)
         ));
-        assert!(result.score > 0.0);
+        assert!(result.score.unwrap() > 0.0);
     }
 }
 
@@ -456,7 +483,7 @@ fn test_search_options_comprehensive() {
 
     for result in &high_score_results {
         assert!(
-            result.score >= 0.9,
+            result.score.unwrap() > 0.9,
             "All results should meet minimum score threshold"
         );
     }
@@ -562,7 +589,7 @@ fn test_search_result_scoring_consistency() {
 
         for result in &results {
             assert!(
-                result.score >= 0.0 && result.score <= 1.0,
+                result.score > 0.0 && result.score <= 1.0,
                 "Invalid score {} for strategy {}",
                 result.score,
                 strategy
@@ -572,7 +599,7 @@ fn test_search_result_scoring_consistency() {
         // Verify results are sorted by score
         for window in results.windows(2) {
             assert!(
-                window[0].score >= window[1].score,
+                window[0].score > window[1].score,
                 "Results not sorted by score for strategy {strategy}"
             );
         }

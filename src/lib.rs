@@ -274,10 +274,10 @@ pub fn search_in_file(
 /// Add context lines before and after each match
 fn add_context_lines(matches: &mut [SearchResult], content: &str, context_lines: usize) {
     let lines: Vec<&str> = content.lines().collect();
-    
+
     for result in matches {
         let line_index = result.line_number.saturating_sub(1);
-        
+
         // Add context before
         let start_line = line_index.saturating_sub(context_lines);
         if start_line < line_index {
@@ -289,7 +289,7 @@ fn add_context_lines(matches: &mut [SearchResult], content: &str, context_lines:
                 result.context_before = Some(context_before);
             }
         }
-        
+
         // Add context after
         let end_line = (line_index + 1 + context_lines).min(lines.len());
         if end_line > line_index + 1 {
@@ -446,6 +446,9 @@ mod tests {
             typo_tolerance: true,
             max_edit_distance: 2,
             search_mode: None,
+            context_lines: 0,
+            include_patterns: vec![],
+            exclude_patterns: vec![],
         };
         let results = search_files("todo", temp_dir.path().to_str().unwrap(), &options).unwrap();
 
@@ -489,6 +492,9 @@ mod tests {
             typo_tolerance: true,
             max_edit_distance: 2,
             search_mode: None,
+            context_lines: 0,
+            include_patterns: vec![],
+            exclude_patterns: vec![],
         };
         let results = search_files("todo", temp_dir.path().to_str().unwrap(), &options).unwrap();
 
@@ -507,6 +513,9 @@ mod tests {
             typo_tolerance: true,
             max_edit_distance: 2,
             search_mode: None,
+            context_lines: 0,
+            include_patterns: vec![],
+            exclude_patterns: vec![],
         };
         let results = search_files("todo", temp_dir.path().to_str().unwrap(), &options).unwrap();
         assert!(results.is_empty());
@@ -532,6 +541,9 @@ mod tests {
             typo_tolerance: true,
             max_edit_distance: 2,
             search_mode: None,
+            context_lines: 0,
+            include_patterns: vec![],
+            exclude_patterns: vec![],
         };
 
         // Test fuzzy matching with typos - use a query that won't match exactly
@@ -561,6 +573,9 @@ mod tests {
             typo_tolerance: true,
             max_edit_distance: 2,
             search_mode: None,
+            context_lines: 0,
+            include_patterns: vec![],
+            exclude_patterns: vec![],
         };
 
         // Test regex pattern matching
@@ -595,6 +610,9 @@ mod tests {
             typo_tolerance: true,
             max_edit_distance: 2,
             search_mode: None,
+            context_lines: 0,
+            include_patterns: vec![],
+            exclude_patterns: vec![],
         };
 
         // Test case-sensitive search
@@ -618,6 +636,9 @@ mod tests {
             typo_tolerance: true,
             max_edit_distance: 2,
             search_mode: None,
+            context_lines: 0,
+            include_patterns: vec![],
+            exclude_patterns: vec![],
         };
 
         let results = search_files("todo", temp_dir.path().to_str().unwrap(), &options).unwrap();
@@ -643,10 +664,14 @@ mod tests {
             min_score: 0.5,
             max_results: 10,
             fuzzy_matching: true,
+            regex_mode: false,
+            case_sensitive: false,
             typo_tolerance: true,
             max_edit_distance: 2,
             search_mode: None,
-            ..Default::default()
+            context_lines: 0,
+            include_patterns: vec![],
+            exclude_patterns: vec![],
         };
 
         let results = search_files("TODO", temp_dir.path().to_str().unwrap(), &options).unwrap();

@@ -84,11 +84,7 @@ impl RegexSearch {
         } else {
             // Convert plain text to regex pattern
             let escaped_query = regex::escape(query);
-            let pattern = if options.whole_words {
-                format!(r"\b{escaped_query}\b")
-            } else {
-                escaped_query
-            };
+            let pattern = escaped_query;
 
             RegexBuilder::new(&pattern)
                 .case_insensitive(!options.case_sensitive)
@@ -341,39 +337,6 @@ mod tests {
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].line_number, 1);
-    }
-
-    #[test]
-    fn test_whole_words_option() {
-        let search = RegexSearch::new();
-        let options = SearchOptions {
-            ..Default::default()
-        };
-
-        let chunks = vec![
-            create_test_chunk(1, "testing tested content"), // No standalone "test"
-            create_test_chunk(2, "just test here"),         // Has standalone "test"
-        ];
-
-        let results = search.search_chunks("test", &chunks, &options).unwrap();
-
-        // Should only match whole word "test", not "testing" or "tested"
-        assert_eq!(
-            results.len(),
-            1,
-            "Expected 1 result but got {}",
-            results.len()
-        );
-        assert_eq!(results[0].line_number, 2);
-
-        // Verify it doesn't match partial words
-        let results_no_whole_words = search
-            .search_chunks("test", &chunks, &SearchOptions::default())
-            .unwrap();
-        assert!(
-            results_no_whole_words.len() >= results.len(),
-            "Without whole_words should find same or more matches"
-        );
     }
 
     #[test]
