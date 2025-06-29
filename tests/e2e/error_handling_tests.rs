@@ -345,90 +345,105 @@ mod error_handling_tests {
     #[test]
     fn test_permission_denied_handling() {
         // Test: Permission errors provide clear messages and helpful suggestions
-        
+
         // Test 1: Try to search in a restricted system directory (if accessible)
         // Note: In containers/CI, /root might not exist or be accessible
         let restricted_paths = [
-            "/root",                    // Root home directory
-            "/etc/shadow",              // System password file
-            "/sys/kernel/security",     // Kernel security directory
-            "/proc/1/mem",             // Process memory (if exists)
+            "/root",                // Root home directory
+            "/etc/shadow",          // System password file
+            "/sys/kernel/security", // Kernel security directory
+            "/proc/1/mem",          // Process memory (if exists)
         ];
 
         let mut found_permission_error = false;
-        
+
         for path in &restricted_paths {
             let (success, _stdout, stderr) = run_semisearch(&["TODO", path], None);
-            
-            if !success && (stderr.contains("Permission") || stderr.contains("denied") || stderr.contains("access")) {
+
+            if !success
+                && (stderr.contains("Permission")
+                    || stderr.contains("denied")
+                    || stderr.contains("access"))
+            {
                 found_permission_error = true;
-                
+
                 // Should provide clear permission error message
                 assert!(
-                    stderr.contains("Permission") || stderr.contains("access") || stderr.contains("denied"),
+                    stderr.contains("Permission")
+                        || stderr.contains("access")
+                        || stderr.contains("denied"),
                     "Should indicate permission issue clearly. stderr: {stderr}"
                 );
-                
+
                 // Should provide helpful suggestions
                 assert!(
-                    stderr.contains("Try") || stderr.contains("Check") || stderr.contains("Make sure"),
+                    stderr.contains("Try")
+                        || stderr.contains("Check")
+                        || stderr.contains("Make sure"),
                     "Should provide helpful suggestions for permission errors. stderr: {stderr}"
                 );
-                
+
                 // Should suggest alternative approaches
                 assert!(
-                    stderr.contains("permission") || stderr.contains("directory") || stderr.contains("different"),
+                    stderr.contains("permission")
+                        || stderr.contains("directory")
+                        || stderr.contains("different"),
                     "Should suggest alternative approaches. stderr: {stderr}"
                 );
-                
+
                 // Should not expose technical details
                 assert!(
                     !stderr.contains("std::io::Error") && !stderr.contains("os error"),
                     "Should not expose technical error details. stderr: {stderr}"
                 );
-                
+
                 break;
             }
         }
-        
+
         // Test 2: Create a test scenario that simulates permission issues
         // Even if we can't find real permission errors, test the error translation
         if !found_permission_error {
             // Test that the system gracefully handles paths that might have permission issues
             // This tests the error handling infrastructure even if actual permission errors don't occur
             let (success, stdout, stderr) = run_semisearch(&["TODO", "/"], None);
-            
+
             // Should either succeed (if we have permission) or fail gracefully
             let all_output = format!("{stdout}\n{stderr}");
-            
+
             // Should not crash
             assert!(
                 !all_output.contains("panic") && !all_output.contains("backtrace"),
                 "Should not crash when searching system directories. Output: {all_output}"
             );
-            
+
             // If it fails, should provide helpful guidance
             if !success {
                 assert!(
-                    stderr.contains("Try") || stderr.contains("Check") || stderr.contains("Make sure"),
+                    stderr.contains("Try")
+                        || stderr.contains("Check")
+                        || stderr.contains("Make sure"),
                     "Should provide helpful guidance for system directory access. stderr: {stderr}"
                 );
             }
         }
-        
+
         // Test 3: Verify error translation system can handle permission-like errors
         // This ensures the ErrorTranslator permission handling is working
-        let (success, _stdout, stderr) = run_semisearch(&["TODO", "/nonexistent/restricted/path"], None);
-        
+        let (success, _stdout, stderr) =
+            run_semisearch(&["TODO", "/nonexistent/restricted/path"], None);
+
         // Should fail for nonexistent path
         assert!(!success, "Should fail for nonexistent path");
-        
+
         // Should provide helpful error message (directory access, not permission, but still helpful)
         assert!(
-            stderr.contains("Cannot search") || stderr.contains("Make sure") || stderr.contains("does not exist"),
+            stderr.contains("Cannot search")
+                || stderr.contains("Make sure")
+                || stderr.contains("does not exist"),
             "Should provide helpful error message for inaccessible paths. stderr: {stderr}"
         );
-        
+
         // Should provide recovery suggestions
         assert!(
             stderr.contains("Try") || stderr.contains("Check"),
