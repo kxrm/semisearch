@@ -151,52 +151,82 @@ mod context_detection_tests {
     #[test]
     fn test_smart_query_analysis() {
         // Test: QueryAnalyzer correctly detects different query types and AutoStrategy selects appropriate search methods
-        
+
         // Test code pattern detection - TODO should be detected as CodePattern
         let (success, stdout, stderr) = run_semisearch(&["TODO"], None);
-        assert!(success, "Code pattern search should succeed. stderr: {stderr}");
         assert!(
-            stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+            success,
+            "Code pattern search should succeed. stderr: {stderr}"
+        );
+        assert!(
+            stdout.contains("Found")
+                || stdout.contains("No matches")
+                || stdout.contains("No results"),
             "Should show search results or no results for TODO code pattern. stdout: {stdout}"
         );
 
         // Test function pattern detection - should work as CodePattern
         let (success, stdout, stderr) = run_semisearch(&["function"], None);
-        assert!(success, "Function pattern search should succeed. stderr: {stderr}");
         assert!(
-            stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+            success,
+            "Function pattern search should succeed. stderr: {stderr}"
+        );
+        assert!(
+            stdout.contains("Found")
+                || stdout.contains("No matches")
+                || stdout.contains("No results"),
             "Should show search results or no results for function pattern. stdout: {stdout}"
         );
 
         // Test conceptual queries (multi-word concepts) - should work as Conceptual
         let (success, stdout, stderr) = run_semisearch(&["error handling patterns"], None);
-        assert!(success, "Conceptual search should succeed. stderr: {stderr}");
         assert!(
-            stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+            success,
+            "Conceptual search should succeed. stderr: {stderr}"
+        );
+        assert!(
+            stdout.contains("Found")
+                || stdout.contains("No matches")
+                || stdout.contains("No results"),
             "Should show search results or no results for conceptual query. stdout: {stdout}"
         );
 
         // Test file extension queries - should be detected as FileExtension
         let (success, stdout, stderr) = run_semisearch(&[".rs"], None);
-        assert!(success, "File extension search should succeed. stderr: {stderr}");
         assert!(
-            stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+            success,
+            "File extension search should succeed. stderr: {stderr}"
+        );
+        assert!(
+            stdout.contains("Found")
+                || stdout.contains("No matches")
+                || stdout.contains("No results"),
             "Should show search results or no results for file extension query. stdout: {stdout}"
         );
 
         // Test exact phrase queries (quoted) - should be detected as ExactPhrase
         let (success, stdout, stderr) = run_semisearch(&["\"specific function name\""], None);
-        assert!(success, "Exact phrase search should succeed. stderr: {stderr}");
         assert!(
-            stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+            success,
+            "Exact phrase search should succeed. stderr: {stderr}"
+        );
+        assert!(
+            stdout.contains("Found")
+                || stdout.contains("No matches")
+                || stdout.contains("No results"),
             "Should show search results or no results for exact phrase query. stdout: {stdout}"
         );
 
         // Test regex-like queries - should be detected as RegexLike
         let (success, stdout, stderr) = run_semisearch(&[".*pattern"], None);
-        assert!(success, "Regex-like search should succeed. stderr: {stderr}");
         assert!(
-            stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+            success,
+            "Regex-like search should succeed. stderr: {stderr}"
+        );
+        assert!(
+            stdout.contains("Found")
+                || stdout.contains("No matches")
+                || stdout.contains("No results"),
             "Should show search results or no results for regex-like query. stdout: {stdout}"
         );
 
@@ -204,16 +234,16 @@ mod context_detection_tests {
         let test_queries = [
             "TODO",
             "function",
-            "error handling patterns", 
+            "error handling patterns",
             ".rs",
             "\"exact phrase\"",
-            ".*pattern"
+            ".*pattern",
         ];
 
         for query in &test_queries {
             let (_success, stdout, stderr) = run_semisearch(&[query], None);
             let all_output = format!("{stdout}\n{stderr}");
-            
+
             // Should not crash
             assert!(
                 !all_output.contains("panic") && !all_output.contains("backtrace"),
