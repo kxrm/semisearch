@@ -198,6 +198,22 @@ impl Cli {
                     .action(clap::ArgAction::SetTrue)
                     .global(true),
             )
+            .arg(
+                Arg::new("include")
+                    .long("include")
+                    .help("Include files matching patterns (e.g., *.rs, *.md)")
+                    .action(clap::ArgAction::Append)
+                    .value_name("PATTERN")
+                    .global(true),
+            )
+            .arg(
+                Arg::new("exclude")
+                    .long("exclude")
+                    .help("Exclude files matching patterns (e.g., *test*, *.tmp)")
+                    .action(clap::ArgAction::Append)
+                    .value_name("PATTERN")
+                    .global(true),
+            )
             .subcommand(
                 Command::new("search")
                     .about("Search for text in files (default behavior)")
@@ -426,6 +442,16 @@ impl Cli {
                 regex: sub_matches.get_flag("regex"),
                 include_binary: sub_matches.get_flag("include-binary"),
                 follow_links: sub_matches.get_flag("follow-links"),
+                include: sub_matches
+                    .get_many::<String>("include")
+                    .unwrap_or_default()
+                    .cloned()
+                    .collect(),
+                exclude: sub_matches
+                    .get_many::<String>("exclude")
+                    .unwrap_or_default()
+                    .cloned()
+                    .collect(),
                 path_flag: sub_matches.get_one::<String>("path-flag").cloned(),
             }),
             Some(("help-me", _)) => Commands::HelpMe,
@@ -467,6 +493,8 @@ impl Cli {
                 regex: false,
                 include_binary: false,
                 follow_links: false,
+                include: vec![],
+                exclude: vec![],
                 path_flag: None,
             }),
         };
@@ -580,6 +608,14 @@ pub struct SearchArgs {
     /// Follow symbolic links
     #[arg(long, hide = true)]
     pub follow_links: bool,
+
+    /// Include files matching patterns (e.g., *.rs, *.md)
+    #[arg(long, hide = true)]
+    pub include: Vec<String>,
+
+    /// Exclude files matching patterns (e.g., *test*, *.tmp)
+    #[arg(long, hide = true)]
+    pub exclude: Vec<String>,
 
     /// Target directory (legacy --path flag for backward compatibility)
     #[arg(long = "path")]

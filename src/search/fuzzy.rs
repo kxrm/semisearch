@@ -226,11 +226,10 @@ impl FuzzySearch {
             min_score: 0.3,
             max_results: 100,
             fuzzy_matching: true,
-            regex_mode: false,
-            case_sensitive: false,
             typo_tolerance: true,
             max_edit_distance: self.max_edit_distance,
             search_mode: Some("fuzzy".to_string()),
+            ..Default::default()
         };
 
         search_files(query, path, &options)

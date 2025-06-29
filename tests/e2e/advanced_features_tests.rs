@@ -141,37 +141,237 @@ mod advanced_features_tests {
         }
     }
 
-    // ❌ NOT IMPLEMENTED: Score threshold is not implemented as described
+    // ✅ IMPLEMENTED: Score threshold feature
     #[test]
-    #[ignore = "Score threshold not implemented yet - needs advanced search configuration"]
     fn test_score_threshold() {
-        // This test is for future implementation
-        // When implemented, it should test:
-        // - Configurable score thresholds
-        // - Quality filtering of results
-        // - User control over result precision
+        // Test: Score threshold filters results by quality
+
+        // Test with default threshold (should show all results)
+        let (success, stdout_default, _) = run_semisearch(&["--advanced", "TODO"], None);
+        assert!(success, "Default search should work");
+
+        if !stdout_default.contains("Found") {
+            return; // Skip if no results found
+        }
+
+        // Count results in default search
+        let default_count = stdout_default
+            .lines()
+            .filter(|line| line.contains("Line"))
+            .count();
+
+        // Test with high threshold (should show fewer results)
+        let (success, stdout_filtered, _) =
+            run_semisearch(&["--advanced", "TODO", "--score", "0.8"], None);
+        assert!(success, "High threshold search should work");
+
+        if stdout_filtered.contains("Found") {
+            let filtered_count = stdout_filtered
+                .lines()
+                .filter(|line| line.contains("Line"))
+                .count();
+
+            // High threshold should show fewer or equal results
+            assert!(
+                filtered_count <= default_count,
+                "High threshold should filter out low-quality results. Default: {default_count}, Filtered: {filtered_count}"
+            );
+        }
+
+        // Test with very high threshold (should show very few or no results)
+        let (success, stdout_strict, _) =
+            run_semisearch(&["--advanced", "TODO", "--score", "0.95"], None);
+        assert!(success, "Very high threshold search should work");
+
+        if stdout_strict.contains("Found") {
+            let strict_count = stdout_strict
+                .lines()
+                .filter(|line| line.contains("Line"))
+                .count();
+
+            // Very high threshold should show fewer results than moderate threshold
+            assert!(
+                strict_count <= default_count,
+                "Very high threshold should show fewer results"
+            );
+        }
+
+        // Test invalid threshold values
+        let (success, _stdout, stderr) =
+            run_semisearch(&["--advanced", "TODO", "--score", "2.0"], None);
+        if !success {
+            assert!(
+                stderr.contains("score")
+                    || stderr.contains("threshold")
+                    || stderr.contains("invalid"),
+                "Should provide helpful error for invalid score values"
+            );
+        }
     }
 
-    // ❌ NOT IMPLEMENTED: Context lines are not implemented as described
+    // ✅ IMPLEMENTING: Context lines feature
     #[test]
-    #[ignore = "Context lines not implemented yet - needs advanced result formatting"]
     fn test_context_lines() {
-        // This test is for future implementation
-        // When implemented, it should test:
-        // - Showing lines before/after matches
-        // - Configurable context size
-        // - Better result presentation
+        // Test: Context lines show surrounding content around matches
+
+        // Test with no context (default behavior)
+        let (success, stdout_no_context, _) = run_semisearch(&["--advanced", "TODO"], None);
+        assert!(success, "Default search should work");
+
+        if !stdout_no_context.contains("Found") {
+            return; // Skip if no results found
+        }
+
+        // Count lines in default output (should only show matching lines)
+        let default_lines = stdout_no_context
+            .lines()
+            .filter(|line| line.trim().starts_with("Line ") || !line.contains("Line"))
+            .count();
+
+        // Test with context lines
+        let (success, stdout_context, _) =
+            run_semisearch(&["--advanced", "TODO", "--context", "2"], None);
+        assert!(success, "Context search should work");
+
+        if stdout_context.contains("Found") {
+            // With context, we should see more lines than without context
+            let context_lines = stdout_context
+                .lines()
+                .filter(|line| line.trim().starts_with("Line ") || !line.contains("Line"))
+                .count();
+
+            // Context should show additional lines (though exact count depends on file structure)
+            // We mainly want to verify that context flag changes the output format
+            let has_context_indicators = stdout_context.contains("---")
+                || stdout_context.contains("...")
+                || stdout_context
+                    .lines()
+                    .any(|line| line.trim().starts_with("Line ") && !line.contains("TODO"));
+
+            assert!(
+                context_lines >= default_lines || has_context_indicators,
+                "Context mode should show additional lines or context indicators. Default: {default_lines}, Context: {context_lines}"
+            );
+        }
+
+        // Test with larger context
+        let (success, stdout_large_context, _) =
+            run_semisearch(&["--advanced", "TODO", "--context", "5"], None);
+        assert!(success, "Large context search should work");
+
+        if stdout_large_context.contains("Found") {
+            // Larger context should potentially show even more lines
+            let large_context_has_more = stdout_large_context.len() >= stdout_context.len();
+            assert!(
+                large_context_has_more,
+                "Larger context should show more or equal content"
+            );
+        }
+
+        // Test invalid context value
+        let (success, _stdout, stderr) =
+            run_semisearch(&["--advanced", "TODO", "--context", "-1"], None);
+        if !success {
+            assert!(
+                stderr.contains("context")
+                    || stderr.contains("invalid")
+                    || stderr.contains("positive"),
+                "Should provide helpful error for invalid context values"
+            );
+        }
     }
 
-    // ❌ NOT IMPLEMENTED: Path filtering is not implemented as described
+    // ✅ IMPLEMENTING: Path filtering feature
     #[test]
-    #[ignore = "Path filtering not implemented yet - needs advanced file filtering"]
     fn test_path_filtering() {
-        // This test is for future implementation
-        // When implemented, it should test:
-        // - Include/exclude path patterns
-        // - File type filtering
-        // - Directory-specific searches
+        // Test: Path filtering includes/excludes files by patterns
+
+        // Test basic include pattern (should only search .rs files)
+        let (success, stdout_rs_only, _) =
+            run_semisearch(&["--advanced", "TODO", "--include", "*.rs"], None);
+        assert!(success, "Include pattern search should work");
+
+        if stdout_rs_only.contains("Found") {
+            // Should find results in .rs files only
+            let lines_with_paths = stdout_rs_only
+                .lines()
+                .filter(|line| line.contains("📁") || line.contains(".rs"))
+                .collect::<Vec<_>>();
+
+            // All file paths mentioned should be .rs files
+            for line in lines_with_paths {
+                if line.contains("📁") || line.contains("/") {
+                    assert!(
+                        line.contains(".rs") || !line.contains("."),
+                        "Include *.rs should only show .rs files. Found: {line}"
+                    );
+                }
+            }
+        }
+
+        // Test exclude pattern (should exclude test files)
+        let (success, stdout_no_tests, _) =
+            run_semisearch(&["--advanced", "TODO", "--exclude", "*test*"], None);
+        assert!(success, "Exclude pattern search should work");
+
+        if stdout_no_tests.contains("Found") {
+            // Should not find results in files with "test" in the name
+            let has_test_files = stdout_no_tests.lines().any(|line| {
+                (line.contains("📁") || line.contains("/")) && line.to_lowercase().contains("test")
+            });
+
+            assert!(
+                !has_test_files,
+                "Exclude *test* should not show test files. Output: {stdout_no_tests}"
+            );
+        }
+
+        // Test directory filtering (search only in src/ directory)
+        let (success, stdout_src_only, _) =
+            run_semisearch(&["--advanced", "TODO", "--path", "src/"], None);
+        assert!(success, "Directory filtering should work");
+
+        if stdout_src_only.contains("Found") {
+            // All results should be from src/ directory
+            let has_non_src_files = stdout_src_only
+                .lines()
+                .filter(|line| line.contains("📁"))
+                .any(|line| !line.contains("src/"));
+
+            assert!(
+                !has_non_src_files,
+                "Path filtering to src/ should only show src/ files. Output: {stdout_src_only}"
+            );
+        }
+
+        // Test multiple include patterns
+        let (success, stdout_multi, _) = run_semisearch(
+            &[
+                "--advanced",
+                "TODO",
+                "--include",
+                "*.rs",
+                "--include",
+                "*.md",
+            ],
+            None,
+        );
+        assert!(success, "Multiple include patterns should work");
+
+        if stdout_multi.contains("Found") {
+            // Should find results in .rs and .md files only
+            let lines_with_paths = stdout_multi
+                .lines()
+                .filter(|line| line.contains("📁") && line.contains("."))
+                .collect::<Vec<_>>();
+
+            for line in lines_with_paths {
+                assert!(
+                    line.contains(".rs") || line.contains(".md") || !line.contains("."),
+                    "Multiple includes should only show .rs and .md files. Found: {line}"
+                );
+            }
+        }
     }
 
     // ✅ IMPLEMENTED: Test that basic functionality works for power users

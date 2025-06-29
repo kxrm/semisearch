@@ -62,6 +62,8 @@ pub struct SearchOptions {
     pub typo_tolerance: bool,
     pub max_edit_distance: usize,
     pub search_mode: Option<String>,
+    pub include_patterns: Vec<String>,
+    pub exclude_patterns: Vec<String>,
 }
 
 impl Default for SearchOptions {
@@ -75,6 +77,8 @@ impl Default for SearchOptions {
             typo_tolerance: false, // Disabled by default to avoid false positives
             max_edit_distance: 2,
             search_mode: None, // Default to None (auto-detect)
+            include_patterns: vec![],
+            exclude_patterns: vec![],
         }
     }
 }
@@ -97,7 +101,18 @@ pub fn search_files(query: &str, path: &str, options: &SearchOptions) -> Result<
     for entry in walker {
         let entry = entry?;
         if entry.file_type().is_some_and(|ft| ft.is_file()) {
-            if let Some(file_results) = search_in_file_enhanced(entry.path(), query, options)? {
+            let file_path = entry.path();
+
+            // Apply include/exclude filtering
+            if should_skip_file(
+                file_path,
+                &options.include_patterns,
+                &options.exclude_patterns,
+            ) {
+                continue;
+            }
+
+            if let Some(file_results) = search_in_file_enhanced(file_path, query, options)? {
                 results.extend(file_results);
             }
         }
@@ -242,6 +257,78 @@ pub fn search_in_file(
 ) -> Result<Option<Vec<SearchResult>>> {
     let options = SearchOptions::default();
     search_in_file_enhanced(file_path, query, &options)
+}
+
+/// Check if a file should be skipped based on include/exclude patterns
+fn should_skip_file(
+    file_path: &std::path::Path,
+    include_patterns: &[String],
+    exclude_patterns: &[String],
+) -> bool {
+    let file_path_str = file_path.to_string_lossy();
+    let file_name = file_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("");
+
+    // If include patterns are specified, file must match at least one
+    if !include_patterns.is_empty() {
+        let matches_include = include_patterns
+            .iter()
+            .any(|pattern| glob_match(pattern, &file_path_str) || glob_match(pattern, file_name));
+        if !matches_include {
+            return true; // Skip file - doesn't match any include pattern
+        }
+    }
+
+    // If exclude patterns are specified, file must not match any
+    if !exclude_patterns.is_empty() {
+        let matches_exclude = exclude_patterns
+            .iter()
+            .any(|pattern| glob_match(pattern, &file_path_str) || glob_match(pattern, file_name));
+        if matches_exclude {
+            return true; // Skip file - matches an exclude pattern
+        }
+    }
+
+    false // Don't skip file
+}
+
+/// Simple glob pattern matching (supports * wildcard)
+fn glob_match(pattern: &str, text: &str) -> bool {
+    if pattern == "*" {
+        return true;
+    }
+
+    // Convert glob pattern to regex-like matching
+    if pattern.contains('*') {
+        let pattern_parts: Vec<&str> = pattern.split('*').collect();
+        if pattern_parts.len() == 2 {
+            let start = pattern_parts[0];
+            let end = pattern_parts[1];
+
+            if start.is_empty() && !end.is_empty() {
+                // Pattern like "*.rs"
+                text.ends_with(end)
+            } else if end.is_empty() && !start.is_empty() {
+                // Pattern like "test*"
+                text.starts_with(start)
+            } else if !start.is_empty() && !end.is_empty() {
+                // Pattern like "*test*"
+                text.contains(start) && text.contains(end)
+            } else {
+                // Pattern is just "*"
+                true
+            }
+        } else {
+            // More complex patterns - simple contains check
+            let pattern_without_stars = pattern.replace('*', "");
+            text.contains(&pattern_without_stars)
+        }
+    } else {
+        // No wildcards - exact match
+        text == pattern
+    }
 }
 
 #[cfg(test)]

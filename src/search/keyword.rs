@@ -180,12 +180,8 @@ impl KeywordSearch {
         let options = LibSearchOptions {
             min_score: 0.3,
             max_results: 100,
-            fuzzy_matching: false,
-            regex_mode: false,
-            case_sensitive: false,
-            typo_tolerance: false,
-            max_edit_distance: 2,
             search_mode: Some("keyword".to_string()),
+            ..Default::default()
         };
 
         search_files(query, path, &options)

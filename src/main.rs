@@ -44,6 +44,8 @@ async fn run_main() -> Result<()> {
                 max_results: args.limit,
                 case_sensitive: args.case_sensitive,
                 typo_tolerance: args.typo_tolerance,
+                include_patterns: args.include.clone(),
+                exclude_patterns: args.exclude.clone(),
                 ..Default::default()
             };
 
