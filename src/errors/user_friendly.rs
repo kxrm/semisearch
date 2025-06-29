@@ -39,9 +39,7 @@ impl UserFriendlyError {
     pub fn fallback_mode() -> Self {
         Self {
             message: "🔍 Searching with basic mode (fast but less smart)".to_string(),
-            suggestions: vec![
-                "💡 Tip: Install semisearch-models for better results".to_string(),
-            ],
+            suggestions: vec!["💡 Tip: Install semisearch-models for better results".to_string()],
         }
     }
 
@@ -58,7 +56,7 @@ impl UserFriendlyError {
 
     pub fn display(&self) -> String {
         let mut output = self.message.clone();
-        
+
         if !self.suggestions.is_empty() {
             output.push_str("\n\nTry:\n");
             for suggestion in &self.suggestions {
@@ -77,9 +75,9 @@ impl UserFriendlyError {
 /// Simplify a query by removing noise words and complex terms
 pub fn simplify_query(query: &str) -> String {
     let noise_words = [
-        "the", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by",
-        "from", "up", "about", "into", "through", "during", "before", "after", "above",
-        "below", "between", "among", "within", "without", "under", "over",
+        "the", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "from", "up",
+        "about", "into", "through", "during", "before", "after", "above", "below", "between",
+        "among", "within", "without", "under", "over",
     ];
 
     let words: Vec<&str> = query
@@ -157,7 +155,10 @@ mod tests {
     #[test]
     fn test_simplify_query() {
         assert_eq!(simplify_query("the quick brown fox"), "quick brown fox");
-        assert_eq!(simplify_query("find all the error handling"), "find all error");
+        assert_eq!(
+            simplify_query("find all the error handling"),
+            "find all error"
+        );
         assert_eq!(simplify_query("a"), "a");
         assert_eq!(simplify_query(""), "");
     }
@@ -177,4 +178,4 @@ mod tests {
         assert!(display.contains("Try:"));
         assert!(display.contains("--fuzzy"));
     }
-} 
+}

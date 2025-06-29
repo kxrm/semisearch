@@ -246,8 +246,8 @@ fn display_simple_results(
     query: &str,
     search_time: std::time::Duration,
 ) -> Result<()> {
+    use search::errors::{provide_contextual_suggestions, UserFriendlyError};
     use search::output::HumanFormatter;
-    use search::errors::{UserFriendlyError, provide_contextual_suggestions};
 
     // Check for contextual suggestions based on results
     if let Some(suggestion) = provide_contextual_suggestions(query, results.len(), "general") {
@@ -653,7 +653,7 @@ async fn handle_error(error: anyhow::Error) {
 /// Handle errors with additional context (query, path) for better user guidance
 async fn handle_error_with_context(error: anyhow::Error, query: Option<&str>, _path: Option<&str>) {
     use search::errors::translate_error;
-    
+
     let user_friendly_error = translate_error(&error);
 
     // Display the user-friendly error message
