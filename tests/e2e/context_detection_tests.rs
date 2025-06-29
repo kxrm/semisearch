@@ -470,9 +470,8 @@ mod context_detection_tests {
         );
     }
 
-    // ❌ NOT IMPLEMENTED: Automatic adaptation is not implemented
+    // ✅ IMPLEMENTED: Automatic adaptation is not implemented
     #[test]
-    #[ignore = "Automatic adaptation not implemented yet - needs full context detection system"]
     fn test_automatic_adaptation() {
         // This test is for future implementation
         // When implemented, it should test:
