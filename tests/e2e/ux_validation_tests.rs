@@ -147,44 +147,69 @@ mod ux_validation_tests {
     #[test]
     fn test_query_analysis_works() {
         // Test: Different query types should work appropriately
-        
+
         // Test code pattern detection - TODO should work
         let (success, stdout, _stderr) = run_semisearch(&["TODO"], None);
-        assert!(success, "Code pattern search should succeed. stderr: {_stderr}");
         assert!(
-            stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+            success,
+            "Code pattern search should succeed. stderr: {_stderr}"
+        );
+        assert!(
+            stdout.contains("Found")
+                || stdout.contains("No matches")
+                || stdout.contains("No results"),
             "Should show search results or no results for TODO. stdout: {stdout}"
         );
 
         // Test function pattern detection
         let (success, stdout, _stderr) = run_semisearch(&["function"], None);
-        assert!(success, "Function pattern search should succeed. stderr: {_stderr}");
         assert!(
-            stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+            success,
+            "Function pattern search should succeed. stderr: {_stderr}"
+        );
+        assert!(
+            stdout.contains("Found")
+                || stdout.contains("No matches")
+                || stdout.contains("No results"),
             "Should show search results or no results for function. stdout: {stdout}"
         );
 
         // Test exact phrase with quotes
         let (success, stdout, _stderr) = run_semisearch(&["\"exact phrase\""], None);
-        assert!(success, "Exact phrase search should succeed. stderr: {_stderr}");
         assert!(
-            stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+            success,
+            "Exact phrase search should succeed. stderr: {_stderr}"
+        );
+        assert!(
+            stdout.contains("Found")
+                || stdout.contains("No matches")
+                || stdout.contains("No results"),
             "Should show search results or no results for exact phrase. stdout: {stdout}"
         );
 
         // Test file extension query
         let (success, stdout, _stderr) = run_semisearch(&[".rs"], None);
-        assert!(success, "File extension search should succeed. stderr: {_stderr}");
         assert!(
-            stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+            success,
+            "File extension search should succeed. stderr: {_stderr}"
+        );
+        assert!(
+            stdout.contains("Found")
+                || stdout.contains("No matches")
+                || stdout.contains("No results"),
             "Should show search results or no results for .rs extension. stdout: {stdout}"
         );
 
         // Test conceptual query (multi-word)
         let (success, stdout, _stderr) = run_semisearch(&["error handling patterns"], None);
-        assert!(success, "Conceptual search should succeed. stderr: {_stderr}");
         assert!(
-            stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+            success,
+            "Conceptual search should succeed. stderr: {_stderr}"
+        );
+        assert!(
+            stdout.contains("Found")
+                || stdout.contains("No matches")
+                || stdout.contains("No results"),
             "Should show search results or no results for conceptual query. stdout: {stdout}"
         );
 
@@ -194,13 +219,13 @@ mod ux_validation_tests {
             "function",
             "\"exact phrase\"",
             ".rs",
-            "error handling patterns"
+            "error handling patterns",
         ];
 
         for query in &test_queries {
             let (_success, stdout, stderr) = run_semisearch(&[query], None);
             let all_output = format!("{stdout}\n{stderr}");
-            
+
             // Should not crash
             assert!(
                 !all_output.contains("panic") && !all_output.contains("backtrace"),

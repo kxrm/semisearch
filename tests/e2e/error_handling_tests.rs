@@ -212,7 +212,7 @@ mod error_handling_tests {
                 stdout.contains("Usage") || stdout.contains("Commands") || stdout.contains("help"),
                 "Should show usage information when no args provided. stdout: {stdout}"
             );
-            
+
             // Should mention the basic search command
             assert!(
                 stdout.contains("search") || stdout.contains("Search"),
@@ -224,7 +224,7 @@ mod error_handling_tests {
                 !stderr.is_empty(),
                 "Should provide helpful error message when no args provided. stderr: {stderr}"
             );
-            
+
             // Should guide user to correct usage
             assert!(
                 stderr.contains("Usage") || stderr.contains("help") || stderr.contains("required"),
