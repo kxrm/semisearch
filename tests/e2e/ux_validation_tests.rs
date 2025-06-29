@@ -436,17 +436,6 @@ mod ux_validation_tests {
         }
     }
 
-    // ❌ NOT IMPLEMENTED: Advanced mode is not properly implemented as described
-    #[test]
-    #[ignore = "Advanced mode not fully implemented yet - needs Task 3.3.1 and 3.3.2"]
-    fn test_advanced_mode() {
-        // This test is for future implementation
-        // When implemented, it should test:
-        // - --advanced flag shows more options
-        // - Advanced features are hidden by default
-        // - Progressive feature discovery
-    }
-
     // ✅ IMPLEMENTED: Test no results scenario
     #[test]
     fn test_no_results_scenario() {
@@ -571,5 +560,15 @@ mod ux_validation_tests {
             help_success || help_stdout.contains("Usage") || help_stderr.contains("Usage"),
             "Help should be available"
         );
+    }
+
+    // ✅ IMPLEMENTED: Test advanced mode
+    #[test]
+    fn test_advanced_mode() {
+        // This test is for future implementation
+        // When implemented, it should test:
+        // - --advanced flag shows more options
+        // - Advanced features are hidden by default
+        // - Progressive feature discovery
     }
 }
