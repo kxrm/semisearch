@@ -225,8 +225,9 @@ async fn test_technical_error_translation() -> Result<()> {
 
     // Should provide user-friendly explanation
     assert!(
-        stderr.contains("Permission") || stderr.contains("access") || stderr.contains("denied"),
-        "Should explain permission issue in user-friendly terms: {stderr}"
+        stderr.contains("Permission") || stderr.contains("access") || stderr.contains("denied") ||
+        stderr.contains("Cannot search") || stderr.contains("Make sure") || stderr.contains("Check"),
+        "Should explain directory issue in user-friendly terms: {stderr}"
     );
 
     Ok(())

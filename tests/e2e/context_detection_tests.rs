@@ -375,11 +375,45 @@ mod context_detection_tests {
                 "Query '{query}' should not crash. Output: {all_output}"
             );
 
-            // Should not show detailed technical errors to regular users
+            // Should not show detailed technical errors in ERROR MESSAGES (stderr only)
+            // Note: Search results (stdout) may legitimately contain technical terms like "anyhow" imports
             assert!(
-                !all_output.contains("ONNX Runtime") && !all_output.contains("anyhow"),
-                "Query '{query}' should not show detailed technical errors. Output: {all_output}"
+                !stderr.contains("ONNX Runtime") && !stderr.contains("anyhow::Error"),
+                "Query '{query}' should not show detailed technical errors in error messages. stderr: {stderr}"
             );
+        }
+
+        // Test error scenarios specifically to ensure error messages are user-friendly
+        let error_scenarios = [
+            ("/nonexistent/path", "nonexistent"),  // Directory not found
+            ("--invalid-flag", "TODO"),            // Invalid flag
+        ];
+
+        for (bad_arg, query) in &error_scenarios {
+            let (_success, _stdout, stderr) = run_semisearch(&[query, bad_arg], None);
+            
+            // Error messages should not contain technical implementation details
+            assert!(
+                !stderr.contains("anyhow::Error") && 
+                !stderr.contains("ONNX Runtime") && 
+                !stderr.contains("backtrace") &&
+                !stderr.contains("stack trace"),
+                "Error scenario '{bad_arg}' should show user-friendly error messages. stderr: {stderr}"
+            );
+
+            // Error messages should provide helpful guidance (per UX Remediation Plan)
+            if stderr.contains("error") || stderr.contains("Error") {
+                assert!(
+                    stderr.contains("Try") || 
+                    stderr.contains("Make sure") || 
+                    stderr.contains("Check") ||
+                    stderr.contains("💡") ||
+                    stderr.contains("tip:") ||
+                    stderr.contains("Usage:") ||
+                    stderr.contains("For more information"),
+                    "Error messages should provide helpful guidance. stderr: {stderr}"
+                );
+            }
         }
     }
 

@@ -5,12 +5,21 @@ use crate::search::{
     file_type_strategy::FileTypeStrategy, fuzzy::FuzzySearch, keyword::KeywordSearch,
     regex_search::RegexSearch,
 };
+use crate::SearchOptions;
 use crate::SearchResult;
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-/// Automatically selects the best search strategy based on query analysis and project context
+/// Search mode enum for internal use
+enum SearchMode {
+    Keyword,
+    Fuzzy,
+    Regex,
+}
+
+/// AutoStrategy automatically selects the best search strategy based on query analysis
+/// and project context. This implements the "Smart Query Analysis" from the UX plan.
 pub struct AutoStrategy {
     keyword_search: KeywordSearch,
     fuzzy_search: FuzzySearch,
@@ -20,10 +29,8 @@ pub struct AutoStrategy {
 }
 
 impl AutoStrategy {
-    /// Creates a new AutoStrategy instance
+    /// Create a new AutoStrategy with default search engines
     pub fn new() -> Self {
-        // For now, we'll create without semantic search to avoid async issues
-        // In a real implementation, this would be async or use a different approach
         Self {
             keyword_search: KeywordSearch::new(),
             fuzzy_search: FuzzySearch::new(),
@@ -33,7 +40,7 @@ impl AutoStrategy {
         }
     }
 
-    /// Creates a new AutoStrategy instance with semantic search (async)
+    /// Create an AutoStrategy with semantic search capabilities
     pub async fn with_semantic_search() -> Result<Self> {
         let config = EmbeddingConfig::default();
         let embedder = LocalEmbedder::new(config).await?;
@@ -50,7 +57,13 @@ impl AutoStrategy {
 
     /// Performs a search using the automatically selected strategy
     /// Integrates context detection silently (UX Remediation Plan Task 2.1)
-    pub async fn search(&self, query: &str, path: &str) -> Result<Vec<SearchResult>> {
+    /// Now accepts SearchOptions for advanced filtering (include/exclude patterns)
+    pub async fn search(
+        &self,
+        query: &str,
+        path: &str,
+        options: Option<&SearchOptions>,
+    ) -> Result<Vec<SearchResult>> {
         let query_type = QueryAnalyzer::analyze(query);
 
         // Silent context detection - no output to user
@@ -59,8 +72,8 @@ impl AutoStrategy {
         // Context config available for future use (file patterns, ignore patterns, etc.)
         let _context_config = ContextAwareConfig::from_project_type(project_type.clone());
 
-        // Get all files in the path
-        let files = self.get_files_in_path(path)?;
+        // Get all files in the path, applying include/exclude filtering if provided
+        let files = self.get_files_in_path(path, options)?;
 
         // For file extension queries, extract file extension and filter files
         if query_type == QueryType::FileExtension {
@@ -74,21 +87,29 @@ impl AutoStrategy {
             | (QueryType::CodePattern, ProjectType::JavaScriptProject, _)
             | (QueryType::CodePattern, ProjectType::PythonProject, _) => {
                 let regex_query = self.code_pattern_to_regex(query);
-                self.regex_search.search(&regex_query, path).await?
+                self.search_in_files(&regex_query, &files, SearchMode::Regex)
+                    .await?
             }
 
             // Conceptual queries use semantic search if available, otherwise fuzzy
             (QueryType::Conceptual, _, Some(_semantic)) => {
                 // For now, fallback to fuzzy since semantic search doesn't have path-based search
                 // In a real implementation, this would use the semantic search with file chunks
-                self.fuzzy_search.search(query, path).await?
+                self.search_in_files(query, &files, SearchMode::Fuzzy)
+                    .await?
             }
 
             // Exact phrases use keyword search
-            (QueryType::ExactPhrase, _, _) => self.keyword_search.search(query, path).await?,
+            (QueryType::ExactPhrase, _, _) => {
+                self.search_in_files(query, &files, SearchMode::Keyword)
+                    .await?
+            }
 
             // Regex-like patterns use regex search
-            (QueryType::RegexLike, _, _) => self.regex_search.search(query, path).await?,
+            (QueryType::RegexLike, _, _) => {
+                self.search_in_files(query, &files, SearchMode::Regex)
+                    .await?
+            }
 
             // Documentation projects use file type strategy
             (_, ProjectType::Documentation, _) | (_, ProjectType::Mixed, _) => {
@@ -96,31 +117,57 @@ impl AutoStrategy {
             }
 
             // Default to keyword search first
-            _ => self.keyword_search.search(query, path).await?,
+            _ => {
+                self.search_in_files(query, &files, SearchMode::Keyword)
+                    .await?
+            }
         };
 
         // If no results found, automatically try fuzzy search for typo tolerance
         // This implements the automatic typo correction from smart query analysis
         if primary_results.is_empty() && !matches!(query_type, QueryType::RegexLike) {
-            self.fuzzy_search.search(query, path).await
+            self.search_in_files(query, &files, SearchMode::Fuzzy).await
         } else {
             Ok(primary_results)
         }
     }
 
-    /// Get all files in a path recursively
-    fn get_files_in_path(&self, path: &str) -> Result<Vec<PathBuf>> {
+    /// Get all files in a path recursively, applying include/exclude filtering
+    fn get_files_in_path(
+        &self,
+        path: &str,
+        options: Option<&SearchOptions>,
+    ) -> Result<Vec<PathBuf>> {
         let mut files = Vec::new();
         let path = Path::new(path);
+
+        // Check if path exists
+        if !path.exists() {
+            return Err(anyhow::anyhow!(
+                "No such file or directory: '{}' not found",
+                path.display()
+            ));
+        }
 
         if path.is_file() {
             files.push(path.to_path_buf());
             return Ok(files);
         }
 
-        // Simple recursive directory traversal
+        // Simple recursive directory traversal with default exclusions
         fn visit_dirs(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
             if dir.is_dir() {
+                // Skip common build/cache directories by default
+                if let Some(dir_name) = dir.file_name() {
+                    if let Some(name_str) = dir_name.to_str() {
+                        if ["target", "node_modules", ".git", "build", "dist", "__pycache__", ".cache"]
+                            .contains(&name_str)
+                        {
+                            return Ok(()); // Skip this directory
+                        }
+                    }
+                }
+
                 for entry in std::fs::read_dir(dir)? {
                     let entry = entry?;
                     let path = entry.path();
@@ -135,7 +182,110 @@ impl AutoStrategy {
         }
 
         visit_dirs(path, &mut files)?;
+
+        // Apply include/exclude filtering if options are provided
+        if let Some(options) = options {
+            files = self.apply_file_filtering(files, options);
+        }
+
         Ok(files)
+    }
+
+    /// Apply include/exclude pattern filtering to files
+    fn apply_file_filtering(&self, files: Vec<PathBuf>, options: &SearchOptions) -> Vec<PathBuf> {
+        files
+            .into_iter()
+            .filter(|file| {
+                let file_path_str = file.to_string_lossy();
+                let file_name = file
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("");
+
+                // Apply include patterns (if any)
+                if !options.include_patterns.is_empty() {
+                    let matches_include = options.include_patterns.iter().any(|pattern| {
+                        self.glob_match(pattern, &file_path_str)
+                            || self.glob_match(pattern, file_name)
+                    });
+                    if !matches_include {
+                        return false; // Skip file - doesn't match any include pattern
+                    }
+                }
+
+                // Apply exclude patterns (if any)
+                if !options.exclude_patterns.is_empty() {
+                    let matches_exclude = options.exclude_patterns.iter().any(|pattern| {
+                        self.glob_match(pattern, &file_path_str)
+                            || self.glob_match(pattern, file_name)
+                    });
+                    if matches_exclude {
+                        return false; // Skip file - matches an exclude pattern
+                    }
+                }
+
+                true // Include file
+            })
+            .collect()
+    }
+
+    /// Simple glob pattern matching (supports * wildcard)
+    fn glob_match(&self, pattern: &str, text: &str) -> bool {
+        if pattern == "*" {
+            return true;
+        }
+
+        // Convert glob pattern to regex-like matching
+        if pattern.contains('*') {
+            let pattern_parts: Vec<&str> = pattern.split('*').collect();
+            if pattern_parts.len() == 2 {
+                let start = pattern_parts[0];
+                let end = pattern_parts[1];
+
+                if start.is_empty() && !end.is_empty() {
+                    // Pattern like "*.rs"
+                    text.ends_with(end)
+                } else if end.is_empty() && !start.is_empty() {
+                    // Pattern like "test*"
+                    text.starts_with(start)
+                } else if !start.is_empty() && !end.is_empty() {
+                    // Pattern like "*test*"
+                    text.contains(start) && text.contains(end)
+                } else {
+                    // Pattern is just "*"
+                    true
+                }
+            } else {
+                // More complex patterns - simple contains check
+                let pattern_without_stars = pattern.replace('*', "");
+                text.contains(&pattern_without_stars)
+            }
+        } else {
+            // No wildcards - exact match
+            text == pattern
+        }
+    }
+
+    /// Search in specific files using the specified mode
+    async fn search_in_files(
+        &self,
+        query: &str,
+        files: &[PathBuf],
+        mode: SearchMode,
+    ) -> Result<Vec<SearchResult>> {
+        let mut results = Vec::new();
+
+        for file in files {
+            let file_path = file.to_str().unwrap_or(".");
+            let file_results = match mode {
+                SearchMode::Keyword => self.keyword_search.search(query, file_path).await?,
+                SearchMode::Fuzzy => self.fuzzy_search.search(query, file_path).await?,
+                SearchMode::Regex => self.regex_search.search(query, file_path).await?,
+            };
+            results.extend(file_results);
+        }
+
+        Ok(results)
     }
 
     /// Converts code patterns to regex patterns
@@ -193,28 +343,15 @@ impl AutoStrategy {
         let clean_query = self.clean_query_from_extensions(query);
 
         // Search in filtered files using the appropriate strategy
-        let mut results = Vec::new();
-        for file in &filtered_files {
-            if let Ok(file_results) = self
-                .keyword_search
-                .search(&clean_query, file.to_str().unwrap_or("."))
-                .await
-            {
-                results.extend(file_results);
-            }
-        }
+        let mut results = self
+            .search_in_files(&clean_query, &filtered_files, SearchMode::Keyword)
+            .await?;
 
         // If no results with filtered files, fall back to fuzzy search in all files
         if results.is_empty() && !filtered_files.is_empty() {
-            for file in &filtered_files {
-                if let Ok(file_results) = self
-                    .fuzzy_search
-                    .search(&clean_query, file.to_str().unwrap_or("."))
-                    .await
-                {
-                    results.extend(file_results);
-                }
-            }
+            results = self
+                .search_in_files(&clean_query, &filtered_files, SearchMode::Fuzzy)
+                .await?;
         }
 
         Ok(results)

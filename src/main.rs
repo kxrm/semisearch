@@ -82,13 +82,14 @@ async fn run_main() -> Result<()> {
             }
 
             // Perform search with enhanced error handling
-            let results = match execute_search(&args.query, &search_path, &options).await {
-                Ok(results) => results,
-                Err(e) => {
-                    handle_error_with_context(e, Some(&args.query), Some(&search_path)).await;
-                    return Ok(()); // This line won't be reached due to process::exit in handle_error_with_context
-                }
-            };
+            let results =
+                match execute_search(&args.query, &search_path, &options, cli.advanced).await {
+                    Ok(results) => results,
+                    Err(e) => {
+                        handle_error_with_context(e, Some(&args.query), Some(&search_path)).await;
+                        return Ok(()); // This line won't be reached due to process::exit in handle_error_with_context
+                    }
+                };
 
             let search_time = start_time.elapsed();
 
@@ -194,7 +195,8 @@ fn display_advanced_results(
 async fn execute_search(
     query: &str,
     path: &str,
-    _options: &SearchOptions,
+    options: &SearchOptions,
+    advanced_mode: bool,
 ) -> Result<Vec<SearchResult>> {
     use search::search::auto_strategy::AutoStrategy;
 
@@ -212,7 +214,16 @@ async fn execute_search(
     };
 
     // Perform smart search with automatic strategy selection
-    auto_strategy.search(query, path).await
+    // Only pass options if in advanced mode AND they contain filtering patterns
+    let options_to_pass = if advanced_mode
+        && (!options.include_patterns.is_empty() || !options.exclude_patterns.is_empty())
+    {
+        Some(options) // Advanced mode with filtering patterns
+    } else {
+        None // Basic mode or no filtering patterns
+    };
+
+    auto_strategy.search(query, path, options_to_pass).await
 }
 
 /// Determine if we should use semantic search based on query characteristics
@@ -604,7 +615,7 @@ async fn run_doctor() -> Result<()> {
     let test_path = ".";
     let test_options = SearchOptions::default();
 
-    match execute_search(test_query, test_path, &test_options).await {
+    match execute_search(test_query, test_path, &test_options, false).await {
         Ok(results) => {
             let duration = start.elapsed();
             println!(
