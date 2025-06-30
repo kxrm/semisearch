@@ -2,7 +2,7 @@
 
 ## What is SemiSearch?
 
-SemiSearch helps you find text in your files, even when you don't remember the exact words.
+SemiSearch helps you find text in your files, even when you don't remember the exact words. It's designed to be simple for beginners but grows with you as you learn.
 
 ## Basic Usage
 
@@ -35,18 +35,40 @@ semisearch "error"
 semisearch "function login"
 ```
 
+### Search in specific places
+```bash
+semisearch "TODO" src/          # Search only in src/ directory
+semisearch "config" config.json # Search in specific file
+```
+
 ## When Things Go Wrong
 
 ### No results found?
+SemiSearch will automatically suggest what to try:
+```bash
+semisearch "nonexistent"
+# Shows helpful suggestions like:
+# • Try different words
+# • Check spelling with --fuzzy
+# • Search in parent directories
+```
+
 Try:
-- Check spelling: `semisearch "your search" --fuzzy`
-- Use simpler words: `semisearch "login"` instead of `semisearch "authentication"`
-- Search everywhere: `semisearch "your search" .`
+- **Check spelling**: `semisearch "databse" --fuzzy` (finds "database")
+- **Use simpler words**: `semisearch "login"` instead of `semisearch "authentication"`
+- **Search everywhere**: `semisearch "your search" .`
 
 ### Too many results?
+SemiSearch automatically gives you tips:
+```bash
+semisearch "function"
+# Shows: "Many results found. Use more specific terms or search in specific folders"
+```
+
 Try:
-- Be more specific: `semisearch "function validateUser"`
-- Search in specific folders: `semisearch "TODO" src/`
+- **Be more specific**: `semisearch "function validateUser"`
+- **Search in specific folders**: `semisearch "TODO" src/`
+- **Use exact phrases**: `semisearch "exact phrase" --exact`
 
 ### Still stuck?
 Run: `semisearch help-me` for interactive help.
@@ -65,15 +87,9 @@ This will start an interactive session where you can:
 - Learn about different search options
 - Practice with real examples
 
-### Interactive Commands
+The help system will guide you step by step and is perfect for learning.
 
-Within the interactive help, you can use:
-- `help` or `?` - Show available commands
-- `examples` - Show common search examples
-- `tips` - Show search tips and best practices
-- `quit` or `exit` - Exit interactive help
-
-## Search Flags
+## Simple Flags
 
 ### Handle typos and similar words
 ```bash
@@ -86,15 +102,14 @@ This will find "database" even with the typo!
 semisearch "exact phrase" --exact
 ```
 
-### Show more results
+### Show more context around matches
 ```bash
-semisearch "TODO" --limit 20
+semisearch "function" --context 2
 ```
 
-### Search in specific locations
+### Get output as JSON (for scripts)
 ```bash
-semisearch "function" src/          # Search only in src/ directory
-semisearch "config" config.json     # Search in specific file
+semisearch "config" --format json
 ```
 
 ## Getting Help
@@ -103,21 +118,51 @@ semisearch "config" config.json     # Search in specific file
 ```bash
 semisearch status
 ```
+This shows:
+- What type of project you're in (Rust, JavaScript, etc.)
+- How many files are indexed
+- What search capabilities are available
+- Helpful tips for your project type
 
 ### Interactive help and tutorials
 ```bash
 semisearch help-me
 ```
+Perfect for beginners - guides you through examples step by step.
+
+### Detailed diagnostics
+```bash
+semisearch doctor
+```
+Shows detailed information about your system and search capabilities.
 
 ### Quick command reference
 ```bash
 semisearch --help
 ```
 
-### Advanced options (for power users)
+### Advanced options (when you're ready)
 ```bash
 semisearch --advanced --help
 ```
+
+## Progressive Learning
+
+SemiSearch learns with you and gives you tips based on your experience:
+
+### New Users (1-3 searches)
+- **Encouraging feedback**: "💡 Great start! Keep exploring"
+- **Basic guidance**: Simple tips to help you get started
+
+### Intermediate Users (4-10 searches)  
+- **Feature discovery**: "💡 Try --fuzzy for spelling variations"
+- **Smart suggestions**: Based on what you're actually searching for
+
+### Experienced Users (11+ searches)
+- **Advanced features**: "💡 Try --advanced for more powerful options"
+- **Power user tips**: Learn about regex, filtering, and advanced modes
+
+The tool automatically adjusts its suggestions based on how much you've used it.
 
 ## Common Use Cases
 
@@ -126,6 +171,8 @@ semisearch --advanced --help
 - `semisearch "async function"` - Find async functions
 - `semisearch "import React"` - Find React imports
 - `semisearch "try catch"` - Find error handling
+- `semisearch "fn main"` - Find main functions (Rust)
+- `semisearch "#[test]"` - Find test functions (Rust)
 
 ### For Writers
 - `semisearch "needs revision"` - Find draft sections
@@ -151,9 +198,9 @@ If "error" doesn't work, try:
 - `semisearch "catch"`
 
 ### Search in the Right Place
-- Code: `semisearch "function" src/`
-- Documentation: `semisearch "tutorial" docs/`
-- Configuration: `semisearch "port" config/`
+- **Code**: `semisearch "function" src/`
+- **Documentation**: `semisearch "tutorial" docs/`
+- **Tests**: `semisearch "test" tests/`
 
 ### Handle Typos
 Always add `--fuzzy` when you're not sure about spelling:
@@ -164,31 +211,112 @@ semisearch "databse connection" --fuzzy
 ## What Makes SemiSearch Special?
 
 ### Smart Search
-SemiSearch automatically chooses the best search method based on what you're looking for:
-- Simple words → Fast keyword search
-- Complex phrases → Intelligent matching
-- Code patterns → Code-aware search
+SemiSearch automatically chooses the best search method:
+- **Simple words** → Fast keyword search
+- **Complex phrases** → Intelligent text analysis
+- **Code patterns** → Code-aware search
+- **Typos detected** → Automatic fuzzy matching
 
-### Helpful Errors
-When searches don't work, SemiSearch tells you exactly what to try next, with specific examples.
+### Helpful Tips
+SemiSearch gives you contextual suggestions:
+- When you have no results: Suggests different words or fuzzy search
+- When you have too many results: Suggests being more specific
+- Based on your experience level: Tips get more advanced as you learn
+
+### Project Awareness
+SemiSearch automatically detects what kind of project you're in:
+- **Rust projects**: Focuses on .rs files, suggests Rust-specific patterns
+- **JavaScript projects**: Focuses on .js/.ts files
+- **Documentation projects**: Focuses on .md files
+- **Mixed projects**: Adapts to what you're searching
 
 ### No Setup Required
-Just install and start searching. SemiSearch works out of the box.
+Just install and start searching. SemiSearch works immediately and gets better as you use it.
+
+## Making Searches Faster
+
+### Index Large Projects
+```bash
+semisearch index .
+```
+This makes all future searches much faster. Do this once for each project.
+
+### Search Specific Folders
+```bash
+semisearch "function" src/    # Only search src/
+semisearch "TODO" tests/      # Only search tests/
+```
+
+## Understanding Your Results
+
+SemiSearch organizes results to be helpful:
+- **Groups by file**: Shows multiple matches in the same file together
+- **Shows context**: You can see the line where each match was found
+- **Counts results**: "Found 8 matches" so you know what you're looking at
+- **Provides tips**: Suggests what to do if you have too many or too few results
 
 ## Next Steps
 
 Once you're comfortable with basic searching:
 
-1. **Learn about indexing**: `semisearch index .` to make searches faster
-2. **Explore advanced features**: `semisearch --advanced --help`
-3. **Check system status**: `semisearch status` to see all capabilities
-4. **Run diagnostics**: `semisearch doctor` for detailed system information
+1. **Try the advanced mode**: `semisearch --advanced --help`
+2. **Index your projects**: `semisearch index .` for faster searches
+3. **Explore project detection**: `semisearch status` to see how SemiSearch understands your project
+4. **Learn from tips**: Pay attention to the suggestions SemiSearch gives you
+
+## Advanced Features (When You're Ready)
+
+### Include/Exclude File Patterns
+```bash
+semisearch --advanced "TODO" --include "*.rs"     # Only Rust files
+semisearch --advanced "test" --exclude "*test*"   # Exclude test files
+```
+
+### Specific Search Modes
+```bash
+semisearch --advanced "pattern.*regex" --mode regex  # Use regex patterns
+semisearch --advanced "exact text" --mode keyword    # Exact matching only
+```
+
+### Fine-tune Results
+```bash
+semisearch --advanced "query" --semantic-threshold 0.8  # Higher relevance
+```
 
 ## Need More Help?
 
-- **Interactive help**: `semisearch help-me`
-- **Quick status check**: `semisearch status`
-- **Full documentation**: Check the other files in the `docs/` folder
-- **Advanced features**: `semisearch --advanced --help`
+SemiSearch is designed to guide you:
 
-Remember: SemiSearch is designed to be helpful. If you're stuck, the tool will guide you to the solution! 
+- **Stuck on a search?** The tool will suggest what to try next
+- **Want to learn more?** `semisearch help-me` for interactive guidance
+- **Need technical details?** `semisearch doctor` for system information
+- **Ready for advanced features?** `semisearch --advanced --help`
+
+Remember: SemiSearch grows with you. Start simple, and the tool will teach you more advanced features as you're ready for them!
+
+## Troubleshooting
+
+### "No matches found"
+This is normal! SemiSearch will suggest what to try:
+- Different words
+- Fuzzy search for typos
+- Broader search locations
+
+### "Found 400+ matches"
+Also normal! SemiSearch will suggest:
+- More specific terms
+- Searching in specific folders
+- Using exact phrases
+
+### Search feels slow
+Try:
+- `semisearch index .` to speed up future searches
+- Search in specific folders instead of everything
+- `semisearch doctor` to check system status
+
+### Not finding what you expect
+- Try `--fuzzy` for typo tolerance
+- Use simpler, more common words
+- Check that you're searching in the right directory
+
+Remember: SemiSearch is designed to help you succeed. When something doesn't work, it will tell you exactly what to try next! 

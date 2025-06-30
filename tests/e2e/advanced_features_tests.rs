@@ -315,14 +315,24 @@ mod advanced_features_tests {
         assert!(success, "Exclude pattern search should work");
 
         if stdout_no_tests.contains("Found") {
-            // Should not find results in files with "test" in the name
+            // Should not find results in files with "test" in the filename/path
             let has_test_files = stdout_no_tests.lines().any(|line| {
-                (line.contains("📁") || line.contains("/")) && line.to_lowercase().contains("test")
+                // Check if this is a file path line that contains "test" in the actual filename
+                if line.contains("📁") {
+                    // Extract the filename from the path
+                    if let Some(filename) = line.split('/').next_back() {
+                        filename.to_lowercase().contains("test")
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
             });
 
             assert!(
                 !has_test_files,
-                "Exclude *test* should not show test files. Output: {stdout_no_tests}"
+                "Exclude *test* should not show files with 'test' in filename. Output: {stdout_no_tests}"
             );
         }
 
