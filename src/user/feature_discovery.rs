@@ -5,16 +5,28 @@ pub struct FeatureDiscovery;
 
 impl FeatureDiscovery {
     /// Suggest the next step for a user based on their usage patterns and current search
-    pub fn suggest_next_step(stats: &UsageStats, current_query: &str, result_count: usize) -> Option<String> {
+    pub fn suggest_next_step(
+        stats: &UsageStats,
+        current_query: &str,
+        result_count: usize,
+    ) -> Option<String> {
         let experience_level = Self::determine_experience_level(stats);
         let query_pattern = QueryPattern::analyze(current_query);
 
         // Progressive disclosure based on experience level
         match experience_level {
-            UserExperienceLevel::Beginner => Self::suggest_for_beginner(stats, &query_pattern, result_count),
-            UserExperienceLevel::Intermediate => Self::suggest_for_intermediate(stats, &query_pattern, result_count),
-            UserExperienceLevel::Experienced => Self::suggest_for_experienced(stats, &query_pattern, result_count),
-            UserExperienceLevel::Expert => Self::suggest_for_expert(stats, &query_pattern, result_count),
+            UserExperienceLevel::Beginner => {
+                Self::suggest_for_beginner(stats, &query_pattern, result_count)
+            }
+            UserExperienceLevel::Intermediate => {
+                Self::suggest_for_intermediate(stats, &query_pattern, result_count)
+            }
+            UserExperienceLevel::Experienced => {
+                Self::suggest_for_experienced(stats, &query_pattern, result_count)
+            }
+            UserExperienceLevel::Expert => {
+                Self::suggest_for_expert(stats, &query_pattern, result_count)
+            }
         }
     }
 
@@ -29,7 +41,11 @@ impl FeatureDiscovery {
     }
 
     /// Suggestions for beginner users (0-3 searches)
-    fn suggest_for_beginner(stats: &UsageStats, _pattern: &QueryPattern, result_count: usize) -> Option<String> {
+    fn suggest_for_beginner(
+        stats: &UsageStats,
+        _pattern: &QueryPattern,
+        result_count: usize,
+    ) -> Option<String> {
         match result_count {
             0 => Some("💡 No matches found? Try simpler terms or check spelling.".to_string()),
             1..=5 => {
@@ -45,10 +61,17 @@ impl FeatureDiscovery {
     }
 
     /// Suggestions for intermediate users (4-10 searches)
-    fn suggest_for_intermediate(stats: &UsageStats, pattern: &QueryPattern, result_count: usize) -> Option<String> {
+    fn suggest_for_intermediate(
+        stats: &UsageStats,
+        pattern: &QueryPattern,
+        result_count: usize,
+    ) -> Option<String> {
         // Introduce fuzzy search for typos
         if matches!(pattern, QueryPattern::PotentialTypo) && !stats.fuzzy_mode_used {
-            return Some("💡 Looks like a typo? Try adding --fuzzy to handle spelling variations.".to_string());
+            return Some(
+                "💡 Looks like a typo? Try adding --fuzzy to handle spelling variations."
+                    .to_string(),
+            );
         }
 
         // Introduce advanced mode for complex patterns (intermediate users can learn about regex)
@@ -64,14 +87,26 @@ impl FeatureDiscovery {
         // Result-based suggestions
         match result_count {
             0 => Some("💡 No results? Try --fuzzy for typos or broader search terms.".to_string()),
-            1..=3 => Some("💡 Few results. Try broader terms or search in parent directories.".to_string()),
-            20..=50 => Some("💡 Many results. Try more specific terms or search in specific folders.".to_string()),
-            _ => Some("💡 Too many results. Be more specific or search in a particular directory.".to_string()),
+            1..=3 => Some(
+                "💡 Few results. Try broader terms or search in parent directories.".to_string(),
+            ),
+            20..=50 => Some(
+                "💡 Many results. Try more specific terms or search in specific folders."
+                    .to_string(),
+            ),
+            _ => Some(
+                "💡 Too many results. Be more specific or search in a particular directory."
+                    .to_string(),
+            ),
         }
     }
 
     /// Suggestions for experienced users (11-25 searches)
-    fn suggest_for_experienced(stats: &UsageStats, pattern: &QueryPattern, result_count: usize) -> Option<String> {
+    fn suggest_for_experienced(
+        stats: &UsageStats,
+        pattern: &QueryPattern,
+        result_count: usize,
+    ) -> Option<String> {
         // Introduce advanced mode for complex patterns
         if matches!(pattern, QueryPattern::RegexLike) && !stats.advanced_mode_used {
             return Some("💡 Complex pattern detected! Try --advanced for regex and more powerful search options.".to_string());
@@ -91,7 +126,11 @@ impl FeatureDiscovery {
     }
 
     /// Suggestions for expert users (25+ searches)
-    fn suggest_for_expert(_stats: &UsageStats, pattern: &QueryPattern, result_count: usize) -> Option<String> {
+    fn suggest_for_expert(
+        _stats: &UsageStats,
+        pattern: &QueryPattern,
+        result_count: usize,
+    ) -> Option<String> {
         // Only provide suggestions for specific scenarios
         match (pattern, result_count) {
             (QueryPattern::RegexLike, 0) => Some("💡 Complex regex with no results? Check pattern syntax or try simpler alternatives.".to_string()),
@@ -101,11 +140,20 @@ impl FeatureDiscovery {
     }
 
     /// Generate contextual tips based on search patterns
-    pub fn generate_contextual_tip(stats: &UsageStats, recent_patterns: &[QueryPattern]) -> Option<String> {
+    pub fn generate_contextual_tip(
+        stats: &UsageStats,
+        recent_patterns: &[QueryPattern],
+    ) -> Option<String> {
         // Look for learning opportunities in recent patterns
-        let has_typos = recent_patterns.iter().any(|p| matches!(p, QueryPattern::PotentialTypo));
-        let has_regex = recent_patterns.iter().any(|p| matches!(p, QueryPattern::RegexLike));
-        let has_file_filtering = recent_patterns.iter().any(|p| matches!(p, QueryPattern::FileFiltering));
+        let has_typos = recent_patterns
+            .iter()
+            .any(|p| matches!(p, QueryPattern::PotentialTypo));
+        let has_regex = recent_patterns
+            .iter()
+            .any(|p| matches!(p, QueryPattern::RegexLike));
+        let has_file_filtering = recent_patterns
+            .iter()
+            .any(|p| matches!(p, QueryPattern::FileFiltering));
 
         match Self::determine_experience_level(stats) {
             UserExperienceLevel::Intermediate => {
@@ -116,7 +164,7 @@ impl FeatureDiscovery {
                 } else {
                     None
                 }
-            },
+            }
             UserExperienceLevel::Experienced => {
                 if has_regex && !stats.advanced_mode_used {
                     Some("💡 I see you're using complex patterns. Try --advanced for full regex support and more options.".to_string())
@@ -125,13 +173,17 @@ impl FeatureDiscovery {
                 } else {
                     None
                 }
-            },
+            }
             _ => None,
         }
     }
 
     /// Generate tips based on search effectiveness
-    pub fn suggest_search_improvement(query: &str, result_count: usize, stats: &UsageStats) -> Option<String> {
+    pub fn suggest_search_improvement(
+        query: &str,
+        result_count: usize,
+        stats: &UsageStats,
+    ) -> Option<String> {
         let experience = Self::determine_experience_level(stats);
         let pattern = QueryPattern::analyze(query);
 
@@ -140,7 +192,7 @@ impl FeatureDiscovery {
             (0, QueryPattern::PotentialTypo, _) => {
                 Some("💡 No results found. This looks like a typo - try --fuzzy to find similar matches.".to_string())
             },
-            (0, QueryPattern::RegexLike, UserExperienceLevel::Experienced) | 
+            (0, QueryPattern::RegexLike, UserExperienceLevel::Experienced) |
             (0, QueryPattern::RegexLike, UserExperienceLevel::Expert) => {
                 Some("💡 No results for this pattern. Try --advanced for full regex support.".to_string())
             },
@@ -176,7 +228,7 @@ impl FeatureDiscovery {
             UserExperienceLevel::Beginner => true, // Always show tips for beginners
             UserExperienceLevel::Intermediate => stats.total_searches % 2 == 0, // Every other search
             UserExperienceLevel::Experienced => stats.total_searches % 3 == 0, // Every third search
-            UserExperienceLevel::Expert => stats.total_searches % 5 == 0, // Every fifth search
+            UserExperienceLevel::Expert => stats.total_searches % 5 == 0,      // Every fifth search
         }
     }
 }
@@ -272,11 +324,14 @@ mod tests {
         assert!(FeatureDiscovery::should_show_tip(&beginner_stats));
 
         // Experts should see tips less frequently
-        let expert_tip_frequency = (0..10).map(|i| {
-            let mut stats = expert_stats.clone();
-            stats.total_searches = 30 + i;
-            FeatureDiscovery::should_show_tip(&stats)
-        }).filter(|&x| x).count();
+        let expert_tip_frequency = (0..10)
+            .map(|i| {
+                let mut stats = expert_stats.clone();
+                stats.total_searches = 30 + i;
+                FeatureDiscovery::should_show_tip(&stats)
+            })
+            .filter(|&x| x)
+            .count();
 
         assert!(expert_tip_frequency < 5); // Should show tips less than half the time
     }
@@ -298,4 +353,4 @@ mod tests {
         let tip_text = tip.unwrap();
         assert!(tip_text.contains("--fuzzy") || tip_text.contains("typo"));
     }
-} 
+}

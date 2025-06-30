@@ -96,7 +96,10 @@ async fn run_main() -> Result<()> {
             let search_time = start_time.elapsed();
 
             // Track usage for progressive feature discovery (ignore errors)
-            if track_search_usage(&args.query, args.fuzzy, cli.advanced, results.len()).await.is_err() {
+            if track_search_usage(&args.query, args.fuzzy, cli.advanced, results.len())
+                .await
+                .is_err()
+            {
                 // Silently ignore tracking errors - don't break user experience
             }
 
@@ -284,7 +287,6 @@ fn display_simple_results(
     query: &str,
     search_time: std::time::Duration,
 ) -> Result<()> {
-
     use search::errors::{provide_contextual_suggestions, UserFriendlyError};
     use search::output::HumanFormatter;
 
@@ -298,15 +300,17 @@ fn display_simple_results(
             // Show results but also provide suggestions for narrowing
             let formatted_output = HumanFormatter::format_results(results, query, search_time);
             print!("{formatted_output}");
-            
+
             // Show progressive feature discovery tips even for many results
             let mut progressive_tip_shown = false;
             if let Ok(usage_file) = UsageTracker::default_usage_file() {
                 if let Ok(tracker) = UsageTracker::load(usage_file) {
                     let stats = tracker.get_stats();
-                    
+
                     if FeatureDiscovery::should_show_tip(stats) {
-                        if let Some(tip) = FeatureDiscovery::suggest_next_step(stats, query, results.len()) {
+                        if let Some(tip) =
+                            FeatureDiscovery::suggest_next_step(stats, query, results.len())
+                        {
                             println!();
                             println!("{tip}");
                             progressive_tip_shown = true;
@@ -314,12 +318,12 @@ fn display_simple_results(
                     }
                 }
             }
-            
+
             // Show contextual suggestions only if no progressive tip was shown
             if !progressive_tip_shown {
                 println!("\n{}", suggestion.display());
             }
-            
+
             return Ok(());
         }
     }
@@ -340,10 +344,11 @@ fn display_simple_results(
     if let Ok(usage_file) = UsageTracker::default_usage_file() {
         if let Ok(tracker) = UsageTracker::load(usage_file) {
             let stats = tracker.get_stats();
-            
+
             // Only show tips if appropriate for user's experience level
             if FeatureDiscovery::should_show_tip(stats) {
-                if let Some(tip) = FeatureDiscovery::suggest_next_step(stats, query, results.len()) {
+                if let Some(tip) = FeatureDiscovery::suggest_next_step(stats, query, results.len())
+                {
                     println!();
                     println!("{tip}");
                     progressive_tip_shown = true;

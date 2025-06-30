@@ -131,7 +131,7 @@ mod progressive_feature_discovery_tests {
     fn test_usage_tracking() {
         let temp_dir = TempDir::new().unwrap();
         let usage_file = temp_dir.path().join("usage.json");
-        
+
         let mut tracker = UsageTracker::new(usage_file.clone());
 
         // Track some searches
@@ -149,20 +149,16 @@ mod progressive_feature_discovery_tests {
         assert!(!stats.advanced_mode_used);
         assert_eq!(stats.recent_queries.len(), 3);
         assert_eq!(stats.complex_queries.len(), 1);
-        assert!(stats.complex_queries.contains(&"function.*login".to_string()));
+        assert!(stats
+            .complex_queries
+            .contains(&"function.*login".to_string()));
     }
 
     /// Test: Query pattern detection
     #[test]
     fn test_query_pattern_detection() {
-        assert_eq!(
-            QueryPattern::analyze("TODO"),
-            QueryPattern::Simple
-        );
-        assert_eq!(
-            QueryPattern::analyze("TODO.*Fix"),
-            QueryPattern::RegexLike
-        );
+        assert_eq!(QueryPattern::analyze("TODO"), QueryPattern::Simple);
+        assert_eq!(QueryPattern::analyze("TODO.*Fix"), QueryPattern::RegexLike);
         assert_eq!(
             QueryPattern::analyze("databse"),
             QueryPattern::PotentialTypo
@@ -236,7 +232,8 @@ mod progressive_feature_discovery_tests {
             complex_queries: vec![],
         };
 
-        let intermediate_tip = FeatureDiscovery::suggest_next_step(&intermediate_stats, "databse", 0);
+        let intermediate_tip =
+            FeatureDiscovery::suggest_next_step(&intermediate_stats, "databse", 0);
         if let Some(tip) = intermediate_tip {
             assert!(
                 tip.contains("--fuzzy") || tip.contains("typo"),
@@ -261,4 +258,4 @@ mod progressive_feature_discovery_tests {
             );
         }
     }
-} 
+}

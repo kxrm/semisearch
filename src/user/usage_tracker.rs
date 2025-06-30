@@ -6,30 +6,47 @@ use std::path::PathBuf;
 /// Represents different patterns in user queries
 #[derive(Debug, Clone, PartialEq)]
 pub enum QueryPattern {
-    Simple,         // "TODO"
-    RegexLike,      // "TODO.*Fix"
-    PotentialTypo,  // "databse"
-    Conceptual,     // "error handling patterns"
-    FileFiltering,  // "TODO .py files"
+    Simple,        // "TODO"
+    RegexLike,     // "TODO.*Fix"
+    PotentialTypo, // "databse"
+    Conceptual,    // "error handling patterns"
+    FileFiltering, // "TODO .py files"
 }
 
 impl QueryPattern {
     /// Analyze a query to determine its pattern
     pub fn analyze(query: &str) -> Self {
         // Check for regex patterns
-        if query.contains(".*") || query.contains("\\d") || query.contains("[") || query.contains("(") {
+        if query.contains(".*")
+            || query.contains("\\d")
+            || query.contains("[")
+            || query.contains("(")
+        {
             return Self::RegexLike;
         }
 
         // Check for file extension filtering
-        if query.contains(".py") || query.contains(".rs") || query.contains(".js") || query.contains(".md") {
+        if query.contains(".py")
+            || query.contains(".rs")
+            || query.contains(".js")
+            || query.contains(".md")
+        {
             return Self::FileFiltering;
         }
 
         // Check for potential typos (common misspellings)
         let typo_patterns = [
-            "databse", "functoin", "recieve", "seperate", "occurance", "accomodate",
-            "arguement", "begining", "definately", "existance", "independant",
+            "databse",
+            "functoin",
+            "recieve",
+            "seperate",
+            "occurance",
+            "accomodate",
+            "arguement",
+            "begining",
+            "definately",
+            "existance",
+            "independant",
         ];
         if typo_patterns.iter().any(|&typo| query.contains(typo)) {
             return Self::PotentialTypo;
@@ -89,13 +106,19 @@ impl UsageTracker {
     }
 
     /// Record a search query with context
-    pub fn record_search(&mut self, query: &str, fuzzy_used: bool, advanced_used: bool, _result_count: usize) {
+    pub fn record_search(
+        &mut self,
+        query: &str,
+        fuzzy_used: bool,
+        advanced_used: bool,
+        _result_count: usize,
+    ) {
         self.stats.total_searches += 1;
-        
+
         if fuzzy_used {
             self.stats.fuzzy_mode_used = true;
         }
-        
+
         if advanced_used {
             self.stats.advanced_mode_used = true;
         }
@@ -140,10 +163,9 @@ impl UsageTracker {
         let home_dir = if let Ok(home_env) = std::env::var("HOME") {
             PathBuf::from(home_env)
         } else {
-            dirs::home_dir()
-                .ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?
+            dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?
         };
-        
+
         Ok(home_dir.join(".semisearch").join("usage.json"))
     }
 
@@ -164,7 +186,8 @@ impl UsageTracker {
 
     /// Get recent query patterns
     pub fn get_recent_patterns(&self) -> Vec<QueryPattern> {
-        self.stats.recent_queries
+        self.stats
+            .recent_queries
             .iter()
             .map(|q| QueryPattern::analyze(q))
             .collect()
@@ -189,35 +212,44 @@ mod tests {
     fn test_query_pattern_analysis() {
         assert_eq!(QueryPattern::analyze("TODO"), QueryPattern::Simple);
         assert_eq!(QueryPattern::analyze("TODO.*Fix"), QueryPattern::RegexLike);
-        assert_eq!(QueryPattern::analyze("databse"), QueryPattern::PotentialTypo);
-        assert_eq!(QueryPattern::analyze("error handling patterns in authentication"), QueryPattern::Conceptual);
-        assert_eq!(QueryPattern::analyze("TODO .py files"), QueryPattern::FileFiltering);
+        assert_eq!(
+            QueryPattern::analyze("databse"),
+            QueryPattern::PotentialTypo
+        );
+        assert_eq!(
+            QueryPattern::analyze("error handling patterns in authentication"),
+            QueryPattern::Conceptual
+        );
+        assert_eq!(
+            QueryPattern::analyze("TODO .py files"),
+            QueryPattern::FileFiltering
+        );
     }
 
     #[test]
     fn test_usage_tracking() {
         let temp_dir = TempDir::new().unwrap();
         let usage_file = temp_dir.path().join("usage.json");
-        
+
         let mut tracker = UsageTracker::new(usage_file.clone());
-        
+
         // Record some searches
         tracker.record_search("TODO", false, false, 5);
         tracker.record_search("function.*login", false, true, 2);
         tracker.record_search("databse", true, false, 0);
-        
+
         let stats = tracker.get_stats();
         assert_eq!(stats.total_searches, 3);
         assert!(stats.fuzzy_mode_used);
         assert!(stats.advanced_mode_used);
         assert_eq!(stats.recent_queries.len(), 3);
         assert_eq!(stats.complex_queries.len(), 1);
-        
+
         // Test save and load
         tracker.save().unwrap();
         let loaded_tracker = UsageTracker::load(usage_file).unwrap();
         let loaded_stats = loaded_tracker.get_stats();
-        
+
         assert_eq!(loaded_stats.total_searches, 3);
         assert!(loaded_stats.fuzzy_mode_used);
         assert!(loaded_stats.advanced_mode_used);
@@ -227,39 +259,48 @@ mod tests {
     fn test_experience_levels() {
         let temp_dir = TempDir::new().unwrap();
         let usage_file = temp_dir.path().join("usage.json");
-        
+
         let mut tracker = UsageTracker::new(usage_file);
-        
-        assert_eq!(tracker.get_experience_level(), UserExperienceLevel::Beginner);
-        
+
+        assert_eq!(
+            tracker.get_experience_level(),
+            UserExperienceLevel::Beginner
+        );
+
         // Add some searches
         for i in 0..5 {
             tracker.record_search(&format!("query{i}"), false, false, 1);
         }
-        assert_eq!(tracker.get_experience_level(), UserExperienceLevel::Intermediate);
-        
+        assert_eq!(
+            tracker.get_experience_level(),
+            UserExperienceLevel::Intermediate
+        );
+
         // Add more searches
         for i in 5..15 {
             tracker.record_search(&format!("query{i}"), false, false, 1);
         }
-        assert_eq!(tracker.get_experience_level(), UserExperienceLevel::Experienced);
+        assert_eq!(
+            tracker.get_experience_level(),
+            UserExperienceLevel::Experienced
+        );
     }
 
     #[test]
     fn test_recent_queries_limit() {
         let temp_dir = TempDir::new().unwrap();
         let usage_file = temp_dir.path().join("usage.json");
-        
+
         let mut tracker = UsageTracker::new(usage_file);
-        
+
         // Add more than max_recent_queries
         for i in 0..15 {
             tracker.record_search(&format!("query{i}"), false, false, 1);
         }
-        
+
         let stats = tracker.get_stats();
         assert_eq!(stats.recent_queries.len(), 10); // Should be limited to max_recent_queries
         assert_eq!(stats.recent_queries[0], "query5"); // Should have removed older queries
         assert_eq!(stats.recent_queries[9], "query14"); // Should have latest query
     }
-} 
+}

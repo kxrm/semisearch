@@ -13,7 +13,11 @@ mod progressive_discovery_e2e_tests {
     fn test_new_user_learning_journey() {
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("test.rs");
-        fs::write(&test_file, "fn main() {\n    // TODO: implement this\n    println!(\"Hello\");\n}").unwrap();
+        fs::write(
+            &test_file,
+            "fn main() {\n    // TODO: implement this\n    println!(\"Hello\");\n}",
+        )
+        .unwrap();
 
         // Simulate first search - should get encouraging tip
         let output = Command::new("./target/debug/semisearch")
@@ -54,7 +58,11 @@ mod progressive_discovery_e2e_tests {
     fn test_intermediate_user_typo_learning() {
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("test.py");
-        fs::write(&test_file, "def database_connection():\n    return connect_to_database()").unwrap();
+        fs::write(
+            &test_file,
+            "def database_connection():\n    return connect_to_database()",
+        )
+        .unwrap();
 
         // Create usage history to simulate intermediate user
         let usage_dir = temp_dir.path().join(".semisearch");
@@ -81,7 +89,10 @@ mod progressive_discovery_e2e_tests {
 
         // Should find "database" despite typo (fuzzy fallback)
         assert!(output.status.success(), "Search should succeed");
-        assert!(stdout.contains("database"), "Should find database with fuzzy matching");
+        assert!(
+            stdout.contains("database"),
+            "Should find database with fuzzy matching"
+        );
 
         // Should suggest --fuzzy for better typo handling
         assert!(
@@ -95,7 +106,11 @@ mod progressive_discovery_e2e_tests {
     fn test_experienced_user_advanced_learning() {
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("test.js");
-        fs::write(&test_file, "// TODO: fix this\nfunction login() {\n    // TODO: implement\n}").unwrap();
+        fs::write(
+            &test_file,
+            "// TODO: fix this\nfunction login() {\n    // TODO: implement\n}",
+        )
+        .unwrap();
 
         // Create usage history to simulate experienced user
         let usage_dir = temp_dir.path().join(".semisearch");
@@ -126,7 +141,9 @@ mod progressive_discovery_e2e_tests {
 
         // Should suggest advanced features
         assert!(
-            stdout.contains("--advanced") || stdout.contains("power") || stdout.contains("more options"),
+            stdout.contains("--advanced")
+                || stdout.contains("power")
+                || stdout.contains("more options"),
             "Experienced users should learn about advanced features: {stdout}"
         );
     }
@@ -136,7 +153,11 @@ mod progressive_discovery_e2e_tests {
     fn test_complex_query_regex_learning() {
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("test.rs");
-        fs::write(&test_file, "// TODO: fix bug\n// TODO: add feature\nfn main() {}").unwrap();
+        fs::write(
+            &test_file,
+            "// TODO: fix bug\n// TODO: add feature\nfn main() {}",
+        )
+        .unwrap();
 
         // Create usage history to simulate user trying complex patterns
         let usage_dir = temp_dir.path().join(".semisearch");
@@ -286,7 +307,9 @@ mod progressive_discovery_e2e_tests {
                 // Beginner tips should be encouraging
                 if stdout.contains("💡") {
                     assert!(
-                        stdout.contains("Great") || stdout.contains("Nice") || stdout.contains("start"),
+                        stdout.contains("Great")
+                            || stdout.contains("Nice")
+                            || stdout.contains("start"),
                         "Beginner tips should be encouraging at search {search_count}: {stdout}"
                     );
                 }
@@ -307,4 +330,4 @@ mod progressive_discovery_e2e_tests {
             }
         }
     }
-} 
+}
