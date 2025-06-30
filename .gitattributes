@@ -31,3 +31,6 @@ LICENSE* text eol=lf
 *.db binary
 *.sqlite binary
 *.sqlite3 binary
+
+# Exclude tests/test-data from GitHub language stats using linguist-vendored
+tests/test-data/** linguist-vendored
