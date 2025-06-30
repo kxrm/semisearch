@@ -385,13 +385,13 @@ mod context_detection_tests {
 
         // Test error scenarios specifically to ensure error messages are user-friendly
         let error_scenarios = [
-            ("/nonexistent/path", "nonexistent"),  // Directory not found
-            ("--invalid-flag", "TODO"),            // Invalid flag
+            ("/nonexistent/path", "nonexistent"), // Directory not found
+            ("--invalid-flag", "TODO"),           // Invalid flag
         ];
 
         for (bad_arg, query) in &error_scenarios {
             let (_success, _stdout, stderr) = run_semisearch(&[query, bad_arg], None);
-            
+
             // Error messages should not contain technical implementation details
             assert!(
                 !stderr.contains("anyhow::Error") && 
@@ -404,13 +404,13 @@ mod context_detection_tests {
             // Error messages should provide helpful guidance (per UX Remediation Plan)
             if stderr.contains("error") || stderr.contains("Error") {
                 assert!(
-                    stderr.contains("Try") || 
-                    stderr.contains("Make sure") || 
-                    stderr.contains("Check") ||
-                    stderr.contains("💡") ||
-                    stderr.contains("tip:") ||
-                    stderr.contains("Usage:") ||
-                    stderr.contains("For more information"),
+                    stderr.contains("Try")
+                        || stderr.contains("Make sure")
+                        || stderr.contains("Check")
+                        || stderr.contains("💡")
+                        || stderr.contains("tip:")
+                        || stderr.contains("Usage:")
+                        || stderr.contains("For more information"),
                     "Error messages should provide helpful guidance. stderr: {stderr}"
                 );
             }

@@ -160,8 +160,16 @@ impl AutoStrategy {
                 // Skip common build/cache directories by default
                 if let Some(dir_name) = dir.file_name() {
                     if let Some(name_str) = dir_name.to_str() {
-                        if ["target", "node_modules", ".git", "build", "dist", "__pycache__", ".cache"]
-                            .contains(&name_str)
+                        if [
+                            "target",
+                            "node_modules",
+                            ".git",
+                            "build",
+                            "dist",
+                            "__pycache__",
+                            ".cache",
+                        ]
+                        .contains(&name_str)
                         {
                             return Ok(()); // Skip this directory
                         }

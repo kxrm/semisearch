@@ -588,16 +588,18 @@ mod ux_validation_tests {
 
         // Should show results in human-friendly format (not technical details)
         assert!(
-            stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+            stdout.contains("Found")
+                || stdout.contains("No matches")
+                || stdout.contains("No results"),
             "Should show user-friendly results format. stdout: {stdout}"
         );
 
         // Should not expose technical implementation details
         assert!(
-            !stdout.contains("TF-IDF") && 
-            !stdout.contains("neural embeddings") &&
-            !stdout.contains("ONNX") &&
-            !stderr.contains("anyhow::Error"),
+            !stdout.contains("TF-IDF")
+                && !stdout.contains("neural embeddings")
+                && !stdout.contains("ONNX")
+                && !stderr.contains("anyhow::Error"),
             "Should not expose technical details to basic users. Output: {stdout}\n{stderr}"
         );
     }
@@ -608,20 +610,18 @@ mod ux_validation_tests {
     fn test_error_recovery_guidance() {
         // Test directory access error
         let (success, _stdout, stderr) = run_semisearch(&["TODO", "/nonexistent/path"], None);
-        
+
         assert!(!success, "Should fail for nonexistent directory");
-        
+
         // Should provide specific recovery suggestions (per UX plan Task 1.2)
         assert!(
-            stderr.contains("Make sure") || 
-            stderr.contains("Try") || 
-            stderr.contains("Check"),
+            stderr.contains("Make sure") || stderr.contains("Try") || stderr.contains("Check"),
             "Should provide specific recovery suggestions. stderr: {stderr}"
         );
 
         // Test no results scenario
         let (success, stdout, stderr) = run_semisearch(&["xyz123impossible"], None);
-        
+
         if !success {
             // If it exits with error, should provide recovery suggestions
             assert!(
@@ -652,7 +652,7 @@ mod ux_validation_tests {
 
         for (query, description) in &test_cases {
             let (success, stdout, stderr) = run_semisearch(&[query], None);
-            
+
             // Should work without user specifying search mode
             assert!(
                 success || stdout.contains("No matches") || stdout.contains("No results"),
@@ -675,30 +675,34 @@ mod ux_validation_tests {
         let src_path = Path::new("src");
         if src_path.exists() {
             let (success, stdout, stderr) = run_semisearch(&["TODO"], Some(src_path));
-            
+
             assert!(
                 success,
                 "Should work in src/ directory without configuration. stderr: {stderr}"
             );
 
             assert!(
-                stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+                stdout.contains("Found")
+                    || stdout.contains("No matches")
+                    || stdout.contains("No results"),
                 "Should show appropriate results in src/. stdout: {stdout}"
             );
         }
 
-        // Test in tests directory (should work automatically)  
+        // Test in tests directory (should work automatically)
         let tests_path = Path::new("tests");
         if tests_path.exists() {
             let (success, stdout, stderr) = run_semisearch(&["test"], Some(tests_path));
-            
+
             assert!(
                 success,
                 "Should work in tests/ directory without configuration. stderr: {stderr}"
             );
 
             assert!(
-                stdout.contains("Found") || stdout.contains("No matches") || stdout.contains("No results"),
+                stdout.contains("Found")
+                    || stdout.contains("No matches")
+                    || stdout.contains("No results"),
                 "Should show appropriate results in tests/. stdout: {stdout}"
             );
         }
@@ -710,10 +714,10 @@ mod ux_validation_tests {
     fn test_works_without_setup() {
         // Test multiple query types work without any configuration
         let queries = ["TODO", "function", "error", "test"];
-        
+
         for query in &queries {
             let (success, stdout, stderr) = run_semisearch(&[query], None);
-            
+
             // Should either succeed or fail gracefully with helpful message
             if !success {
                 assert!(
@@ -725,18 +729,18 @@ mod ux_validation_tests {
                 );
             } else {
                 assert!(
-                    stdout.contains("Found") || 
-                    stdout.contains("No matches") || 
-                    stdout.contains("No results"),
+                    stdout.contains("Found")
+                        || stdout.contains("No matches")
+                        || stdout.contains("No results"),
                     "Query '{query}' should show user-friendly results. stdout: {stdout}"
                 );
             }
 
             // Should never require configuration or setup
             assert!(
-                !stderr.contains("configuration") && 
-                !stderr.contains("setup") && 
-                !stderr.contains("initialize"),
+                !stderr.contains("configuration")
+                    && !stderr.contains("setup")
+                    && !stderr.contains("initialize"),
                 "Query '{query}' should not require setup. stderr: {stderr}"
             );
         }
@@ -748,7 +752,7 @@ mod ux_validation_tests {
     fn test_simple_interface() {
         // Test that basic search works without subcommands
         let (success, _stdout, stderr) = run_semisearch(&["TODO"], None);
-        
+
         assert!(
             success,
             "Should work without explicit 'search' subcommand. stderr: {stderr}"
@@ -756,7 +760,7 @@ mod ux_validation_tests {
 
         // Test status command works
         let (success, stdout, _stderr) = run_semisearch(&["status"], None);
-        
+
         assert!(success, "Status command should work. stderr: {_stderr}");
         assert!(
             stdout.contains("search") || stdout.contains("Search"),
@@ -765,7 +769,7 @@ mod ux_validation_tests {
 
         // Test help command works
         let (success, stdout, stderr) = run_semisearch(&["help-me"], None);
-        
+
         // Interactive help might not complete in test environment, but should start
         if success {
             assert!(
@@ -775,7 +779,9 @@ mod ux_validation_tests {
         } else {
             // If interactive help fails in test environment, that's okay
             assert!(
-                stderr.contains("help-me") || stderr.contains("interactive") || stderr.contains("Welcome"),
+                stderr.contains("help-me")
+                    || stderr.contains("interactive")
+                    || stderr.contains("Welcome"),
                 "Should recognize help-me command. stderr: {stderr}"
             );
         }
@@ -797,12 +803,12 @@ mod ux_validation_tests {
 
             // Should not expose internal implementation details
             assert!(
-                !all_output.contains("anyhow::Error") &&
-                !all_output.contains("QueryAnalyzer") &&
-                !all_output.contains("AutoStrategy") &&
-                !all_output.contains("TfIdf") &&
-                !all_output.contains("neural embeddings") &&
-                !all_output.contains("ONNX Runtime"),
+                !all_output.contains("anyhow::Error")
+                    && !all_output.contains("QueryAnalyzer")
+                    && !all_output.contains("AutoStrategy")
+                    && !all_output.contains("TfIdf")
+                    && !all_output.contains("neural embeddings")
+                    && !all_output.contains("ONNX Runtime"),
                 "Should not expose technical jargon to users. Args: {args:?}, Output: {all_output}"
             );
         }
