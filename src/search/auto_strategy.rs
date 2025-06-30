@@ -168,6 +168,7 @@ impl AutoStrategy {
                             "dist",
                             "__pycache__",
                             ".cache",
+                            ".semisearch",
                         ]
                         .contains(&name_str)
                         {

@@ -5,6 +5,8 @@ use search::core::indexer::{FileIndexer, IndexerConfig};
 use search::errors::ErrorTranslator;
 // Removed unused import
 use search::storage::database::Database;
+use search::user::feature_discovery::FeatureDiscovery;
+use search::user::usage_tracker::UsageTracker;
 use search::{SearchOptions, SearchResult};
 use std::path::PathBuf;
 use std::time::Instant;
@@ -92,6 +94,11 @@ async fn run_main() -> Result<()> {
                 };
 
             let search_time = start_time.elapsed();
+
+            // Track usage for progressive feature discovery (ignore errors)
+            if track_search_usage(&args.query, args.fuzzy, cli.advanced, results.len()).await.is_err() {
+                // Silently ignore tracking errors - don't break user experience
+            }
 
             // Display results based on format
             if cli.advanced && args.format == "json" {
@@ -191,6 +198,26 @@ fn display_advanced_results(
     Ok(())
 }
 
+/// Track search usage for progressive feature discovery
+async fn track_search_usage(
+    query: &str,
+    fuzzy_used: bool,
+    advanced_used: bool,
+    result_count: usize,
+) -> Result<()> {
+    // Load or create usage tracker
+    let usage_file = UsageTracker::default_usage_file()?;
+    let mut tracker = UsageTracker::load(usage_file)?;
+
+    // Record this search
+    tracker.record_search(query, fuzzy_used, advanced_used, result_count);
+
+    // Save usage data
+    tracker.save()?;
+
+    Ok(())
+}
+
 /// Execute search with the given parameters
 async fn execute_search(
     query: &str,
@@ -257,6 +284,7 @@ fn display_simple_results(
     query: &str,
     search_time: std::time::Duration,
 ) -> Result<()> {
+
     use search::errors::{provide_contextual_suggestions, UserFriendlyError};
     use search::output::HumanFormatter;
 
@@ -270,7 +298,28 @@ fn display_simple_results(
             // Show results but also provide suggestions for narrowing
             let formatted_output = HumanFormatter::format_results(results, query, search_time);
             print!("{formatted_output}");
-            println!("\n{}", suggestion.display());
+            
+            // Show progressive feature discovery tips even for many results
+            let mut progressive_tip_shown = false;
+            if let Ok(usage_file) = UsageTracker::default_usage_file() {
+                if let Ok(tracker) = UsageTracker::load(usage_file) {
+                    let stats = tracker.get_stats();
+                    
+                    if FeatureDiscovery::should_show_tip(stats) {
+                        if let Some(tip) = FeatureDiscovery::suggest_next_step(stats, query, results.len()) {
+                            println!();
+                            println!("{tip}");
+                            progressive_tip_shown = true;
+                        }
+                    }
+                }
+            }
+            
+            // Show contextual suggestions only if no progressive tip was shown
+            if !progressive_tip_shown {
+                println!("\n{}", suggestion.display());
+            }
+            
             return Ok(());
         }
     }
@@ -286,13 +335,32 @@ fn display_simple_results(
     let formatted_output = HumanFormatter::format_results(results, query, search_time);
     print!("{formatted_output}");
 
-    // Show contextual help based on results
-    use search::help::contextual::ContextualHelp;
-    let tips = ContextualHelp::generate_tips(query, results);
-    if !tips.is_empty() {
-        println!();
-        for tip in tips.iter().take(2) {
-            println!("{tip}");
+    // Show progressive feature discovery tips (prioritized over contextual help)
+    let mut progressive_tip_shown = false;
+    if let Ok(usage_file) = UsageTracker::default_usage_file() {
+        if let Ok(tracker) = UsageTracker::load(usage_file) {
+            let stats = tracker.get_stats();
+            
+            // Only show tips if appropriate for user's experience level
+            if FeatureDiscovery::should_show_tip(stats) {
+                if let Some(tip) = FeatureDiscovery::suggest_next_step(stats, query, results.len()) {
+                    println!();
+                    println!("{tip}");
+                    progressive_tip_shown = true;
+                }
+            }
+        }
+    }
+
+    // Show contextual help based on results (only if no progressive tip was shown)
+    if !progressive_tip_shown {
+        use search::help::contextual::ContextualHelp;
+        let tips = ContextualHelp::generate_tips(query, results);
+        if !tips.is_empty() {
+            println!();
+            for tip in tips.iter().take(1) {
+                println!("{tip}");
+            }
         }
     }
 

@@ -31,6 +31,9 @@ pub mod context;
 // Phase 7: Output formatting for human-friendly display
 pub mod output;
 
+// Phase 8: User module
+pub mod user;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResult {
     pub file_path: String,
