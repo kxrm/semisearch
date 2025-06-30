@@ -48,11 +48,15 @@ impl TfIdfSearch {
         chunks: &[TextChunk],
         options: &SearchOptions,
     ) -> Result<Vec<SearchResult>> {
+        let query_tokens = self.text_processor.tokenize(query);
+        if query_tokens.is_empty() {
+            return Ok(vec![]);
+        }
+
         if self.total_documents == 0 {
             return Ok(Vec::new());
         }
 
-        let query_tokens = self.text_processor.tokenize(query);
         let mut results = Vec::new();
 
         for chunk in chunks {

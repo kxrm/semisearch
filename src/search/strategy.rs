@@ -317,6 +317,8 @@ impl SearchEngine {
                 content: result.chunk.content,
                 score: Some(result.similarity_score),
                 match_type: Some(MatchType::Semantic),
+                context_before: None,
+                context_after: None,
             });
         }
 
@@ -482,6 +484,8 @@ impl SearchEngine {
                     content: chunk.content,
                     score: Some(similarity),
                     match_type: Some(MatchType::Semantic),
+                    context_before: None,
+                    context_after: None,
                 });
             }
         }

@@ -93,18 +93,18 @@ impl LocalEmbedder {
                             capability: EmbeddingCapability::Full,
                         })
                     }
-                    Err(e) => {
-                        eprintln!("⚠️  Neural embeddings failed, falling back to TF-IDF: {e}");
+                    Err(_e) => {
+                        // Silently fall back to TF-IDF for regular users
                         Self::new_tfidf_only(config).await
                     }
                 }
             }
             EmbeddingCapability::TfIdf => {
-                eprintln!("📊 Using TF-IDF embeddings (limited system resources)");
+                // Silently use TF-IDF for regular users
                 Self::new_tfidf_only(config).await
             }
             EmbeddingCapability::None => {
-                eprintln!("⚠️  No embedding capabilities available");
+                // Silently return error for systems without embedding capabilities
                 Err(anyhow::anyhow!("System lacks embedding capabilities"))
             }
         }
@@ -169,14 +169,12 @@ impl LocalEmbedder {
                     }
                 }
             }
-            crate::capability_detector::NeuralCapability::Unavailable(reason) => {
-                eprintln!("⚠️  Neural embeddings unavailable: {reason}");
-                eprintln!("🔄 Falling back to TF-IDF embeddings");
+            crate::capability_detector::NeuralCapability::Unavailable(_reason) => {
+                // Silently fall back to TF-IDF for regular users
                 Self::new_tfidf_only(config).await
             }
-            crate::capability_detector::NeuralCapability::Insufficient(reason) => {
-                eprintln!("⚠️  Neural embeddings insufficient: {reason}");
-                eprintln!("🔄 Falling back to TF-IDF embeddings");
+            crate::capability_detector::NeuralCapability::Insufficient(_reason) => {
+                // Silently fall back to TF-IDF for regular users
                 Self::new_tfidf_only(config).await
             }
         }
@@ -184,8 +182,7 @@ impl LocalEmbedder {
 
     #[cfg(not(feature = "neural-embeddings"))]
     pub async fn new_with_semantic_request(config: EmbeddingConfig) -> Result<Self> {
-        eprintln!("⚠️  Neural embeddings not compiled");
-        eprintln!("🔄 Using TF-IDF embeddings");
+        // Silently fall back to TF-IDF for regular users
         Self::new_tfidf_only(config).await
     }
 
@@ -300,6 +297,11 @@ impl LocalEmbedder {
 
     /// Detect system capabilities for embeddings
     pub fn detect_capabilities() -> EmbeddingCapability {
+        Self::detect_capabilities_with_context(false)
+    }
+
+    /// Detect system capabilities for embeddings with context control
+    pub fn detect_capabilities_with_context(show_technical_details: bool) -> EmbeddingCapability {
         #[cfg(feature = "neural-embeddings")]
         {
             match crate::capability_detector::CapabilityDetector::detect_neural_capability() {
@@ -312,18 +314,24 @@ impl LocalEmbedder {
                     EmbeddingCapability::Full
                 }
                 crate::capability_detector::NeuralCapability::Unavailable(reason) => {
-                    eprintln!("📊 Neural embeddings unavailable: {reason} (using TF-IDF)");
+                    if show_technical_details {
+                        eprintln!("📊 Neural embeddings unavailable: {reason} (using TF-IDF)");
+                    }
                     EmbeddingCapability::TfIdf
                 }
                 crate::capability_detector::NeuralCapability::Insufficient(reason) => {
-                    eprintln!("📊 Neural embeddings insufficient: {reason} (using TF-IDF)");
+                    if show_technical_details {
+                        eprintln!("📊 Neural embeddings insufficient: {reason} (using TF-IDF)");
+                    }
                     EmbeddingCapability::TfIdf
                 }
             }
         }
         #[cfg(not(feature = "neural-embeddings"))]
         {
-            eprintln!("📊 Neural embeddings not compiled, using TF-IDF");
+            if show_technical_details {
+                eprintln!("📊 Neural embeddings not compiled, using TF-IDF");
+            }
             EmbeddingCapability::TfIdf
         }
     }

@@ -1,10 +1,12 @@
 use anyhow::Result;
-use clap::Parser;
+
 use search::core::embedder::{EmbeddingCapability, EmbeddingConfig, LocalEmbedder};
 use search::core::indexer::{FileIndexer, IndexerConfig};
 use search::errors::ErrorTranslator;
-use search::search::strategy::SearchEngine;
+// Removed unused import
 use search::storage::database::Database;
+use search::user::feature_discovery::FeatureDiscovery;
+use search::user::usage_tracker::UsageTracker;
 use search::{SearchOptions, SearchResult};
 use std::path::PathBuf;
 use std::time::Instant;
@@ -21,81 +23,8 @@ async fn main() {
 }
 
 async fn run_main() -> Result<()> {
-    // Get command line arguments
-    let mut args: Vec<String> = std::env::args().collect();
-
-    // Implement Task 1.1.3: Default Command Behavior
-    // If no subcommand provided, assume "search"
-    if args.len() > 1 {
-        // First, check if --advanced is present and handle it properly
-        let is_advanced_flag_present = args.contains(&"--advanced".to_string());
-
-        // Find the first non-flag argument (potential command or query)
-        let mut first_non_flag_index = None;
-        for (i, arg) in args.iter().enumerate().skip(1) {
-            if !arg.starts_with('-') {
-                first_non_flag_index = Some(i);
-                break;
-            }
-        }
-
-        if let Some(index) = first_non_flag_index {
-            let potential_command = &args[index];
-
-            // Check if first non-flag argument is a known command
-            let known_commands = [
-                "search", "s", "help-me", "status", "index", "config", "doctor", "help",
-            ];
-            let is_known_command = known_commands.contains(&potential_command.as_str());
-
-            // If it's not a known command, treat it as a search query
-            if !is_known_command {
-                // Insert "search" as the subcommand before the query
-                args.insert(index, "search".to_string());
-
-                // Now we need to check if there's a path argument after the query
-                // Look for the next non-flag argument that could be a path
-                let query_index = index + 1; // The query is now at this index
-                let mut path_index = None;
-
-                // Look for a potential path argument after the query
-                for (i, arg) in args.iter().enumerate().skip(query_index + 1) {
-                    if !arg.starts_with('-') {
-                        // This could be a path - check if it looks like a path
-                        if arg.contains('/') || arg.contains('\\') || arg == "." || arg == ".." {
-                            path_index = Some(i);
-                            break;
-                        }
-                    }
-                }
-
-                // If we found a potential path, we need to ensure it's properly positioned
-                // The CLI structure expects: search <query> <path> [flags...]
-                if let Some(_path_idx) = path_index {
-                    // The path is already in the right position, no action needed
-                    // clap will automatically parse it as the path argument
-                }
-            }
-        } else if !is_advanced_flag_present {
-            // No non-flag arguments found and no --advanced flag - this is likely an error
-            // Let clap handle this case normally
-        }
-    }
-
-    // Custom CLI parsing to handle --advanced flag
-    let is_advanced = args.contains(&"--advanced".to_string());
-
     // Parse CLI with dynamic help based on advanced mode
-    let cli = if is_advanced {
-        // Parse with advanced options visible
-        Cli::parse_from(args.iter().map(|s| {
-            // Remove hide attribute by rebuilding the CLI
-            s.as_str()
-        }))
-    } else {
-        // Parse normally (advanced options hidden)
-        Cli::parse_from(args.iter().map(|s| s.as_str()))
-    };
+    let cli = Cli::parse_advanced_aware();
 
     // Handle CLI routing
     match cli.command {
@@ -117,6 +46,9 @@ async fn run_main() -> Result<()> {
                 max_results: args.limit,
                 case_sensitive: args.case_sensitive,
                 typo_tolerance: args.typo_tolerance,
+                include_patterns: args.include.clone(),
+                exclude_patterns: args.exclude.clone(),
+                context_lines: args.context,
                 ..Default::default()
             };
 
@@ -152,15 +84,24 @@ async fn run_main() -> Result<()> {
             }
 
             // Perform search with enhanced error handling
-            let results = match execute_search(&args.query, &search_path, &options).await {
-                Ok(results) => results,
-                Err(e) => {
-                    handle_error_with_context(e, Some(&args.query), Some(&search_path)).await;
-                    return Ok(()); // This line won't be reached due to process::exit in handle_error_with_context
-                }
-            };
+            let results =
+                match execute_search(&args.query, &search_path, &options, cli.advanced).await {
+                    Ok(results) => results,
+                    Err(e) => {
+                        handle_error_with_context(e, Some(&args.query), Some(&search_path)).await;
+                        return Ok(()); // This line won't be reached due to process::exit in handle_error_with_context
+                    }
+                };
 
             let search_time = start_time.elapsed();
+
+            // Track usage for progressive feature discovery (ignore errors)
+            if track_search_usage(&args.query, args.fuzzy, cli.advanced, results.len())
+                .await
+                .is_err()
+            {
+                // Silently ignore tracking errors - don't break user experience
+            }
 
             // Display results based on format
             if cli.advanced && args.format == "json" {
@@ -260,31 +201,59 @@ fn display_advanced_results(
     Ok(())
 }
 
+/// Track search usage for progressive feature discovery
+async fn track_search_usage(
+    query: &str,
+    fuzzy_used: bool,
+    advanced_used: bool,
+    result_count: usize,
+) -> Result<()> {
+    // Load or create usage tracker
+    let usage_file = UsageTracker::default_usage_file()?;
+    let mut tracker = UsageTracker::load(usage_file)?;
+
+    // Record this search
+    tracker.record_search(query, fuzzy_used, advanced_used, result_count);
+
+    // Save usage data
+    tracker.save()?;
+
+    Ok(())
+}
+
 /// Execute search with the given parameters
 async fn execute_search(
     query: &str,
     path: &str,
     options: &SearchOptions,
+    advanced_mode: bool,
 ) -> Result<Vec<SearchResult>> {
-    // Get database path
-    let db_path = get_database_path()?;
-    let database = Database::new(&db_path)?;
+    use search::search::auto_strategy::AutoStrategy;
 
-    // Determine if we should use semantic search
-    let use_semantic = should_use_semantic_search(query);
-
-    // Initialize embedder if needed
-    let embedder = if use_semantic {
-        (create_embedder(true).await).ok()
+    // Use AutoStrategy for intelligent search mode selection
+    let auto_strategy = if should_use_semantic_search(query) {
+        match AutoStrategy::with_semantic_search().await {
+            Ok(strategy) => strategy,
+            Err(_) => {
+                // Fall back to basic strategy if semantic search fails
+                AutoStrategy::new()
+            }
+        }
     } else {
-        None
+        AutoStrategy::new()
     };
 
-    // Create search engine
-    let search_engine = SearchEngine::new(database, embedder);
+    // Perform smart search with automatic strategy selection
+    // Only pass options if in advanced mode AND they contain filtering patterns
+    let options_to_pass = if advanced_mode
+        && (!options.include_patterns.is_empty() || !options.exclude_patterns.is_empty())
+    {
+        Some(options) // Advanced mode with filtering patterns
+    } else {
+        None // Basic mode or no filtering patterns
+    };
 
-    // Perform search
-    search_engine.search(query, path, options.clone()).await
+    auto_strategy.search(query, path, options_to_pass).await
 }
 
 /// Determine if we should use semantic search based on query characteristics
@@ -318,42 +287,85 @@ fn display_simple_results(
     query: &str,
     search_time: std::time::Duration,
 ) -> Result<()> {
+    use search::errors::{provide_contextual_suggestions, UserFriendlyError};
     use search::output::HumanFormatter;
 
-    if results.is_empty() {
-        // Create no matches error and exit with proper code
-        let no_matches_error = ErrorTranslator::handle_no_results(query);
-        let exit_code = no_matches_error.exit_code();
+    // Check for contextual suggestions based on results
+    if let Some(suggestion) = provide_contextual_suggestions(query, results.len(), "general") {
+        // Handle no results or too many results with user-friendly messages
+        if results.is_empty() {
+            eprintln!("{}", suggestion.display());
+            std::process::exit(1);
+        } else if results.len() > 50 {
+            // Show results but also provide suggestions for narrowing
+            let formatted_output = HumanFormatter::format_results(results, query, search_time);
+            print!("{formatted_output}");
 
-        // Check if JSON format was requested
-        let args: Vec<String> = std::env::args().collect();
-        let json_format = args
-            .windows(2)
-            .any(|w| w[0] == "--format" && w[1] == "json");
+            // Show progressive feature discovery tips even for many results
+            let mut progressive_tip_shown = false;
+            if let Ok(usage_file) = UsageTracker::default_usage_file() {
+                if let Ok(tracker) = UsageTracker::load(usage_file) {
+                    let stats = tracker.get_stats();
 
-        if json_format {
-            match no_matches_error.to_json() {
-                Ok(json) => eprintln!("{json}"),
-                Err(_) => eprintln!("{{\"error_type\": \"NoMatches\", \"details\": {{\"query\": \"{query}\", \"suggestions\": []}}}}"),
+                    if FeatureDiscovery::should_show_tip(stats) {
+                        if let Some(tip) =
+                            FeatureDiscovery::suggest_next_step(stats, query, results.len())
+                        {
+                            println!();
+                            println!("{tip}");
+                            progressive_tip_shown = true;
+                        }
+                    }
+                }
             }
-        } else {
-            eprintln!("{no_matches_error}");
-        }
 
-        std::process::exit(exit_code);
+            // Show contextual suggestions only if no progressive tip was shown
+            if !progressive_tip_shown {
+                println!("\n{}", suggestion.display());
+            }
+
+            return Ok(());
+        }
+    }
+
+    if results.is_empty() {
+        // Fallback if no contextual suggestions were provided
+        let error = UserFriendlyError::no_matches(query, ".");
+        eprintln!("{}", error.display());
+        std::process::exit(1);
     }
 
     // Use human-friendly formatting
     let formatted_output = HumanFormatter::format_results(results, query, search_time);
     print!("{formatted_output}");
 
-    // Show contextual help based on results
-    use search::help::contextual::ContextualHelp;
-    let tips = ContextualHelp::generate_tips(query, results);
-    if !tips.is_empty() {
-        println!();
-        for tip in tips.iter().take(2) {
-            println!("{tip}");
+    // Show progressive feature discovery tips (prioritized over contextual help)
+    let mut progressive_tip_shown = false;
+    if let Ok(usage_file) = UsageTracker::default_usage_file() {
+        if let Ok(tracker) = UsageTracker::load(usage_file) {
+            let stats = tracker.get_stats();
+
+            // Only show tips if appropriate for user's experience level
+            if FeatureDiscovery::should_show_tip(stats) {
+                if let Some(tip) = FeatureDiscovery::suggest_next_step(stats, query, results.len())
+                {
+                    println!();
+                    println!("{tip}");
+                    progressive_tip_shown = true;
+                }
+            }
+        }
+    }
+
+    // Show contextual help based on results (only if no progressive tip was shown)
+    if !progressive_tip_shown {
+        use search::help::contextual::ContextualHelp;
+        let tips = ContextualHelp::generate_tips(query, results);
+        if !tips.is_empty() {
+            println!();
+            for tip in tips.iter().take(1) {
+                println!("{tip}");
+            }
         }
     }
 
@@ -372,11 +384,51 @@ async fn handle_help_me() -> Result<()> {
 
 /// Handle status command with simple, user-friendly output
 async fn handle_simple_status() -> Result<()> {
+    use search::context::{ContextAwareConfig, ProjectDetector};
+
     println!("🏥 SemiSearch Health Check");
     println!();
 
     // Check basic functionality
     println!("✅ Basic search: Ready");
+
+    // Show project context (UX Remediation Plan Task 2.1)
+    let current_path = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let project_type = ProjectDetector::detect(&current_path);
+    let _config = ContextAwareConfig::from_project_type(project_type.clone());
+
+    match project_type {
+        search::context::ProjectType::RustProject => {
+            println!("📦 Project type: Rust project");
+            println!("  • Focused on: src/, tests/ directories");
+            println!("  • File types: *.rs files");
+        }
+        search::context::ProjectType::JavaScriptProject => {
+            println!("📦 Project type: JavaScript/TypeScript project");
+            println!("  • Focused on: src/, lib/ directories");
+            println!("  • File types: *.js, *.ts files");
+        }
+        search::context::ProjectType::PythonProject => {
+            println!("📦 Project type: Python project");
+            println!("  • Focused on: src/, lib/, tests/ directories");
+            println!("  • File types: *.py files");
+        }
+        search::context::ProjectType::Documentation => {
+            println!("📦 Project type: Documentation project");
+            println!("  • Focused on: all directories");
+            println!("  • File types: *.md, *.txt files");
+        }
+        search::context::ProjectType::Mixed => {
+            println!("📦 Project type: Mixed project");
+            println!("  • Focused on: all directories");
+            println!("  • File types: all files");
+        }
+        search::context::ProjectType::Unknown => {
+            println!("📦 Project type: General");
+            println!("  • Focused on: all directories");
+            println!("  • File types: all files");
+        }
+    }
 
     // Check database
     match get_database_path() {
@@ -420,7 +472,36 @@ async fn handle_simple_status() -> Result<()> {
 
     println!();
     println!("💡 Tips:");
-    println!("  • Everything looks good? Try: semisearch \"TODO\"");
+
+    // Provide contextual tips based on project type
+    match project_type {
+        search::context::ProjectType::RustProject => {
+            println!("  • Find TODO comments: semisearch \"TODO\"");
+            println!("  • Find functions: semisearch \"fn main\"");
+            println!("  • Search tests: semisearch \"#[test]\"");
+        }
+        search::context::ProjectType::JavaScriptProject => {
+            println!("  • Find TODO comments: semisearch \"TODO\"");
+            println!("  • Find functions: semisearch \"function\"");
+            println!("  • Find imports: semisearch \"import\"");
+        }
+        search::context::ProjectType::PythonProject => {
+            println!("  • Find TODO comments: semisearch \"TODO\"");
+            println!("  • Find functions: semisearch \"def \"");
+            println!("  • Find classes: semisearch \"class \"");
+        }
+        search::context::ProjectType::Documentation => {
+            println!("  • Find sections: semisearch \"# Introduction\"");
+            println!("  • Find todos: semisearch \"TODO\"");
+            println!("  • Find examples: semisearch \"example\"");
+        }
+        _ => {
+            println!("  • Everything looks good? Try: semisearch \"TODO\"");
+            println!("  • Find files: semisearch \"config\"");
+            println!("  • Search content: semisearch \"error\"");
+        }
+    }
+
     println!("  • Need help? Try: semisearch help-me");
     println!("  • Advanced diagnostics: semisearch doctor");
 
@@ -607,7 +688,7 @@ async fn run_doctor() -> Result<()> {
     let test_path = ".";
     let test_options = SearchOptions::default();
 
-    match execute_search(test_query, test_path, &test_options).await {
+    match execute_search(test_query, test_path, &test_options, false).await {
         Ok(results) => {
             let duration = start.elapsed();
             println!(
@@ -654,39 +735,26 @@ async fn handle_error(error: anyhow::Error) {
 }
 
 /// Handle errors with additional context (query, path) for better user guidance
-async fn handle_error_with_context(error: anyhow::Error, query: Option<&str>, path: Option<&str>) {
-    let user_error = ErrorTranslator::translate_technical_error_with_context(&error, query, path);
+async fn handle_error_with_context(error: anyhow::Error, query: Option<&str>, _path: Option<&str>) {
+    use search::errors::translate_error;
 
-    // Check if JSON format was requested
-    if let Ok(json_mode) = std::env::var("SEMISEARCH_JSON") {
-        if json_mode == "1" || json_mode.to_lowercase() == "true" {
-            match user_error.to_json() {
-                Ok(json) => eprintln!("{json}"),
-                Err(_) => {
-                    // Fallback to regular error display
-                    eprintln!("{user_error}");
-                }
-            }
-        } else {
-            eprintln!("{user_error}");
-        }
-    } else {
-        eprintln!("{user_error}");
+    let user_friendly_error = translate_error(&error);
 
-        // Add contextual help for common error scenarios
-        if let Some(query) = query {
-            use search::help::contextual::ContextualHelp;
-            let examples = ContextualHelp::generate_usage_examples(query);
-            if !examples.is_empty() {
-                eprintln!();
-                eprintln!("💡 Related examples:");
-                for example in examples.iter().take(3) {
-                    eprintln!("  {example}");
-                }
+    // Display the user-friendly error message
+    eprintln!("{}", user_friendly_error.display());
+
+    // Add contextual help for common error scenarios
+    if let Some(query) = query {
+        use search::help::contextual::ContextualHelp;
+        let examples = ContextualHelp::generate_usage_examples(query);
+        if !examples.is_empty() {
+            eprintln!();
+            eprintln!("💡 Related examples:");
+            for example in examples.iter().take(3) {
+                eprintln!("  {example}");
             }
         }
     }
 
-    let exit_code = user_error.exit_code();
-    std::process::exit(exit_code);
+    std::process::exit(1);
 }

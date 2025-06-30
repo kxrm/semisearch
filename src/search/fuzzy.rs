@@ -16,7 +16,7 @@ impl FuzzySearch {
         Self {
             text_processor: TextProcessor::new(),
             matcher: SkimMatcherV2::default(),
-            max_edit_distance: 3,
+            max_edit_distance: 4,
         }
     }
 
@@ -68,7 +68,9 @@ impl FuzzySearch {
         });
         results.truncate(options.max_results);
 
-        Ok(results)
+        // Filter out zero-score results (only return actual matches)
+        let filtered_results: Vec<_> = results.into_iter().filter(|r| r.score > 0.0).collect();
+        Ok(filtered_results)
     }
 
     /// Calculate fuzzy match score using multiple algorithms
@@ -139,6 +141,7 @@ impl FuzzySearch {
                 // Try fuzzy matching with skim
                 if let Some(score) = self.matcher.fuzzy_match(content_token, query_token) {
                     let normalized_score = (score as f32 / 100.0).min(1.0);
+                    println!("[DEBUG] Skim: query_token='{query_token}', content_token='{content_token}', score={normalized_score}");
                     best_token_score = best_token_score.max(normalized_score);
                 }
 
@@ -147,12 +150,12 @@ impl FuzzySearch {
                 if edit_dist <= self.max_edit_distance {
                     let edit_score = 1.0
                         - (edit_dist as f32 / query_token.len().max(content_token.len()) as f32);
+                    println!("[DEBUG] EditDist: query_token='{query_token}', content_token='{content_token}', edit_dist={edit_dist}, edit_score={edit_score}");
                     best_token_score = best_token_score.max(edit_score);
                 }
             }
 
-            if best_token_score > 0.2 {
-                // Lower threshold for better matching
+            if best_token_score > 0.1 {
                 total_score += best_token_score;
                 matches += 1;
             }
@@ -187,6 +190,7 @@ impl FuzzySearch {
 
                 if edit_dist <= self.max_edit_distance {
                     let score = 1.0 - (edit_dist as f32 / query_len.max(substring.len()) as f32);
+                    println!("[DEBUG] EditDistSubstr: query='{query}', substring='{substring}', edit_dist={edit_dist}, score={score}");
                     best_score = best_score.max(score);
                 }
             }
@@ -226,11 +230,10 @@ impl FuzzySearch {
             min_score: 0.3,
             max_results: 100,
             fuzzy_matching: true,
-            regex_mode: false,
-            case_sensitive: false,
             typo_tolerance: true,
             max_edit_distance: self.max_edit_distance,
             search_mode: Some("fuzzy".to_string()),
+            ..Default::default()
         };
 
         search_files(query, path, &options)
@@ -285,7 +288,7 @@ mod tests {
     fn test_fuzzy_search_creation() {
         let search = FuzzySearch::new();
         assert_eq!(search.name(), "fuzzy");
-        assert_eq!(search.max_edit_distance, 3);
+        assert_eq!(search.max_edit_distance, 4);
 
         let requirements = search.required_resources();
         assert_eq!(requirements.min_memory_mb, 20);

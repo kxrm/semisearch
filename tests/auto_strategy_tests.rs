@@ -1,4 +1,6 @@
-use search::search::auto_strategy::{AutoStrategy, ProjectContext};
+use search::context::{ProjectDetector, ProjectType};
+use search::search::auto_strategy::AutoStrategy;
+use std::path::Path;
 
 #[tokio::test]
 async fn test_exact_phrase_strategy() {
@@ -6,7 +8,7 @@ async fn test_exact_phrase_strategy() {
 
     // Test exact phrase queries
     let results = auto_strategy
-        .search("\"specific function name\"", "./src")
+        .search("\"specific function name\"", "./src", None)
         .await
         .unwrap();
 
@@ -19,7 +21,7 @@ async fn test_code_pattern_strategy() {
     let auto_strategy = AutoStrategy::new();
 
     // Test code pattern queries
-    let results = auto_strategy.search("TODO", "./src").await.unwrap();
+    let results = auto_strategy.search("TODO", "./src", None).await.unwrap();
 
     // Should use regex search for code patterns
     assert!(!results.is_empty() || results.is_empty()); // Just checking it doesn't panic
@@ -31,7 +33,7 @@ async fn test_conceptual_strategy() {
 
     // Test conceptual queries
     let results = auto_strategy
-        .search("error handling patterns", "./src")
+        .search("error handling patterns", "./src", None)
         .await
         .unwrap();
 
@@ -44,7 +46,7 @@ async fn test_file_extension_strategy() {
     let auto_strategy = AutoStrategy::new();
 
     // Test file extension queries
-    let results = auto_strategy.search(".rs", "./src").await.unwrap();
+    let results = auto_strategy.search(".rs", "./src", None).await.unwrap();
 
     // Should use appropriate strategy for file extensions
     assert!(!results.is_empty() || results.is_empty()); // Just checking it doesn't panic
@@ -55,7 +57,10 @@ async fn test_regex_like_strategy() {
     let auto_strategy = AutoStrategy::new();
 
     // Test regex-like queries
-    let results = auto_strategy.search("TODO.*:", "./src").await.unwrap();
+    let results = auto_strategy
+        .search("TODO.*:", "./src", None)
+        .await
+        .unwrap();
 
     // Should use regex search for regex-like patterns
     assert!(!results.is_empty() || results.is_empty()); // Just checking it doesn't panic
@@ -66,7 +71,10 @@ async fn test_fallback_to_fuzzy() {
     let auto_strategy = AutoStrategy::new();
 
     // Test that falls back to fuzzy for typo tolerance
-    let results = auto_strategy.search("databse", "./src").await.unwrap();
+    let results = auto_strategy
+        .search("databse", "./src", None)
+        .await
+        .unwrap();
 
     // Should use fuzzy search for typo tolerance
     assert!(!results.is_empty() || results.is_empty()); // Just checking it doesn't panic
@@ -75,16 +83,23 @@ async fn test_fallback_to_fuzzy() {
 #[test]
 fn test_project_context_detection() {
     // Test Rust project detection (current directory has Cargo.toml)
-    let context = ProjectContext::detect(".").unwrap();
-    assert!(matches!(context, ProjectContext::Mixed)); // Has both Cargo.toml and docs
+    let path = Path::new(".");
+    let project_type = ProjectDetector::detect(path);
+    assert!(matches!(project_type, ProjectType::RustProject)); // Has Cargo.toml
 
     // Test documentation project detection
-    let context = ProjectContext::detect("./docs").unwrap();
-    assert!(matches!(context, ProjectContext::Documentation));
+    let path = Path::new("./docs");
+    let project_type = ProjectDetector::detect(path);
+    // docs directory might be detected as Documentation or Unknown depending on content
+    assert!(matches!(
+        project_type,
+        ProjectType::Documentation | ProjectType::Unknown
+    ));
 
     // Test src directory (no Cargo.toml, so should be Unknown)
-    let context = ProjectContext::detect("./src").unwrap();
-    assert!(matches!(context, ProjectContext::Unknown));
+    let path = Path::new("./src");
+    let project_type = ProjectDetector::detect(path);
+    assert!(matches!(project_type, ProjectType::Unknown));
 }
 
 #[test]

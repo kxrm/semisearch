@@ -31,9 +31,26 @@ impl HumanFormatter {
                 current_file = &result.file_path;
             }
 
+            // Show context before if available
+            if let Some(ref context_before) = result.context_before {
+                for (i, line) in context_before.iter().enumerate() {
+                    let line_num = result.line_number.saturating_sub(context_before.len() - i);
+                    output.push_str(&format!("   Line {}: {}\n", line_num, line.trim()));
+                }
+            }
+
             // Show line and content with simple formatting
             let content = result.content.trim();
             output.push_str(&format!("   Line {}: {}\n", result.line_number, content));
+
+            // Show context after if available
+            if let Some(ref context_after) = result.context_after {
+                for (i, line) in context_after.iter().enumerate() {
+                    let line_num = result.line_number + i + 1;
+                    output.push_str(&format!("   Line {}: {}\n", line_num, line.trim()));
+                }
+                output.push_str("   ---\n"); // Separator between matches
+            }
         }
 
         // Show truncation message if there are more results
@@ -75,9 +92,28 @@ impl HumanFormatter {
                 current_file = &result.file_path;
             }
 
+            // Show context before if available
+            if let Some(ref context_before) = result.context_before {
+                for (i, line) in context_before.iter().enumerate() {
+                    let line_num = result.line_number.saturating_sub(context_before.len() - i);
+                    output.push_str(&format!("   Line {}: {}\n", line_num, line.trim()));
+                }
+            }
+
             // Show line and content
             let content = result.content.trim();
             output.push_str(&format!("   Line {}: {}\n", result.line_number, content));
+
+            // Show context after if available
+            if let Some(ref context_after) = result.context_after {
+                for (i, line) in context_after.iter().enumerate() {
+                    let line_num = result.line_number + i + 1;
+                    output.push_str(&format!("   Line {}: {}\n", line_num, line.trim()));
+                }
+                if !context_after.is_empty() {
+                    output.push_str("   ---\n"); // Separator between matches
+                }
+            }
 
             // Show technical details in advanced mode
             if let Some(score) = result.score {
@@ -162,6 +198,8 @@ mod tests {
             content: "    // TODO: implement this feature".to_string(),
             score: Some(1.0),
             match_type: Some(MatchType::Exact),
+            context_before: None,
+            context_after: None,
         }];
 
         let formatted =
@@ -189,6 +227,8 @@ mod tests {
                 content: "    // TODO: refactor this".to_string(),
                 score: Some(0.95),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/lib.rs".to_string(),
@@ -196,6 +236,8 @@ mod tests {
                 content: "    // TODO: add tests".to_string(),
                 score: Some(0.92),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
         ];
 
@@ -230,6 +272,8 @@ mod tests {
                 content: format!("    // TODO: task number {i}"),
                 score: Some(1.0 - (i as f32 * 0.01)),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             });
         }
 
@@ -270,9 +314,11 @@ mod tests {
         let results = vec![SearchResult {
             file_path: "src/test.rs".to_string(),
             line_number: 42,
-            content: "    // TODO: test".to_string(),
-            score: Some(0.73),
-            match_type: Some(MatchType::Fuzzy),
+            content: "    // TODO: advanced details".to_string(),
+            score: Some(0.8),
+            match_type: Some(MatchType::Hybrid),
+            context_before: None,
+            context_after: None,
         }];
 
         let formatted =
@@ -280,8 +326,8 @@ mod tests {
 
         // Advanced mode SHOULD show:
         assert!(formatted.contains("0.25s"));
-        assert!(formatted.contains("73.0%"));
-        assert!(formatted.contains("Fuzzy"));
+        assert!(formatted.contains("80.0%"));
+        assert!(formatted.contains("Hybrid"));
     }
 
     #[test]

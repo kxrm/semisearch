@@ -16,6 +16,8 @@ mod human_readable_output {
             content: "    // TODO: implement this feature".to_string(),
             score: Some(1.0),
             match_type: Some(MatchType::Exact),
+            context_before: None,
+            context_after: None,
         }];
 
         let formatted = format_results_human_friendly(&results, "TODO", Duration::from_millis(150));
@@ -42,6 +44,8 @@ mod human_readable_output {
                 content: "    // TODO: refactor this".to_string(),
                 score: Some(0.95),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/lib.rs".to_string(),
@@ -49,6 +53,8 @@ mod human_readable_output {
                 content: "    // TODO: add tests".to_string(),
                 score: Some(0.92),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
         ];
 
@@ -81,6 +87,8 @@ mod human_readable_output {
                 content: "    // TODO: main function".to_string(),
                 score: Some(1.0),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/lib.rs".to_string(),
@@ -88,6 +96,8 @@ mod human_readable_output {
                 content: "    // TODO: library code".to_string(),
                 score: Some(0.98),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "tests/integration.rs".to_string(),
@@ -95,6 +105,8 @@ mod human_readable_output {
                 content: "    // TODO: integration test".to_string(),
                 score: Some(0.96),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
         ];
 
@@ -122,6 +134,8 @@ mod human_readable_output {
                 content: format!("    // TODO: task number {i}"),
                 score: Some(1.0 - (i as f32 * 0.01)),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             });
         }
 
@@ -165,6 +179,8 @@ mod human_readable_output {
             content: "    function validateUser(user) {".to_string(),
             score: Some(0.9),
             match_type: Some(MatchType::Fuzzy),
+            context_before: None,
+            context_after: None,
         }];
 
         let formatted =
@@ -192,6 +208,8 @@ mod smart_result_grouping {
                 content: "    // Similar to function".to_string(),
                 score: Some(0.7),
                 match_type: Some(MatchType::Fuzzy),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/exact.rs".to_string(),
@@ -199,6 +217,8 @@ mod smart_result_grouping {
                 content: "    function main() {".to_string(),
                 score: Some(1.0),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/another.rs".to_string(),
@@ -206,6 +226,8 @@ mod smart_result_grouping {
                 content: "    def function_helper():".to_string(),
                 score: Some(0.8),
                 match_type: Some(MatchType::Fuzzy),
+                context_before: None,
+                context_after: None,
             },
         ];
 
@@ -228,6 +250,8 @@ mod smart_result_grouping {
                 content: "    // TODO: first task".to_string(),
                 score: Some(0.8),
                 match_type: Some(MatchType::Fuzzy),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/main.rs".to_string(),
@@ -235,6 +259,8 @@ mod smart_result_grouping {
                 content: "    // TODO: second task".to_string(),
                 score: Some(0.8),
                 match_type: Some(MatchType::Fuzzy),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/main.rs".to_string(),
@@ -242,6 +268,8 @@ mod smart_result_grouping {
                 content: "    // TODO: third task".to_string(),
                 score: Some(0.8),
                 match_type: Some(MatchType::Fuzzy),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/main.rs".to_string(),
@@ -249,6 +277,8 @@ mod smart_result_grouping {
                 content: "    // TODO: fourth task".to_string(),
                 score: Some(0.8),
                 match_type: Some(MatchType::Fuzzy),
+                context_before: None,
+                context_after: None,
             },
         ];
 
@@ -275,6 +305,8 @@ mod smart_result_grouping {
                 content: "    // TODO: first task".to_string(),
                 score: Some(0.9),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/main.rs".to_string(),
@@ -282,6 +314,8 @@ mod smart_result_grouping {
                 content: "    // TODO: second task".to_string(),
                 score: Some(0.9),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/main.rs".to_string(),
@@ -289,6 +323,8 @@ mod smart_result_grouping {
                 content: "    // TODO: third task".to_string(),
                 score: Some(0.9),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/main.rs".to_string(),
@@ -296,6 +332,8 @@ mod smart_result_grouping {
                 content: "    // TODO: fourth task".to_string(),
                 score: Some(0.9),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
         ];
 
@@ -322,6 +360,8 @@ mod smart_result_grouping {
                 content: "    function exact_match() {".to_string(),
                 score: Some(1.0),
                 match_type: Some(MatchType::Exact),
+                context_before: None,
+                context_after: None,
             },
             // Multiple fuzzy matches in same file
             SearchResult {
@@ -330,6 +370,8 @@ mod smart_result_grouping {
                 content: "    // function-like pattern".to_string(),
                 score: Some(0.8),
                 match_type: Some(MatchType::Fuzzy),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/fuzzy.rs".to_string(),
@@ -337,6 +379,8 @@ mod smart_result_grouping {
                 content: "    // another function pattern".to_string(),
                 score: Some(0.7),
                 match_type: Some(MatchType::Fuzzy),
+                context_before: None,
+                context_after: None,
             },
             SearchResult {
                 file_path: "src/fuzzy.rs".to_string(),
@@ -344,6 +388,8 @@ mod smart_result_grouping {
                 content: "    // yet another function".to_string(),
                 score: Some(0.75),
                 match_type: Some(MatchType::Fuzzy),
+                context_before: None,
+                context_after: None,
             },
             // Single match in different file
             SearchResult {
@@ -352,6 +398,8 @@ mod smart_result_grouping {
                 content: "    // function reference".to_string(),
                 score: Some(0.6),
                 match_type: Some(MatchType::Fuzzy),
+                context_before: None,
+                context_after: None,
             },
         ];
 
@@ -384,6 +432,8 @@ mod advanced_mode_tests {
             content: "    // TODO: test".to_string(),
             score: Some(0.73),
             match_type: Some(MatchType::Fuzzy),
+            context_before: None,
+            context_after: None,
         }];
 
         let formatted = format_results_human_friendly(&results, "TODO", Duration::from_millis(250));
@@ -405,6 +455,8 @@ mod advanced_mode_tests {
             content: "    // TODO: test".to_string(),
             score: Some(0.73),
             match_type: Some(MatchType::Fuzzy),
+            context_before: None,
+            context_after: None,
         }];
 
         let formatted = format_results_advanced(&results, "TODO", Duration::from_millis(250));
@@ -423,6 +475,8 @@ mod advanced_mode_tests {
             content: "    // TODO: test".to_string(),
             score: Some(0.73),
             match_type: Some(MatchType::Fuzzy),
+            context_before: None,
+            context_after: None,
         }];
 
         let json_formatted = format_results_json(&results);
