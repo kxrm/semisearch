@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use search::core::embedder::{EmbeddingCapability, EmbeddingConfig, LocalEmbedder};
-use search::core::indexer::{FileIndexer, IndexerConfig};
+use search::core::{FileIndexerBuilder, IndexerConfig};
 use search::errors::ErrorTranslator;
 // Removed unused import
 use search::storage::database::Database;
@@ -49,6 +49,12 @@ async fn run_main() -> Result<()> {
                 include_patterns: args.include.clone(),
                 exclude_patterns: args.exclude.clone(),
                 context_lines: args.context,
+                // Only respect --mode in advanced mode, otherwise use auto
+                search_mode: if cli.advanced {
+                    Some(args.mode.clone())
+                } else {
+                    Some("auto".to_string())
+                },
                 ..Default::default()
             };
 
@@ -125,12 +131,8 @@ async fn run_main() -> Result<()> {
                     println!("{}", result.file_path);
                 }
             } else {
-                // Check if advanced mode is enabled for different formatting
-                if cli.advanced {
-                    display_advanced_results(&results, &args.query, search_time)?;
-                } else {
-                    display_simple_results(&results, &args.query, search_time)?;
-                }
+                // Use unified display with mode-specific formatting
+                display_unified_results(&results, &args.query, search_time, cli.advanced)?;
             }
         }
         Commands::HelpMe => {
@@ -140,7 +142,14 @@ async fn run_main() -> Result<()> {
             handle_simple_status().await?;
         }
         Commands::Index(args) => {
-            handle_index(&args.path, args.force, args.semantic, args.no_semantic).await?;
+            handle_index(
+                &args.path,
+                args.force,
+                args.semantic,
+                args.no_semantic,
+                cli.advanced,
+            )
+            .await?;
         }
         Commands::Config => {
             show_config().await?;
@@ -153,48 +162,137 @@ async fn run_main() -> Result<()> {
     Ok(())
 }
 
+/// Unified display function for all search result types
+fn display_unified_results(
+    results: &[SearchResult],
+    query: &str,
+    search_time: std::time::Duration,
+    advanced_mode: bool,
+) -> Result<()> {
+    if advanced_mode {
+        display_advanced_results(results, query, search_time)
+    } else {
+        display_simple_results(results, query, search_time)
+    }
+}
+
 /// Display search results with advanced technical details
 fn display_advanced_results(
     results: &[SearchResult],
     query: &str,
     search_time: std::time::Duration,
 ) -> Result<()> {
+    use search::errors::provide_contextual_suggestions;
     use search::output::HumanFormatter;
 
     if results.is_empty() {
-        // Create no matches error and exit with proper code
-        let no_matches_error = ErrorTranslator::handle_no_results(query);
-        let exit_code = no_matches_error.exit_code();
+        // Handle no results case
+        let mut progressive_tip_shown = false;
+        if let Ok(usage_file) = UsageTracker::default_usage_file() {
+            if let Ok(tracker) = UsageTracker::load(usage_file) {
+                let stats = tracker.get_stats();
 
-        // Check if JSON format was requested
-        let args: Vec<String> = std::env::args().collect();
-        let json_format = args
-            .windows(2)
-            .any(|w| w[0] == "--format" && w[1] == "json");
+                if FeatureDiscovery::should_show_tip_for_query(stats, query) {
+                    if let Some(tip) = FeatureDiscovery::suggest_next_step(stats, query, 0) {
+                        println!("{tip}");
+                        println!();
+                        progressive_tip_shown = true;
+                    }
+                }
+            }
+        }
 
-        if json_format {
-            match no_matches_error.to_json() {
+        if !progressive_tip_shown {
+            // Create no matches error for advanced mode
+            let no_matches_error = ErrorTranslator::handle_no_results(query);
+            let exit_code = no_matches_error.exit_code();
+
+            // Check if JSON format was requested
+            let args: Vec<String> = std::env::args().collect();
+            let json_format = args
+                .windows(2)
+                .any(|w| w[0] == "--format" && w[1] == "json");
+
+            if json_format {
+                match no_matches_error.to_json() {
                 Ok(json) => eprintln!("{json}"),
                 Err(_) => eprintln!("{{\"error_type\": \"NoMatches\", \"details\": {{\"query\": \"{query}\", \"suggestions\": []}}}}"),
             }
-        } else {
-            eprintln!("{no_matches_error}");
-        }
+            } else {
+                eprintln!("{no_matches_error}");
+            }
 
-        std::process::exit(exit_code);
+            std::process::exit(exit_code);
+        }
+        return Ok(());
     }
 
-    // Use advanced formatting with technical details
+    // Check for contextual suggestions for large result sets
+    if let Some(suggestion) = provide_contextual_suggestions(query, results.len(), "general") {
+        if results.len() > 50 {
+            // Show results but also provide suggestions for narrowing
+            let formatted_output = HumanFormatter::format_results(results, query, search_time);
+            print!("{formatted_output}");
+
+            // Show progressive feature discovery tips even for many results
+            let mut progressive_tip_shown = false;
+            if let Ok(usage_file) = UsageTracker::default_usage_file() {
+                if let Ok(tracker) = UsageTracker::load(usage_file) {
+                    let stats = tracker.get_stats();
+
+                    if FeatureDiscovery::should_show_tip_for_query(stats, query) {
+                        if let Some(tip) =
+                            FeatureDiscovery::suggest_next_step(stats, query, results.len())
+                        {
+                            println!();
+                            println!("{tip}");
+                            progressive_tip_shown = true;
+                        }
+                    }
+                }
+            }
+
+            // Show contextual suggestions only if no progressive tip was shown
+            if !progressive_tip_shown {
+                println!("\n{}", suggestion.display());
+            }
+
+            return Ok(());
+        }
+    }
+
+    // Use unified formatting with mode-specific details
     let formatted_output = HumanFormatter::format_results_advanced(results, query, search_time);
     print!("{formatted_output}");
 
-    // Show contextual help based on results
-    use search::help::contextual::ContextualHelp;
-    let tips = ContextualHelp::generate_tips(query, results);
-    if !tips.is_empty() {
-        println!();
-        for tip in tips.iter().take(2) {
-            println!("{tip}");
+    // Show progressive feature discovery tips (prioritized over contextual help)
+    let mut progressive_tip_shown = false;
+    if let Ok(usage_file) = UsageTracker::default_usage_file() {
+        if let Ok(tracker) = UsageTracker::load(usage_file) {
+            let stats = tracker.get_stats();
+
+            // Only show tips if appropriate for user's experience level
+            if FeatureDiscovery::should_show_tip_for_query(stats, query) {
+                if let Some(tip) = FeatureDiscovery::suggest_next_step(stats, query, results.len())
+                {
+                    println!();
+                    println!("{tip}");
+                    progressive_tip_shown = true;
+                }
+            }
+        }
+    }
+
+    // Show contextual help based on results (only if no progressive tip was shown)
+    if !progressive_tip_shown {
+        use search::help::contextual::ContextualHelp;
+        let tips = ContextualHelp::generate_tips(query, results);
+        if !tips.is_empty() {
+            println!();
+            let tip_count = 2;
+            for tip in tips.iter().take(tip_count) {
+                println!("{tip}");
+            }
         }
     }
 
@@ -230,20 +328,10 @@ async fn execute_search(
 ) -> Result<Vec<SearchResult>> {
     use search::search::auto_strategy::AutoStrategy;
 
-    // Use AutoStrategy for intelligent search mode selection
-    let auto_strategy = if should_use_semantic_search(query) {
-        match AutoStrategy::with_semantic_search().await {
-            Ok(strategy) => strategy,
-            Err(_) => {
-                // Fall back to basic strategy if semantic search fails
-                AutoStrategy::new()
-            }
-        }
-    } else {
-        AutoStrategy::new()
-    };
+    // Create AutoStrategy with advanced mode setting
+    // It will initialize semantic search on-demand if needed
+    let mut auto_strategy = AutoStrategy::with_advanced_mode(advanced_mode);
 
-    // Perform smart search with automatic strategy selection
     // Only pass options if in advanced mode AND they contain filtering patterns
     let options_to_pass = if advanced_mode
         && (!options.include_patterns.is_empty() || !options.exclude_patterns.is_empty())
@@ -253,32 +341,18 @@ async fn execute_search(
         None // Basic mode or no filtering patterns
     };
 
+    // Check if a specific mode was requested
+    if let Some(mode) = &options.search_mode {
+        if mode != "auto" {
+            // Use forced mode
+            return auto_strategy
+                .search_with_mode(query, path, mode, options_to_pass)
+                .await;
+        }
+    }
+
+    // Use automatic strategy selection
     auto_strategy.search(query, path, options_to_pass).await
-}
-
-/// Determine if we should use semantic search based on query characteristics
-fn should_use_semantic_search(query: &str) -> bool {
-    // Use semantic search for conceptual queries
-    let conceptual_indicators = [
-        "error handling",
-        "authentication",
-        "database",
-        "security",
-        "performance",
-        "optimization",
-        "algorithm",
-        "pattern",
-        "architecture",
-        "design",
-        "implementation",
-        "solution",
-    ];
-
-    let query_lower = query.to_lowercase();
-    conceptual_indicators
-        .iter()
-        .any(|&indicator| query_lower.contains(indicator))
-        || query.split_whitespace().count() > 2 // Multi-word queries benefit from semantic search
 }
 
 /// Display search results in a user-friendly format
@@ -294,6 +368,21 @@ fn display_simple_results(
     if let Some(suggestion) = provide_contextual_suggestions(query, results.len(), "general") {
         // Handle no results or too many results with user-friendly messages
         if results.is_empty() {
+            // Show progressive feature discovery tips for no results before exiting
+            if let Ok(usage_file) = UsageTracker::default_usage_file() {
+                if let Ok(tracker) = UsageTracker::load(usage_file) {
+                    let stats = tracker.get_stats();
+
+                    if FeatureDiscovery::should_show_tip_for_query(stats, query) {
+                        if let Some(tip) = FeatureDiscovery::suggest_next_step(stats, query, 0) {
+                            println!("{tip}");
+                            println!();
+                        }
+                    }
+                }
+            }
+
+            // Show contextual suggestions regardless of progressive tip status
             eprintln!("{}", suggestion.display());
             std::process::exit(1);
         } else if results.len() > 50 {
@@ -307,7 +396,7 @@ fn display_simple_results(
                 if let Ok(tracker) = UsageTracker::load(usage_file) {
                     let stats = tracker.get_stats();
 
-                    if FeatureDiscovery::should_show_tip(stats) {
+                    if FeatureDiscovery::should_show_tip_for_query(stats, query) {
                         if let Some(tip) =
                             FeatureDiscovery::suggest_next_step(stats, query, results.len())
                         {
@@ -329,9 +418,27 @@ fn display_simple_results(
     }
 
     if results.is_empty() {
+        // Show progressive feature discovery tips for no results before exiting
+        let mut progressive_tip_shown = false;
+        if let Ok(usage_file) = UsageTracker::default_usage_file() {
+            if let Ok(tracker) = UsageTracker::load(usage_file) {
+                let stats = tracker.get_stats();
+
+                if FeatureDiscovery::should_show_tip_for_query(stats, query) {
+                    if let Some(tip) = FeatureDiscovery::suggest_next_step(stats, query, 0) {
+                        println!("{tip}");
+                        println!();
+                        progressive_tip_shown = true;
+                    }
+                }
+            }
+        }
+
         // Fallback if no contextual suggestions were provided
-        let error = UserFriendlyError::no_matches(query, ".");
-        eprintln!("{}", error.display());
+        if !progressive_tip_shown {
+            let error = UserFriendlyError::no_matches(query, ".");
+            eprintln!("{}", error.display());
+        }
         std::process::exit(1);
     }
 
@@ -346,7 +453,7 @@ fn display_simple_results(
             let stats = tracker.get_stats();
 
             // Only show tips if appropriate for user's experience level
-            if FeatureDiscovery::should_show_tip(stats) {
+            if FeatureDiscovery::should_show_tip_for_query(stats, query) {
                 if let Some(tip) = FeatureDiscovery::suggest_next_step(stats, query, results.len())
                 {
                     println!();
@@ -509,7 +616,13 @@ async fn handle_simple_status() -> Result<()> {
 }
 
 /// Handle indexing with simple interface
-async fn handle_index(path: &str, force: bool, semantic: bool, no_semantic: bool) -> Result<()> {
+async fn handle_index(
+    path: &str,
+    force: bool,
+    semantic: bool,
+    no_semantic: bool,
+    advanced_mode: bool,
+) -> Result<()> {
     println!("🗂️  Indexing files in: {path}");
 
     if force {
@@ -547,16 +660,29 @@ async fn handle_index(path: &str, force: bool, semantic: bool, no_semantic: bool
     let indexer = if use_semantic {
         println!("🧠 Including semantic embeddings");
         match create_embedder(true).await {
-            Ok(embedder) => FileIndexer::with_embedder(database, config, embedder),
+            Ok(embedder) => FileIndexerBuilder::new()
+                .with_database(database)
+                .with_config(config)
+                .with_embedder(embedder)
+                .with_advanced_mode(advanced_mode)
+                .build()?,
             Err(e) => {
                 println!("⚠️  Semantic indexing failed: {e}");
                 println!("🔄 Falling back to keyword-only indexing");
-                FileIndexer::with_config(database, config)
+                FileIndexerBuilder::new()
+                    .with_database(database)
+                    .with_config(config)
+                    .with_advanced_mode(advanced_mode)
+                    .build()?
             }
         }
     } else {
         println!("📝 Keyword-only indexing");
-        FileIndexer::with_config(database, config)
+        FileIndexerBuilder::new()
+            .with_database(database)
+            .with_config(config)
+            .with_advanced_mode(advanced_mode)
+            .build()?
     };
 
     // Index the directory
@@ -568,7 +694,7 @@ async fn handle_index(path: &str, force: bool, semantic: bool, no_semantic: bool
         // TODO: Add database method to clear files in path
     }
 
-    match indexer.index_directory(&path_buf) {
+    match indexer.index_directory_with_force(&path_buf, force) {
         Ok(stats) => {
             println!("✅ Indexing complete!");
             println!("   • Files processed: {}", stats.files_processed);
@@ -711,14 +837,21 @@ async fn run_doctor() -> Result<()> {
 }
 
 /// Helper functions from original main.rs
-async fn create_embedder(semantic_requested: bool) -> Result<LocalEmbedder> {
+async fn create_embedder_with_mode(
+    semantic_requested: bool,
+    advanced_mode: bool,
+) -> Result<LocalEmbedder> {
     let config = EmbeddingConfig::default();
 
     if semantic_requested {
-        LocalEmbedder::new(config).await
+        LocalEmbedder::new_with_mode(config, advanced_mode).await
     } else {
         LocalEmbedder::new_tfidf_only(config).await
     }
+}
+
+async fn create_embedder(semantic_requested: bool) -> Result<LocalEmbedder> {
+    create_embedder_with_mode(semantic_requested, false).await
 }
 
 fn get_database_path() -> Result<PathBuf> {

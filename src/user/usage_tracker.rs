@@ -1,65 +1,10 @@
+use crate::core::patterns::{utils, QueryPattern};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-/// Represents different patterns in user queries
-#[derive(Debug, Clone, PartialEq)]
-pub enum QueryPattern {
-    Simple,        // "TODO"
-    RegexLike,     // "TODO.*Fix"
-    PotentialTypo, // "databse"
-    Conceptual,    // "error handling patterns"
-    FileFiltering, // "TODO .py files"
-}
-
-impl QueryPattern {
-    /// Analyze a query to determine its pattern
-    pub fn analyze(query: &str) -> Self {
-        // Check for regex patterns
-        if query.contains(".*")
-            || query.contains("\\d")
-            || query.contains("[")
-            || query.contains("(")
-        {
-            return Self::RegexLike;
-        }
-
-        // Check for file extension filtering
-        if query.contains(".py")
-            || query.contains(".rs")
-            || query.contains(".js")
-            || query.contains(".md")
-        {
-            return Self::FileFiltering;
-        }
-
-        // Check for potential typos (common misspellings)
-        let typo_patterns = [
-            "databse",
-            "functoin",
-            "recieve",
-            "seperate",
-            "occurance",
-            "accomodate",
-            "arguement",
-            "begining",
-            "definately",
-            "existance",
-            "independant",
-        ];
-        if typo_patterns.iter().any(|&typo| query.contains(typo)) {
-            return Self::PotentialTypo;
-        }
-
-        // Check for conceptual queries (multi-word, descriptive)
-        if query.split_whitespace().count() > 3 {
-            return Self::Conceptual;
-        }
-
-        Self::Simple
-    }
-}
+// QueryPattern is now imported from crate::core::patterns
 
 /// Statistics about user behavior patterns
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -130,7 +75,7 @@ impl UsageTracker {
         }
 
         // Track complex queries
-        let pattern = QueryPattern::analyze(query);
+        let pattern = utils::analyze_query_pattern(query);
         if matches!(pattern, QueryPattern::RegexLike | QueryPattern::Conceptual) {
             self.stats.complex_queries.push(query.to_string());
             // Keep only recent complex queries
@@ -189,7 +134,7 @@ impl UsageTracker {
         self.stats
             .recent_queries
             .iter()
-            .map(|q| QueryPattern::analyze(q))
+            .map(|q| utils::analyze_query_pattern(q))
             .collect()
     }
 }
@@ -210,18 +155,21 @@ mod tests {
 
     #[test]
     fn test_query_pattern_analysis() {
-        assert_eq!(QueryPattern::analyze("TODO"), QueryPattern::Simple);
-        assert_eq!(QueryPattern::analyze("TODO.*Fix"), QueryPattern::RegexLike);
+        assert_eq!(utils::analyze_query_pattern("TODO"), QueryPattern::Simple);
         assert_eq!(
-            QueryPattern::analyze("databse"),
+            utils::analyze_query_pattern("TODO.*Fix"),
+            QueryPattern::RegexLike
+        );
+        assert_eq!(
+            utils::analyze_query_pattern("databse"),
             QueryPattern::PotentialTypo
         );
         assert_eq!(
-            QueryPattern::analyze("error handling patterns in authentication"),
+            utils::analyze_query_pattern("error handling patterns in authentication"),
             QueryPattern::Conceptual
         );
         assert_eq!(
-            QueryPattern::analyze("TODO .py files"),
+            utils::analyze_query_pattern("TODO .py files"),
             QueryPattern::FileFiltering
         );
     }

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use crate::core::patterns::utils;
 
 /// Represents different types of queries that can be analyzed
 #[derive(Debug, Clone, PartialEq)]
@@ -52,112 +52,17 @@ impl QueryAnalyzer {
 
     /// Checks if the query contains code-related keywords
     fn contains_code_keywords(query: &str) -> bool {
-        let code_keywords: HashSet<&str> = [
-            "function",
-            "class",
-            "TODO",
-            "FIXME",
-            "import",
-            "export",
-            "async",
-            "await",
-            "Function",
-            "Class",
-            "todo",
-            "fixme",
-            "Import",
-            "Export",
-            "Async",
-            "Await",
-            "fn",
-            "pub",
-            "mod",
-            "struct",
-            "enum",
-            "trait",
-            "impl",
-            "let",
-            "const",
-            "var",
-            "def",
-            "method",
-            "constructor",
-            "abstract",
-            "static",
-            "final",
-            "public",
-            "private",
-            "protected",
-            "virtual",
-            "override",
-            "extends",
-            "implements",
-        ]
-        .iter()
-        .cloned()
-        .collect();
-
-        let query_lower = query.to_lowercase();
-        let words: Vec<&str> = query_lower.split_whitespace().collect();
-
-        // For multi-word queries, be more conservative
-        if words.len() > 2 {
-            // Only detect as code pattern if it looks like a code-specific query
-            let code_specific_patterns = [
-                "function", "class", "TODO", "FIXME", "import", "export", "async", "await", "fn",
-                "pub", "mod", "struct", "enum", "trait", "impl", "def", "method",
-            ];
-
-            return words
-                .iter()
-                .any(|word| code_specific_patterns.contains(word));
-        }
-
-        // For shorter queries, be more permissive
-        words.iter().any(|word| code_keywords.contains(word))
+        utils::contains_code_keywords(query)
     }
 
     /// Checks if the query contains file extensions
     fn contains_file_extensions(query: &str) -> bool {
-        let file_extensions = [
-            ".rs", ".py", ".js", ".ts", ".md", ".txt", ".json", ".toml", ".yaml", ".yml", ".xml",
-            ".html", ".css", ".scss", ".sass", ".less", ".sql", ".sh", ".bash", ".zsh", ".fish",
-            ".ps1", ".bat", ".cmd", ".exe", ".dll", ".so", ".dylib",
-        ];
-
-        file_extensions.iter().any(|ext| query.contains(ext))
+        utils::contains_file_extensions(query)
     }
 
     /// Checks if the query looks like a regex pattern
     fn looks_like_regex(query: &str) -> bool {
-        let regex_metacharacters = [
-            ".*", "\\d+", "\\w+", "\\s+", "\\b", "\\B", "\\A", "\\Z", "\\z", "[", "]", "(", ")",
-            "{", "}", "|", "^", "$", "?", "*", "+",
-        ];
-
-        // Check for common regex patterns
-        let regex_patterns = [
-            r"\\d+", r"\\w+", r"\\s+", r"\\b", r"\\B", r"\\A", r"\\Z", r"\\z", r"\[.*\]",
-            r"\(.*\)", r"\{.*\}", r".*", r".+", r".?", r".*?", r".+?",
-        ];
-
-        // Check for metacharacters
-        if regex_metacharacters
-            .iter()
-            .any(|&meta| query.contains(meta))
-        {
-            return true;
-        }
-
-        // Check for regex patterns
-        if regex_patterns.iter().any(|&pattern| {
-            // Simple pattern matching - in a real implementation you might use regex crate
-            query.contains(pattern)
-        }) {
-            return true;
-        }
-
-        false
+        utils::looks_like_regex(query)
     }
 }
 
