@@ -74,6 +74,11 @@ pub struct LocalEmbedder {
 impl LocalEmbedder {
     /// Create a new local embedder with neural capabilities
     pub async fn new(config: EmbeddingConfig) -> Result<Self> {
+        Self::new_with_mode(config, false).await
+    }
+
+    /// Create a new local embedder with neural capabilities and mode control
+    pub async fn new_with_mode(config: EmbeddingConfig, _advanced_mode: bool) -> Result<Self> {
         let capability = Self::detect_capabilities();
 
         match capability {
@@ -82,7 +87,10 @@ impl LocalEmbedder {
                 // Try to initialize neural embeddings
                 match Self::initialize_neural_embedder(&config).await {
                     Ok((session, tokenizer)) => {
-                        eprintln!("✅ Neural embeddings initialized successfully");
+                        // Only show success message in advanced mode [[memory:655345]]
+                        if _advanced_mode {
+                            eprintln!("✅ Neural embeddings initialized successfully");
+                        }
                         Ok(Self {
                             config,
                             session: Some(session),
@@ -151,6 +159,7 @@ impl LocalEmbedder {
                 eprintln!("📥 Neural model missing, attempting download for semantic search...");
                 match Self::initialize_neural_embedder(&config).await {
                     Ok((session, tokenizer)) => {
+                        // Neural embeddings message is controlled by caller context
                         eprintln!("✅ Neural embeddings initialized successfully");
                         Ok(Self {
                             config,

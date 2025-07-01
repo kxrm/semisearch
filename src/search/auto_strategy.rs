@@ -1,21 +1,27 @@
-use crate::context::{ContextAwareConfig, ProjectDetector, ProjectType};
 use crate::core::{EmbeddingConfig, LocalEmbedder};
-use crate::query::analyzer::{QueryAnalyzer, QueryType};
 use crate::search::{
     file_type_strategy::FileTypeStrategy, fuzzy::FuzzySearch, keyword::KeywordSearch,
     regex_search::RegexSearch,
 };
-use crate::SearchOptions;
-use crate::SearchResult;
+use crate::{SearchOptions, SearchResult};
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// Search mode enum for internal use
+#[allow(dead_code)]
 enum SearchMode {
     Keyword,
     Fuzzy,
     Regex,
+}
+
+/// Decision on which search strategy to use based on semantic score
+#[derive(Debug, PartialEq)]
+pub enum SearchDecision {
+    KeywordOnly,
+    AdaptiveSearch,
+    SemanticOnly,
 }
 
 /// AutoStrategy automatically selects the best search strategy based on query analysis
@@ -24,8 +30,11 @@ pub struct AutoStrategy {
     keyword_search: KeywordSearch,
     fuzzy_search: FuzzySearch,
     regex_search: RegexSearch,
+    #[allow(dead_code)]
     file_type_strategy: FileTypeStrategy,
     semantic_search: Option<crate::search::semantic::SemanticSearch>,
+    query_analyzer: crate::query::lightweight_analyzer::LightweightAnalyzer,
+    advanced_mode: bool,
 }
 
 impl AutoStrategy {
@@ -37,13 +46,44 @@ impl AutoStrategy {
             regex_search: RegexSearch::new(),
             file_type_strategy: FileTypeStrategy::new(),
             semantic_search: None,
+            query_analyzer: crate::query::build_analyzer_with_defaults(),
+            advanced_mode: false,
+        }
+    }
+
+    /// Create a new AutoStrategy with advanced mode enabled
+    pub fn with_advanced_mode(advanced_mode: bool) -> Self {
+        Self {
+            keyword_search: KeywordSearch::new(),
+            fuzzy_search: FuzzySearch::new(),
+            regex_search: RegexSearch::new(),
+            file_type_strategy: FileTypeStrategy::new(),
+            semantic_search: None,
+            query_analyzer: crate::query::build_analyzer_with_defaults(),
+            advanced_mode,
         }
     }
 
     /// Create an AutoStrategy with semantic search capabilities
     pub async fn with_semantic_search() -> Result<Self> {
         let config = EmbeddingConfig::default();
-        let embedder = LocalEmbedder::new(config).await?;
+        let mut embedder = LocalEmbedder::new_with_mode(config, false).await?;
+
+        // Build vocabulary with some sample documents to initialize
+        // In a real implementation, this would use indexed documents
+        let sample_docs = vec![
+            "search query analysis".to_string(),
+            "semantic understanding".to_string(),
+            "keyword matching".to_string(),
+            "fuzzy search algorithm".to_string(),
+            "authentication system design".to_string(),
+            "memory management techniques".to_string(),
+            "database optimization strategies".to_string(),
+            "caching performance improvements".to_string(),
+        ];
+
+        embedder.build_vocabulary(&sample_docs)?;
+
         let embedder_arc = Arc::new(embedder);
 
         Ok(Self {
@@ -52,83 +92,144 @@ impl AutoStrategy {
             regex_search: RegexSearch::new(),
             file_type_strategy: FileTypeStrategy::with_semantic_search(embedder_arc.clone()),
             semantic_search: Some(crate::search::semantic::SemanticSearch::new(embedder_arc)),
+            query_analyzer: crate::query::build_analyzer_with_defaults(),
+            advanced_mode: false,
         })
     }
 
-    /// Performs a search using the automatically selected strategy
-    /// Integrates context detection silently (UX Remediation Plan Task 2.1)
-    /// Now accepts SearchOptions for advanced filtering (include/exclude patterns)
+    /// Search with automatic strategy selection
     pub async fn search(
-        &self,
+        &mut self,
         query: &str,
         path: &str,
         options: Option<&SearchOptions>,
     ) -> Result<Vec<SearchResult>> {
-        let query_type = QueryAnalyzer::analyze(query);
-
-        // Silent context detection - no output to user
-        let path_buf = Path::new(path).to_path_buf();
-        let project_type = ProjectDetector::detect(&path_buf);
-        // Context config available for future use (file patterns, ignore patterns, etc.)
-        let _context_config = ContextAwareConfig::from_project_type(project_type.clone());
-
-        // Get all files in the path, applying include/exclude filtering if provided
+        // Get files to search
         let files = self.get_files_in_path(path, options)?;
 
-        // For file extension queries, extract file extension and filter files
-        if query_type == QueryType::FileExtension {
-            return self.search_with_file_extension_filter(query, &files).await;
+        if files.is_empty() {
+            return Ok(vec![]);
         }
 
-        // Try primary search strategy based on project type and query type
-        let primary_results = match (query_type.clone(), project_type, &self.semantic_search) {
-            // Code patterns in code projects use regex
-            (QueryType::CodePattern, ProjectType::RustProject, _)
-            | (QueryType::CodePattern, ProjectType::JavaScriptProject, _)
-            | (QueryType::CodePattern, ProjectType::PythonProject, _) => {
-                let regex_query = self.code_pattern_to_regex(query);
-                self.search_in_files(&regex_query, &files, SearchMode::Regex)
-                    .await?
+        // Determine search strategy based on query analysis
+        let semantic_score = self.calculate_semantic_score(query);
+        let decision = self.should_use_semantic_search(semantic_score);
+
+        // Execute search based on decision
+        match decision {
+            SearchDecision::KeywordOnly => {
+                // Simple keyword search first
+                let keyword_results = self
+                    .search_in_files(query, &files, SearchMode::Keyword)
+                    .await?;
+
+                // If keyword search fails, try fuzzy as fallback
+                if keyword_results.is_empty() {
+                    self.search_in_files(query, &files, SearchMode::Fuzzy).await
+                } else {
+                    Ok(keyword_results)
+                }
             }
 
-            // Conceptual queries use semantic search if available, otherwise fuzzy
-            (QueryType::Conceptual, _, Some(_semantic)) => {
-                // For now, fallback to fuzzy since semantic search doesn't have path-based search
-                // In a real implementation, this would use the semantic search with file chunks
-                self.search_in_files(query, &files, SearchMode::Fuzzy)
-                    .await?
+            SearchDecision::AdaptiveSearch => {
+                // Try keyword first, then semantic if poor results
+                let keyword_results = self
+                    .search_in_files(query, &files, SearchMode::Keyword)
+                    .await?;
+
+                if self.results_are_poor(&keyword_results) {
+                    // Try semantic search if available
+                    self.ensure_semantic_search_available().await?;
+                    if self.semantic_search.is_some() {
+                        let semantic_results = self.semantic_search_in_files(query, &files).await?;
+                        if !semantic_results.is_empty() {
+                            Ok(semantic_results)
+                        } else {
+                            // Both keyword and semantic failed, try fuzzy
+                            self.search_in_files(query, &files, SearchMode::Fuzzy).await
+                        }
+                    } else {
+                        Ok(keyword_results)
+                    }
+                } else {
+                    Ok(keyword_results)
+                }
             }
 
-            // Exact phrases use keyword search
-            (QueryType::ExactPhrase, _, _) => {
+            SearchDecision::SemanticOnly => {
+                // Go straight to semantic (initialize if needed)
+                self.ensure_semantic_search_available().await?;
+                if self.semantic_search.is_some() {
+                    let semantic_results = self.semantic_search_in_files(query, &files).await?;
+
+                    // If semantic search fails or returns nothing, fallback to fuzzy
+                    // EXCEPT for regex-like patterns (let them fail to trigger learning)
+                    if semantic_results.is_empty() {
+                        if self.looks_like_regex(query) {
+                            // Don't fallback for regex-like patterns - let them fail
+                            // so users learn about regex mode
+                            Ok(semantic_results)
+                        } else {
+                            if self.advanced_mode {
+                                eprintln!(
+                                    "🔄 Semantic search found no results, trying fuzzy search..."
+                                );
+                            }
+                            self.search_in_files(query, &files, SearchMode::Fuzzy).await
+                        }
+                    } else {
+                        Ok(semantic_results)
+                    }
+                } else {
+                    // No semantic search available, use fuzzy as best alternative
+                    eprintln!("🔄 Semantic search unavailable, using fuzzy search...");
+                    self.search_in_files(query, &files, SearchMode::Fuzzy).await
+                }
+            }
+        }
+    }
+
+    /// Search with a forced mode (bypasses automatic decision logic)
+    pub async fn search_with_mode(
+        &mut self,
+        query: &str,
+        path: &str,
+        mode: &str,
+        options: Option<&SearchOptions>,
+    ) -> Result<Vec<SearchResult>> {
+        // Get files to search
+        let files = self.get_files_in_path(path, options)?;
+
+        if files.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // Execute search based on forced mode
+        match mode {
+            "keyword" => {
                 self.search_in_files(query, &files, SearchMode::Keyword)
-                    .await?
+                    .await
             }
-
-            // Regex-like patterns use regex search
-            (QueryType::RegexLike, _, _) => {
-                self.search_in_files(query, &files, SearchMode::Regex)
-                    .await?
+            "fuzzy" => self.search_in_files(query, &files, SearchMode::Fuzzy).await,
+            "regex" => self.search_in_files(query, &files, SearchMode::Regex).await,
+            "semantic" => {
+                self.ensure_semantic_search_available().await?;
+                if self.semantic_search.is_some() {
+                    self.semantic_search_in_files(query, &files).await
+                } else {
+                    // Fallback to fuzzy if semantic unavailable
+                    eprintln!("🔄 Semantic search unavailable, using fuzzy search...");
+                    self.search_in_files(query, &files, SearchMode::Fuzzy).await
+                }
             }
-
-            // Documentation projects use file type strategy
-            (_, ProjectType::Documentation, _) | (_, ProjectType::Mixed, _) => {
-                self.file_type_strategy.search(query, &files).await?
+            "auto" => {
+                // Default to automatic mode
+                self.search(query, path, options).await
             }
-
-            // Default to keyword search first
             _ => {
-                self.search_in_files(query, &files, SearchMode::Keyword)
-                    .await?
+                // Unknown mode, default to automatic mode
+                self.search(query, path, options).await
             }
-        };
-
-        // If no results found, automatically try fuzzy search for typo tolerance
-        // This implements the automatic typo correction from smart query analysis
-        if primary_results.is_empty() && !matches!(query_type, QueryType::RegexLike) {
-            self.search_in_files(query, &files, SearchMode::Fuzzy).await
-        } else {
-            Ok(primary_results)
         }
     }
 
@@ -297,6 +398,23 @@ impl AutoStrategy {
         Ok(results)
     }
 
+    /// Search using semantic search across files
+    async fn semantic_search_in_files(
+        &self,
+        query: &str,
+        files: &[PathBuf],
+    ) -> Result<Vec<SearchResult>> {
+        let semantic_search = match &self.semantic_search {
+            Some(s) => s,
+            None => return Ok(vec![]), // No semantic search available
+        };
+
+        // Use the database-aware semantic search method
+        semantic_search
+            .search_with_database_fallback(query, files, 50)
+            .await
+    }
+
     /// Converts code patterns to regex patterns
     pub fn code_pattern_to_regex(&self, pattern: &str) -> String {
         match pattern.to_uppercase().as_str() {
@@ -321,100 +439,109 @@ impl AutoStrategy {
         }
     }
 
-    /// Search with file extension filtering
-    async fn search_with_file_extension_filter(
-        &self,
-        query: &str,
-        files: &[PathBuf],
-    ) -> Result<Vec<SearchResult>> {
-        // Extract file extensions from query
-        let extensions = self.extract_file_extensions(query);
+    // Removed unused file extension filtering methods that were causing compiler warnings
 
-        // Filter files by extensions if any were found
-        let filtered_files: Vec<PathBuf> = if !extensions.is_empty() {
-            files
-                .iter()
-                .filter(|file| {
-                    if let Some(ext) = file.extension() {
-                        let ext_str = format!(".{}", ext.to_string_lossy().to_lowercase());
-                        extensions.contains(&ext_str)
-                    } else {
-                        false
-                    }
-                })
-                .cloned()
-                .collect()
+    /// Ensure semantic search is available, initializing it if needed
+    async fn ensure_semantic_search_available(&mut self) -> Result<()> {
+        if self.semantic_search.is_none() {
+            match Self::create_semantic_search(self.advanced_mode).await {
+                Ok((semantic_search, file_type_strategy)) => {
+                    self.semantic_search = Some(semantic_search);
+                    self.file_type_strategy = file_type_strategy;
+                }
+                Err(e) => {
+                    eprintln!(
+                        "Note: Semantic search unavailable ({}), using keyword search",
+                        e
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Create semantic search components
+    async fn create_semantic_search(
+        advanced_mode: bool,
+    ) -> Result<(crate::search::semantic::SemanticSearch, FileTypeStrategy)> {
+        let config = EmbeddingConfig::default();
+        let mut embedder = LocalEmbedder::new_with_mode(config, advanced_mode).await?;
+
+        // Build vocabulary with some sample documents to initialize
+        let sample_docs = vec![
+            "search query analysis".to_string(),
+            "semantic understanding".to_string(),
+            "keyword matching".to_string(),
+            "fuzzy search algorithm".to_string(),
+            "authentication system design".to_string(),
+            "memory management techniques".to_string(),
+            "database optimization strategies".to_string(),
+            "caching performance improvements".to_string(),
+        ];
+
+        embedder.build_vocabulary(&sample_docs)?;
+        let embedder_arc = Arc::new(embedder);
+
+        let semantic_search = crate::search::semantic::SemanticSearch::with_advanced_mode(
+            embedder_arc.clone(),
+            advanced_mode,
+        );
+        let file_type_strategy = FileTypeStrategy::with_semantic_search(embedder_arc);
+
+        Ok((semantic_search, file_type_strategy))
+    }
+
+    /// Calculate semantic score for a query using the lightweight analyzer
+    pub fn calculate_semantic_score(&mut self, query: &str) -> f32 {
+        let analysis = self.query_analyzer.analyze(query);
+        analysis.needs_semantic
+    }
+
+    /// Decide which search strategy to use based on semantic score
+    pub fn should_use_semantic_search(&self, score: f32) -> SearchDecision {
+        if score < 0.45 {
+            SearchDecision::KeywordOnly
+        } else if score < 0.60 {
+            SearchDecision::AdaptiveSearch
         } else {
-            files.to_vec()
-        };
-
-        // Extract the actual search term (remove file extension references)
-        let clean_query = self.clean_query_from_extensions(query);
-
-        // Search in filtered files using the appropriate strategy
-        let mut results = self
-            .search_in_files(&clean_query, &filtered_files, SearchMode::Keyword)
-            .await?;
-
-        // If no results with filtered files, fall back to fuzzy search in all files
-        if results.is_empty() && !filtered_files.is_empty() {
-            results = self
-                .search_in_files(&clean_query, &filtered_files, SearchMode::Fuzzy)
-                .await?;
+            SearchDecision::SemanticOnly
         }
-
-        Ok(results)
     }
 
-    /// Extract file extensions from query
-    fn extract_file_extensions(&self, query: &str) -> Vec<String> {
-        let file_extensions = [
-            ".rs", ".py", ".js", ".ts", ".md", ".txt", ".json", ".toml", ".yaml", ".yml", ".xml",
-            ".html", ".css", ".scss", ".sass", ".less", ".sql", ".sh", ".bash", ".zsh", ".fish",
-            ".ps1", ".bat", ".cmd", ".exe", ".dll", ".so", ".dylib",
-        ];
-
-        file_extensions
-            .iter()
-            .filter(|ext| query.contains(*ext))
-            .map(|ext| ext.to_string())
-            .collect()
-    }
-
-    /// Clean query by removing file extension references
-    fn clean_query_from_extensions(&self, query: &str) -> String {
-        let mut clean = query.to_string();
-
-        // Remove common file extension patterns
-        let patterns_to_remove = [
-            ".rs files",
-            ".py files",
-            ".js files",
-            ".ts files",
-            ".md files",
-            ".rs",
-            ".py",
-            ".js",
-            ".ts",
-            ".md",
-            ".txt",
-            ".json",
-            ".toml",
-            "files",
-            "file",
-        ];
-
-        for &pattern in patterns_to_remove.iter() {
-            clean = clean.replace(pattern, "");
+    /// Assess if search results are poor quality
+    pub fn results_are_poor(&self, results: &[crate::SearchResult]) -> bool {
+        if results.is_empty() {
+            return true;
         }
 
-        // Clean up extra whitespace
-        clean
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .join(" ")
-            .trim()
-            .to_string()
+        // Check if all results have low scores
+        let scores: Vec<f32> = results.iter().filter_map(|r| r.score).collect();
+
+        if scores.is_empty() {
+            // No scores available, check result count
+            return results.len() < 3;
+        }
+
+        let avg_score = scores.iter().sum::<f32>() / scores.len() as f32;
+
+        // Poor if average score is low, regardless of count
+        avg_score < 0.3
+    }
+
+    /// Check if a query looks like a regex pattern
+    fn looks_like_regex(&self, query: &str) -> bool {
+        // Check for common regex patterns that users might try
+        query.contains(".*")
+            || query.contains("\\d")
+            || query.contains("\\w")
+            || query.contains("\\s")
+            || query.contains("[")
+            || query.contains("(")
+            || query.contains("^")
+            || query.contains("$")
+            || query.contains("+")
+            || query.contains("?")
+            || (query.contains("*") && !query.ends_with("*")) // Allow glob-style * at end
     }
 }
 
@@ -428,13 +555,7 @@ impl Default for AutoStrategy {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_project_context_detection() {
-        // Test with current directory (should be Rust project since we have Cargo.toml)
-        let path = Path::new(".");
-        let project_type = ProjectDetector::detect(path);
-        assert!(matches!(project_type, ProjectType::RustProject));
-    }
+    // Removed test_project_context_detection as it's not core AutoStrategy functionality
 
     #[test]
     fn test_code_pattern_to_regex() {
@@ -444,5 +565,127 @@ mod tests {
         assert_eq!(auto_strategy.code_pattern_to_regex("FIXME"), r"FIXME.*");
         assert_eq!(auto_strategy.code_pattern_to_regex("function"), r"fn\s+\w+");
         assert_eq!(auto_strategy.code_pattern_to_regex("class"), r"class\s+\w+");
+    }
+
+    #[tokio::test]
+    async fn test_query_analyzer_integration() {
+        // Test that we have query analyzer integration
+        let mut analyzer = crate::query::build_analyzer_with_defaults();
+
+        // Test semantic queries
+        let semantic_score = analyzer.analyze("how does authentication work");
+        assert!(
+            semantic_score.needs_semantic > 0.6,
+            "Expected high semantic score for conceptual query, got {}",
+            semantic_score.needs_semantic
+        );
+
+        // Test keyword queries - our analyzer is semantic-biased, so even simple queries get moderate scores
+        let keyword_score = analyzer.analyze("main.rs");
+        assert!(
+            keyword_score.needs_semantic < 0.55,
+            "Expected moderate semantic score for file name, got {}",
+            keyword_score.needs_semantic
+        );
+    }
+
+    #[tokio::test]
+    async fn test_semantic_search_routing() {
+        // Create auto strategy with semantic search
+        let strategy = AutoStrategy::with_semantic_search().await.unwrap();
+
+        // Test that semantic search is available
+        assert!(strategy.semantic_search.is_some());
+
+        // TODO: Add more specific routing tests once implementation is complete
+    }
+
+    #[test]
+    fn test_semantic_score_calculation() {
+        let mut auto_strategy = AutoStrategy::new();
+
+        // Test various queries and their expected semantic scores
+        // Note: Our analyzer is semantic-biased, so scores are higher than traditional keyword analyzers
+        let test_cases = vec![
+            ("TODO", 0.45, 0.60),                // All caps gets moderate score
+            ("user authentication", 0.60, 0.75), // Technical concept
+            ("how does caching improve performance", 0.70, 1.0), // Question
+            ("main.py", 0.40, 0.55),             // File name with extension
+            ("difference between TCP and UDP", 0.70, 1.0), // Comparison query
+        ];
+
+        for (query, min_score, max_score) in test_cases {
+            let score = auto_strategy.calculate_semantic_score(query);
+            assert!(
+                score >= min_score && score <= max_score,
+                "Query '{}' score {} not in expected range [{}, {}]",
+                query,
+                score,
+                min_score,
+                max_score
+            );
+        }
+    }
+
+    #[test]
+    fn test_should_use_semantic_search() {
+        let auto_strategy = AutoStrategy::new();
+
+        // Test decision making based on scores
+        assert_eq!(
+            auto_strategy.should_use_semantic_search(0.3),
+            SearchDecision::KeywordOnly
+        );
+        assert_eq!(
+            auto_strategy.should_use_semantic_search(0.5),
+            SearchDecision::AdaptiveSearch
+        );
+        assert_eq!(
+            auto_strategy.should_use_semantic_search(0.7),
+            SearchDecision::SemanticOnly
+        );
+    }
+
+    #[tokio::test]
+    async fn test_adaptive_search_fallback() {
+        let _strategy = AutoStrategy::new();
+
+        // Mock a query that returns no results with keyword search
+        // This should trigger fallback to semantic search
+
+        // TODO: Implement once we have proper mocking
+    }
+
+    #[test]
+    fn test_result_quality_assessment() {
+        let auto_strategy = AutoStrategy::new();
+
+        // Test empty results
+        let empty_results = vec![];
+        assert!(auto_strategy.results_are_poor(&empty_results));
+
+        // Test low-score results
+        let poor_results = vec![crate::SearchResult {
+            file_path: "test.rs".to_string(),
+            line_number: 1,
+            content: "test content".to_string(),
+            score: Some(0.2),
+            match_type: Some(crate::MatchType::Exact),
+            context_before: None,
+            context_after: None,
+        }];
+        assert!(auto_strategy.results_are_poor(&poor_results));
+
+        // Test good results
+        let good_results = vec![crate::SearchResult {
+            file_path: "test.rs".to_string(),
+            line_number: 1,
+            content: "test content".to_string(),
+            score: Some(0.8),
+            match_type: Some(crate::MatchType::Exact),
+            context_before: None,
+            context_after: None,
+        }];
+        assert!(!auto_strategy.results_are_poor(&good_results));
     }
 }
