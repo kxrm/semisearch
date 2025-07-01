@@ -36,6 +36,8 @@ rustc-hash = "1.1"
 # Async runtime
 tokio = { version = "1.0", features = ["full"] }
 
+# Pattern management
+lazy_static = "1.4"
 
 # Dynamic loading for optional features
 libloading = "0.8"
@@ -56,3 +58,9 @@ tfidf-only = []  # Legacy feature for minimal builds
 
 # Build optimizations
 [profile.release]
+
+[[example]]
+name = "semantic_demo"
+path = "examples/semantic_demo.rs"
+
+# Neural demo example was removed
