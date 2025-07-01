@@ -14,6 +14,7 @@ mod ux_validation_tests {
 
         let output = Command::new("cargo")
             .arg("run")
+            .arg("--quiet")
             .arg("--")
             .args(args)
             .current_dir(dir)
@@ -22,7 +23,28 @@ mod ux_validation_tests {
 
         let success = output.status.success();
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        let mut stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+        // Filter out compilation warnings to get only user-facing errors
+        let stderr_lines: Vec<&str> = stderr
+            .lines()
+            .filter(|line| {
+                // Skip all compilation-related output
+                !line.contains("warning:") && 
+                !line.contains("-->") && 
+                !line.contains("= note:") &&
+                !line.contains("Compiling") &&
+                !line.contains("Finished") &&
+                !line.contains("Running") &&
+                !line.contains("FileIndexer") &&  // Skip deprecation warnings
+                !line.contains("associated function") &&
+                !line.contains("deprecated") &&
+                !line.starts_with("   |") &&  // Skip code snippet lines
+                !line.starts_with("   ") &&   // Skip indented warning context
+                !line.trim().is_empty()
+            })
+            .collect();
+        stderr = stderr_lines.join("\n");
 
         (success, stdout, stderr)
     }

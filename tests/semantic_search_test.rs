@@ -2,6 +2,8 @@
 //
 // Integration test for semantic search functionality
 
+#![allow(deprecated)]
+
 use search::core::embedder::{EmbeddingConfig, LocalEmbedder};
 use search::core::indexer::{FileIndexer, IndexerConfig};
 use search::search::strategy::SearchEngine;
