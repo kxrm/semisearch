@@ -26,7 +26,12 @@ mod human_readable_output {
         assert!(formatted.contains("Found 1 match"));
         assert!(formatted.contains("src/main.rs"));
         assert!(formatted.contains("Line 42:"));
-        assert!(formatted.contains("TODO: implement this feature"));
+        // Check for the main parts of the content (highlighting may affect exact match)
+        assert!(formatted.contains("TODO"));
+        assert!(formatted.contains("implement this feature"));
+
+        // Should NOT show relevance indicators for single results (contextual progressive disclosure)
+        assert!(!formatted.contains("Perfect match:")); // Only shown when there are many results
 
         // Should NOT show technical details in simple mode
         assert!(!formatted.contains("Score:"));

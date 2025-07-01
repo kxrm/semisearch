@@ -2,12 +2,14 @@ use crate::core::LocalEmbedder;
 use crate::storage::ChunkRecord;
 use crate::text::TextChunk;
 use anyhow::Result;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 /// Semantic search using embeddings
 pub struct SemanticSearch {
     embedder: Arc<LocalEmbedder>,
     similarity_threshold: f32,
+    advanced_mode: bool,
 }
 
 /// Search result with semantic similarity
@@ -25,6 +27,16 @@ impl SemanticSearch {
         Self {
             embedder,
             similarity_threshold: 0.7,
+            advanced_mode: false,
+        }
+    }
+
+    /// Create with advanced mode enabled
+    pub fn with_advanced_mode(embedder: Arc<LocalEmbedder>, advanced_mode: bool) -> Self {
+        Self {
+            embedder,
+            similarity_threshold: 0.7,
+            advanced_mode,
         }
     }
 
@@ -33,6 +45,7 @@ impl SemanticSearch {
         Self {
             embedder,
             similarity_threshold: threshold,
+            advanced_mode: false,
         }
     }
 
@@ -136,6 +149,225 @@ impl SemanticSearch {
     /// Get a reference to the embedder
     pub fn embedder(&self) -> &Arc<LocalEmbedder> {
         &self.embedder
+    }
+
+    /// Database-aware semantic search that tries pre-indexed embeddings first
+    pub async fn search_with_database_fallback(
+        &self,
+        query: &str,
+        files: &[PathBuf],
+        max_results: usize,
+    ) -> Result<Vec<crate::SearchResult>> {
+        // First, try to use pre-indexed embeddings from database
+        if let Some(home_dir) = dirs::home_dir() {
+            let database_path = home_dir.join(".semisearch").join("search.db");
+            if let Ok(database) = crate::storage::Database::new(&database_path) {
+                if let Ok(indexed_chunks) = database.get_chunks_with_embeddings() {
+                    if !indexed_chunks.is_empty() {
+                        if self.advanced_mode {
+                            println!(
+                                "🔍 Using {} pre-indexed chunks from database",
+                                indexed_chunks.len()
+                            );
+                        }
+
+                        // Filter chunks to only include files in our search scope
+                        let file_paths: std::collections::HashSet<String> = files
+                            .iter()
+                            .filter_map(|p| p.to_str())
+                            .map(|s| s.to_string())
+                            .collect();
+
+                        let relevant_chunks: Vec<_> = indexed_chunks
+                            .into_iter()
+                            .filter(|chunk| {
+                                // Check if chunk's file path matches any of our search paths
+                                file_paths.iter().any(|search_path| {
+                                    // Handle both exact matches and directory containment
+                                    chunk.file_path.starts_with(search_path)
+                                        || search_path.starts_with(&chunk.file_path)
+                                        || chunk.file_path.contains(search_path)
+                                })
+                            })
+                            .collect();
+
+                        if !relevant_chunks.is_empty() {
+                            let semantic_results =
+                                self.search(query, &relevant_chunks, max_results)?;
+
+                            let mut results = Vec::new();
+                            for result in semantic_results {
+                                results.push(crate::SearchResult {
+                                    file_path: result.chunk.file_path.clone(),
+                                    line_number: result.chunk.line_number,
+                                    content: result.chunk.content.clone(),
+                                    score: Some(result.similarity_score),
+                                    match_type: Some(crate::MatchType::Semantic),
+                                    context_before: None,
+                                    context_after: None,
+                                });
+                            }
+
+                            if !results.is_empty() {
+                                if self.advanced_mode {
+                                    println!(
+                                        "✅ Found {} matches using indexed embeddings",
+                                        results.len()
+                                    );
+                                }
+                                return Ok(results);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback: on-demand embedding generation for unindexed files
+        if self.advanced_mode {
+            eprintln!("⚠️  No indexed embeddings found, generating on-demand (slower)");
+        }
+        self.search_on_demand(query, files, max_results).await
+    }
+
+    /// Fallback semantic search with on-demand embedding generation
+    async fn search_on_demand(
+        &self,
+        query: &str,
+        files: &[PathBuf],
+        max_results: usize,
+    ) -> Result<Vec<crate::SearchResult>> {
+        let mut all_results = Vec::new();
+
+        // Limit the number of files to process to prevent hanging
+        let max_files = 10; // Reasonable limit for on-demand semantic search
+        let files_to_process = if files.len() > max_files {
+            if self.advanced_mode {
+                eprintln!(
+                    "Note: Limiting on-demand semantic search to first {} files (found {} total)",
+                    max_files,
+                    files.len()
+                );
+            }
+            &files[..max_files]
+        } else {
+            files
+        };
+
+        // For each file, read content and search semantically
+        for file_path in files_to_process {
+            let path_str = file_path.to_str().unwrap_or("");
+
+            // Skip binary files
+            if let Some(ext) = file_path.extension() {
+                let ext_str = ext.to_string_lossy().to_lowercase();
+                if matches!(
+                    ext_str.as_str(),
+                    "exe" | "dll" | "so" | "dylib" | "bin" | "obj"
+                ) {
+                    continue;
+                }
+            }
+
+            // Read file content
+            let content = match std::fs::read_to_string(file_path) {
+                Ok(c) => c,
+                Err(_) => continue, // Skip unreadable files
+            };
+
+            // Split into chunks (simple line-based for now)
+            let lines: Vec<&str> = content.lines().collect();
+
+            // Limit lines per file to prevent hanging on large files
+            let max_lines_per_file = 50;
+            let lines_to_process = if lines.len() > max_lines_per_file {
+                &lines[..max_lines_per_file]
+            } else {
+                &lines[..]
+            };
+
+            // Create chunk records for semantic search
+            let mut chunks = Vec::new();
+            for (idx, line) in lines_to_process.iter().enumerate() {
+                if line.trim().is_empty() {
+                    continue;
+                }
+
+                // Create a simple chunk record
+                let chunk = crate::storage::ChunkRecord {
+                    id: idx as i64,
+                    file_id: 0, // Not used here
+                    file_path: path_str.to_string(),
+                    line_number: idx + 1,
+                    start_char: 0,
+                    end_char: line.len(),
+                    content: line.to_string(),
+                    embedding: None, // Will be generated by semantic search
+                };
+                chunks.push(chunk);
+            }
+
+            // Perform semantic search on chunks
+            if !chunks.is_empty() {
+                if self.advanced_mode {
+                    let total_chunks = chunks.len();
+                    eprint!("🔍 Processing {path_str}: ");
+                    for (idx, chunk) in chunks.iter_mut().enumerate() {
+                        if chunk.embedding.is_none() {
+                            // Show progress for every 10 chunks or on the last chunk
+                            if idx % 10 == 0 || idx == total_chunks - 1 {
+                                eprint!("{}/{} ", idx + 1, total_chunks);
+                                std::io::Write::flush(&mut std::io::stderr()).unwrap_or(());
+                            }
+
+                            match self.embedder.embed(&chunk.content) {
+                                Ok(embedding) => chunk.embedding = Some(embedding),
+                                Err(_) => continue,
+                            }
+                        }
+                    }
+                    eprintln!("✓");
+                } else {
+                    // Processing chunks silently
+                    for chunk in chunks.iter_mut() {
+                        if chunk.embedding.is_none() {
+                            match self.embedder.embed(&chunk.content) {
+                                Ok(embedding) => chunk.embedding = Some(embedding),
+                                Err(_) => continue,
+                            }
+                        }
+                    }
+                }
+
+                // Search with lower threshold for better recall
+                let semantic_results = self.search(query, &chunks, 10)?;
+
+                // Convert to SearchResult
+                for result in semantic_results {
+                    all_results.push(crate::SearchResult {
+                        file_path: result.chunk.file_path.clone(),
+                        line_number: result.chunk.line_number,
+                        content: result.chunk.content.clone(),
+                        score: Some(result.similarity_score),
+                        match_type: Some(crate::MatchType::Semantic),
+                        context_before: None,
+                        context_after: None,
+                    });
+                }
+            }
+        }
+
+        // Sort and limit results
+        all_results.sort_by(|a, b| {
+            let score_a = a.score.unwrap_or(0.0);
+            let score_b = b.score.unwrap_or(0.0);
+            score_b
+                .partial_cmp(&score_a)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        all_results.truncate(max_results);
+
+        Ok(all_results)
     }
 }
 

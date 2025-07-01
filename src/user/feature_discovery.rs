@@ -1,4 +1,5 @@
-use crate::user::usage_tracker::{QueryPattern, UsageStats, UserExperienceLevel};
+use crate::core::patterns::{utils, QueryPattern};
+use crate::user::usage_tracker::{UsageStats, UserExperienceLevel};
 
 /// Generates contextual tips to help users discover advanced features progressively
 pub struct FeatureDiscovery;
@@ -11,7 +12,7 @@ impl FeatureDiscovery {
         result_count: usize,
     ) -> Option<String> {
         let experience_level = Self::determine_experience_level(stats);
-        let query_pattern = QueryPattern::analyze(current_query);
+        let query_pattern = utils::analyze_query_pattern(current_query);
 
         // Progressive disclosure based on experience level
         match experience_level {
@@ -185,7 +186,7 @@ impl FeatureDiscovery {
         stats: &UsageStats,
     ) -> Option<String> {
         let experience = Self::determine_experience_level(stats);
-        let pattern = QueryPattern::analyze(query);
+        let pattern = utils::analyze_query_pattern(query);
 
         match (result_count, pattern, experience) {
             // No results - provide helpful suggestions
@@ -230,6 +231,19 @@ impl FeatureDiscovery {
             UserExperienceLevel::Experienced => stats.total_searches % 3 == 0, // Every third search
             UserExperienceLevel::Expert => stats.total_searches % 5 == 0,      // Every fifth search
         }
+    }
+
+    /// Check if it's appropriate to show a tip for a specific query (considers query importance)
+    pub fn should_show_tip_for_query(stats: &UsageStats, query: &str) -> bool {
+        let pattern = utils::analyze_query_pattern(query);
+
+        // Always show tips for important learning moments (regex patterns)
+        if matches!(pattern, QueryPattern::RegexLike) {
+            return true;
+        }
+
+        // Otherwise use normal frequency rules
+        Self::should_show_tip(stats)
     }
 }
 
@@ -352,5 +366,22 @@ mod tests {
         assert!(tip.is_some());
         let tip_text = tip.unwrap();
         assert!(tip_text.contains("--fuzzy") || tip_text.contains("typo"));
+    }
+
+    #[test]
+    fn test_intermediate_regex_suggestion() {
+        let stats = UsageStats {
+            total_searches: 7,
+            advanced_mode_used: false,
+            fuzzy_mode_used: false,
+            recent_queries: vec!["TODO.*fix".to_string()],
+            complex_queries: vec!["TODO.*fix".to_string()],
+        };
+
+        let suggestion = FeatureDiscovery::suggest_next_step(&stats, "TODO.*fix", 0);
+        assert!(suggestion.is_some());
+        let tip = suggestion.unwrap();
+        println!("Regex tip: {tip}");
+        assert!(tip.contains("--advanced") || tip.contains("regex") || tip.contains("pattern"));
     }
 }

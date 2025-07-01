@@ -4,7 +4,7 @@ use std::path::Path;
 
 #[tokio::test]
 async fn test_exact_phrase_strategy() {
-    let auto_strategy = AutoStrategy::new();
+    let mut auto_strategy = AutoStrategy::new();
 
     // Test exact phrase queries
     let results = auto_strategy
@@ -18,7 +18,7 @@ async fn test_exact_phrase_strategy() {
 
 #[tokio::test]
 async fn test_code_pattern_strategy() {
-    let auto_strategy = AutoStrategy::new();
+    let mut auto_strategy = AutoStrategy::new();
 
     // Test code pattern queries
     let results = auto_strategy.search("TODO", "./src", None).await.unwrap();
@@ -29,7 +29,7 @@ async fn test_code_pattern_strategy() {
 
 #[tokio::test]
 async fn test_conceptual_strategy() {
-    let auto_strategy = AutoStrategy::new();
+    let mut auto_strategy = AutoStrategy::new();
 
     // Test conceptual queries
     let results = auto_strategy
@@ -43,7 +43,7 @@ async fn test_conceptual_strategy() {
 
 #[tokio::test]
 async fn test_file_extension_strategy() {
-    let auto_strategy = AutoStrategy::new();
+    let mut auto_strategy = AutoStrategy::new();
 
     // Test file extension queries
     let results = auto_strategy.search(".rs", "./src", None).await.unwrap();
@@ -54,7 +54,7 @@ async fn test_file_extension_strategy() {
 
 #[tokio::test]
 async fn test_regex_like_strategy() {
-    let auto_strategy = AutoStrategy::new();
+    let mut auto_strategy = AutoStrategy::new();
 
     // Test regex-like queries
     let results = auto_strategy
@@ -68,7 +68,7 @@ async fn test_regex_like_strategy() {
 
 #[tokio::test]
 async fn test_fallback_to_fuzzy() {
-    let auto_strategy = AutoStrategy::new();
+    let mut auto_strategy = AutoStrategy::new();
 
     // Test that falls back to fuzzy for typo tolerance
     let results = auto_strategy

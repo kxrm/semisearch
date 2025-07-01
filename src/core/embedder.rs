@@ -74,6 +74,11 @@ pub struct LocalEmbedder {
 impl LocalEmbedder {
     /// Create a new local embedder with neural capabilities
     pub async fn new(config: EmbeddingConfig) -> Result<Self> {
+        Self::new_with_mode(config, false).await
+    }
+
+    /// Create a new local embedder with neural capabilities and mode control
+    pub async fn new_with_mode(config: EmbeddingConfig, _advanced_mode: bool) -> Result<Self> {
         let capability = Self::detect_capabilities();
 
         match capability {
@@ -82,7 +87,10 @@ impl LocalEmbedder {
                 // Try to initialize neural embeddings
                 match Self::initialize_neural_embedder(&config).await {
                     Ok((session, tokenizer)) => {
-                        eprintln!("✅ Neural embeddings initialized successfully");
+                        // Only show success message in advanced mode [[memory:655345]]
+                        if _advanced_mode {
+                            eprintln!("✅ Neural embeddings initialized successfully");
+                        }
                         Ok(Self {
                             config,
                             session: Some(session),
@@ -151,6 +159,7 @@ impl LocalEmbedder {
                 eprintln!("📥 Neural model missing, attempting download for semantic search...");
                 match Self::initialize_neural_embedder(&config).await {
                     Ok((session, tokenizer)) => {
+                        // Neural embeddings message is controlled by caller context
                         eprintln!("✅ Neural embeddings initialized successfully");
                         Ok(Self {
                             config,
@@ -249,7 +258,8 @@ impl LocalEmbedder {
         let total_size = response.content_length().unwrap_or(0);
 
         if total_size > 0 {
-            println!("📦 Model size: {:.2} MB", total_size as f64 / 1_048_576.0);
+            let size_mb = total_size as f64 / 1_048_576.0;
+            println!("📦 Model size: {size_mb:.2} MB");
         }
 
         // Download the entire content at once instead of streaming
@@ -1062,8 +1072,10 @@ mod tests {
         println!("   🔤 Model: {}", config.model_name);
         println!("   📏 Max sequence length: {}", config.max_length);
         println!("   📦 Batch size: {}", config.batch_size);
-        println!("   🖥️  Device: {:?}", config.device);
-        println!("   💾 Cache directory: {:?}", config.cache_dir);
+        let device = &config.device;
+        let cache_dir = &config.cache_dir;
+        println!("   🖥️  Device: {device:?}");
+        println!("   💾 Cache directory: {cache_dir:?}");
 
         println!("\n🔍 System Capability Detection:");
         let capability = LocalEmbedder::detect_capabilities();
@@ -1089,7 +1101,8 @@ mod tests {
         match LocalEmbedder::new(config).await {
             Ok(embedder) => {
                 println!("✅ LocalEmbedder created successfully!");
-                println!("   📊 Final capability: {:?}", embedder.capability());
+                let capability = embedder.capability();
+                println!("   📊 Final capability: {capability:?}");
                 println!("   📐 Embedding dimension: {}", embedder.embedding_dim());
                 println!("   🧮 Has vocabulary: {}", embedder.has_vocabulary());
 

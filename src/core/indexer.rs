@@ -17,6 +17,17 @@ pub struct FileIndexer {
     config: IndexerConfig,
     #[allow(dead_code)]
     embedder: Option<LocalEmbedder>,
+    advanced_mode: bool,
+}
+
+impl std::fmt::Debug for FileIndexer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FileIndexer")
+            .field("config", &self.config)
+            .field("advanced_mode", &self.advanced_mode)
+            .field("has_embedder", &self.embedder.is_some())
+            .finish_non_exhaustive()
+    }
 }
 
 /// Configuration for the indexer
@@ -98,27 +109,49 @@ impl Default for IndexStats {
 }
 
 impl FileIndexer {
-    /// Create a new file indexer
+    /// Create a new file indexer (deprecated - use FileIndexerBuilder)
+    #[deprecated(note = "Use FileIndexerBuilder::new().with_database(database).build() instead")]
     pub fn new(database: Database) -> Self {
         Self {
             database,
             text_processor: TextProcessor::new(),
             config: IndexerConfig::default(),
             embedder: None,
+            advanced_mode: false,
         }
     }
 
-    /// Create indexer with custom configuration
+    /// Create indexer from components (used by builder)
+    pub(crate) fn from_components(
+        database: Database,
+        text_processor: TextProcessor,
+        config: IndexerConfig,
+        embedder: Option<LocalEmbedder>,
+        advanced_mode: bool,
+    ) -> Self {
+        Self {
+            database,
+            text_processor,
+            config,
+            embedder,
+            advanced_mode,
+        }
+    }
+
+    /// Create indexer with custom configuration (deprecated - use FileIndexerBuilder)
+    #[deprecated(note = "Use FileIndexerBuilder instead")]
     pub fn with_config(database: Database, config: IndexerConfig) -> Self {
         Self {
             database,
-            text_processor: TextProcessor::with_config(config.chunk_size, config.chunk_size * 2),
+            text_processor: TextProcessor::with_config(10, 1000),
             config,
             embedder: None,
+            advanced_mode: false,
         }
     }
 
-    /// Create indexer with embeddings support
+    /// Create indexer with embeddings support (deprecated - use FileIndexerBuilder)
+    #[deprecated(note = "Use FileIndexerBuilder instead")]
     pub fn with_embedder(
         database: Database,
         config: IndexerConfig,
@@ -126,18 +159,76 @@ impl FileIndexer {
     ) -> Self {
         Self {
             database,
-            text_processor: TextProcessor::with_config(config.chunk_size, config.chunk_size * 2),
+            text_processor: TextProcessor::with_config(10, 1000),
             config,
             embedder: Some(embedder),
+            advanced_mode: false,
         }
+    }
+
+    /// Create indexer with advanced mode enabled (deprecated - use FileIndexerBuilder)
+    #[deprecated(note = "Use FileIndexerBuilder instead")]
+    pub fn with_advanced_mode(
+        database: Database,
+        config: IndexerConfig,
+        embedder: Option<LocalEmbedder>,
+        advanced_mode: bool,
+    ) -> Self {
+        Self {
+            database,
+            text_processor: TextProcessor::with_config(10, 1000),
+            config,
+            embedder,
+            advanced_mode,
+        }
+    }
+
+    /// Create indexer with auto-detected embedding capabilities (deprecated - use FileIndexerBuilder)
+    #[deprecated(
+        note = "Use FileIndexerBuilder::new().with_database(database).with_auto_embeddings().await?.build() instead"
+    )]
+    #[allow(deprecated)]
+    pub async fn with_auto_embeddings(database: Database) -> Result<Self> {
+        let mut config = IndexerConfig::default();
+
+        // Try to create embedder with system capabilities
+        match LocalEmbedder::with_auto_config().await {
+            Ok(embedder) => {
+                config.enable_embeddings = true;
+                eprintln!(
+                    "📊 Indexer: Embeddings enabled ({:?})",
+                    embedder.capability()
+                );
+                Ok(Self::with_embedder(database, config, embedder))
+            }
+            Err(_) => {
+                config.enable_embeddings = false;
+                eprintln!("📊 Indexer: Embeddings disabled (capability not available)");
+                Ok(Self::with_config(database, config))
+            }
+        }
+    }
+
+    /// Check if advanced mode is enabled
+    pub fn is_advanced_mode(&self) -> bool {
+        self.advanced_mode
     }
 
     /// Index a directory recursively
     pub fn index_directory(&self, path: &Path) -> Result<IndexStats> {
+        self.index_directory_with_force(path, false)
+    }
+
+    /// Index a directory recursively with optional force reindex
+    pub fn index_directory_with_force(&self, path: &Path, force: bool) -> Result<IndexStats> {
         let start_time = std::time::Instant::now();
         let mut stats = IndexStats::default();
 
-        println!("Indexing directory: {path}", path = path.display());
+        if self.advanced_mode {
+            println!("🔍 Indexing directory: {path}", path = path.display());
+        } else {
+            println!("Indexing directory: {path}", path = path.display());
+        }
 
         // Create thread-safe filter criteria
         let excluded_dirs = self.config.excluded_directories.clone();
@@ -155,8 +246,24 @@ impl FileIndexer {
             match entry {
                 Ok(entry) => {
                     if entry.file_type().is_some_and(|ft| ft.is_file()) {
-                        match self.process_file(entry.path()) {
+                        if self.advanced_mode {
+                            print!("📄 Processing: {} ", entry.path().display());
+                            std::io::Write::flush(&mut std::io::stdout()).unwrap_or(());
+                        }
+
+                        match self.process_file_with_force(entry.path(), force) {
                             Ok(file_stats) => {
+                                if self.advanced_mode {
+                                    if file_stats.was_updated {
+                                        println!(
+                                            "✅ Updated ({} chunks)",
+                                            file_stats.chunks_created
+                                        );
+                                    } else {
+                                        println!("⏭️  Skipped (no changes)");
+                                    }
+                                }
+
                                 if file_stats.was_updated {
                                     stats.files_updated += 1;
                                 } else {
@@ -166,6 +273,10 @@ impl FileIndexer {
                                 stats.total_size_bytes += file_stats.size_bytes;
                             }
                             Err(e) => {
+                                if self.advanced_mode {
+                                    println!("❌ Error: {e}");
+                                }
+
                                 stats.files_skipped += 1;
                                 stats
                                     .errors
@@ -188,34 +299,74 @@ impl FileIndexer {
 
         stats.duration_seconds = start_time.elapsed().as_secs_f64();
 
-        println!("Indexing complete:");
-        println!(
-            "  Files processed: {files_processed}",
-            files_processed = stats.files_processed
-        );
-        println!(
-            "  Files updated: {files_updated}",
-            files_updated = stats.files_updated
-        );
-        println!(
-            "  Files skipped: {files_skipped}",
-            files_skipped = stats.files_skipped
-        );
-        println!(
-            "  Chunks created: {chunks_created}",
-            chunks_created = stats.chunks_created
-        );
-        println!(
-            "  Duration: {duration:.2}s",
-            duration = stats.duration_seconds
-        );
-        println!("  Errors: {errors}", errors = stats.errors.len());
+        if self.advanced_mode {
+            println!("🎯 Indexing complete:");
+            println!(
+                "  📊 Files processed: {files_processed}",
+                files_processed = stats.files_processed
+            );
+            println!(
+                "  🔄 Files updated: {files_updated}",
+                files_updated = stats.files_updated
+            );
+            println!(
+                "  ⏭️  Files skipped: {files_skipped}",
+                files_skipped = stats.files_skipped
+            );
+            println!(
+                "  📝 Chunks created: {chunks_created}",
+                chunks_created = stats.chunks_created
+            );
+            println!(
+                "  ⏱️  Duration: {duration:.2}s",
+                duration = stats.duration_seconds
+            );
+            println!("  ❌ Errors: {errors}", errors = stats.errors.len());
+
+            if self.embedder.is_some() {
+                println!(
+                    "  🧠 Embeddings: Generated for {} chunks",
+                    stats.chunks_created
+                );
+            }
+
+            // Show performance metrics
+            let files_per_second =
+                (stats.files_processed + stats.files_updated) as f64 / stats.duration_seconds;
+            let chunks_per_second = stats.chunks_created as f64 / stats.duration_seconds;
+            println!(
+                "  🚀 Performance: {files_per_second:.1} files/sec, {chunks_per_second:.1} chunks/sec"
+            );
+        } else {
+            println!("Indexing complete:");
+            println!(
+                "  Files processed: {files_processed}",
+                files_processed = stats.files_processed
+            );
+            println!(
+                "  Files updated: {files_updated}",
+                files_updated = stats.files_updated
+            );
+            println!(
+                "  Files skipped: {files_skipped}",
+                files_skipped = stats.files_skipped
+            );
+            println!(
+                "  Chunks created: {chunks_created}",
+                chunks_created = stats.chunks_created
+            );
+            println!(
+                "  Duration: {duration:.2}s",
+                duration = stats.duration_seconds
+            );
+            println!("  Errors: {errors}", errors = stats.errors.len());
+        }
 
         Ok(stats)
     }
 
-    /// Process a single file
-    fn process_file(&self, path: &Path) -> Result<FileProcessingStats> {
+    /// Process a single file with optional force reindex
+    fn process_file_with_force(&self, path: &Path, force: bool) -> Result<FileProcessingStats> {
         // Check file size
         let metadata = fs::metadata(path)?;
         let file_size = metadata.len();
@@ -235,8 +386,8 @@ impl FileIndexer {
         let file_hash = self.calculate_file_hash(&content);
         let path_str = path.to_string_lossy().to_string();
 
-        // Check if file needs reindexing
-        if !self.database.needs_reindexing(&path_str, &file_hash)? {
+        // Check if file needs reindexing (skip if force is true)
+        if !force && !self.database.needs_reindexing(&path_str, &file_hash)? {
             return Ok(FileProcessingStats {
                 chunks_created: 0,
                 size_bytes: file_size,
@@ -256,13 +407,27 @@ impl FileIndexer {
         let chunks = self.text_processor.process_file(&content);
 
         // Store chunks in database
-        for chunk in &chunks {
+        if self.advanced_mode && self.embedder.is_some() && !chunks.is_empty() {
+            print!("🧠 Generating embeddings: ");
+            std::io::Write::flush(&mut std::io::stdout()).unwrap_or(());
+        }
+
+        for (idx, chunk) in chunks.iter().enumerate() {
             // Generate embedding if embedder is available
             let embedding = if let Some(ref embedder) = self.embedder {
+                if self.advanced_mode && idx % 10 == 0 && idx > 0 {
+                    print!("{}/{} ", idx + 1, chunks.len());
+                    std::io::Write::flush(&mut std::io::stdout()).unwrap_or(());
+                }
+
                 match embedder.embed(&chunk.content) {
                     Ok(emb) => Some(emb),
                     Err(e) => {
-                        eprintln!("Warning: Failed to generate embedding for chunk: {e}");
+                        if self.advanced_mode {
+                            eprintln!("\nWarning: Failed to generate embedding for chunk: {e}");
+                        } else {
+                            eprintln!("Warning: Failed to generate embedding for chunk: {e}");
+                        }
                         None
                     }
                 }
@@ -278,6 +443,10 @@ impl FileIndexer {
                 &chunk.content,
                 embedding.as_deref(),
             )?;
+        }
+
+        if self.advanced_mode && self.embedder.is_some() && !chunks.is_empty() {
+            println!("{}/{} ✅", chunks.len(), chunks.len());
         }
 
         Ok(FileProcessingStats {
@@ -369,6 +538,7 @@ mod tests {
     use std::fs;
     use tempfile::{NamedTempFile, TempDir};
 
+    #[allow(deprecated)]
     fn create_test_indexer() -> (FileIndexer, NamedTempFile) {
         let temp_file = NamedTempFile::new().unwrap();
         let database = Database::new(temp_file.path()).unwrap();
@@ -377,6 +547,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_indexer_creation() {
         let (indexer, _temp_file) = create_test_indexer();
         assert_eq!(indexer.config.max_file_size_mb, 50);
@@ -411,13 +582,13 @@ mod tests {
         .unwrap();
 
         // Process the file
-        let stats = indexer.process_file(&test_file).unwrap();
+        let stats = indexer.process_file_with_force(&test_file, true).unwrap();
         assert!(stats.was_updated);
         assert!(stats.chunks_created > 0);
         assert!(stats.size_bytes > 0);
 
         // Process again - should not update
-        let stats2 = indexer.process_file(&test_file).unwrap();
+        let stats2 = indexer.process_file_with_force(&test_file, false).unwrap();
         assert!(!stats2.was_updated);
         assert_eq!(stats2.chunks_created, 0);
     }
@@ -466,6 +637,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_large_file_skipping() {
         let temp_file = NamedTempFile::new().unwrap();
         let database = Database::new(temp_file.path()).unwrap();
@@ -482,12 +654,13 @@ mod tests {
         fs::write(&large_file, "This file is too large").unwrap();
 
         // Should fail to process due to size limit
-        let result = indexer.process_file(&large_file);
+        let result = indexer.process_file_with_force(&large_file, false);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("too large"));
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_database_integration() {
         let (indexer, _temp_file) = create_test_indexer();
         let temp_dir = TempDir::new().unwrap();

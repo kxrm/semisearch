@@ -5,8 +5,9 @@ use tempfile::TempDir;
 #[cfg(test)]
 mod progressive_feature_discovery_tests {
     use super::*;
+    use search::core::patterns::{utils, QueryPattern};
     use search::user::feature_discovery::FeatureDiscovery;
-    use search::user::usage_tracker::{QueryPattern, UsageStats, UsageTracker};
+    use search::user::usage_tracker::{UsageStats, UsageTracker};
 
     /// Test: New users get basic, encouraging tips
     #[test]
@@ -157,18 +158,21 @@ mod progressive_feature_discovery_tests {
     /// Test: Query pattern detection
     #[test]
     fn test_query_pattern_detection() {
-        assert_eq!(QueryPattern::analyze("TODO"), QueryPattern::Simple);
-        assert_eq!(QueryPattern::analyze("TODO.*Fix"), QueryPattern::RegexLike);
+        assert_eq!(utils::analyze_query_pattern("TODO"), QueryPattern::Simple);
         assert_eq!(
-            QueryPattern::analyze("databse"),
+            utils::analyze_query_pattern("TODO.*Fix"),
+            QueryPattern::RegexLike
+        );
+        assert_eq!(
+            utils::analyze_query_pattern("databse"),
             QueryPattern::PotentialTypo
         );
         assert_eq!(
-            QueryPattern::analyze("error handling patterns in authentication"),
+            utils::analyze_query_pattern("error handling patterns in authentication"),
             QueryPattern::Conceptual
         );
         assert_eq!(
-            QueryPattern::analyze("TODO .py files"),
+            utils::analyze_query_pattern("TODO .py files"),
             QueryPattern::FileFiltering
         );
     }

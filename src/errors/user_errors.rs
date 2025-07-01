@@ -1,4 +1,4 @@
-use regex::Regex;
+use crate::core::patterns::utils;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -132,116 +132,7 @@ impl UserError {
 
     /// Simplify a query for suggestions
     pub fn simplify_query(query: &str) -> String {
-        // Common programming terms that can be removed for simplification
-        let programming_terms: std::collections::HashSet<&str> = [
-            "function",
-            "class",
-            "method",
-            "async",
-            "await",
-            "const",
-            "let",
-            "var",
-            "public",
-            "private",
-            "protected",
-            "static",
-            "final",
-            "abstract",
-            "interface",
-            "type",
-            "enum",
-            "struct",
-            "trait",
-            "impl",
-            "mod",
-            "import",
-            "export",
-            "require",
-            "include",
-            "using",
-            "namespace",
-            "try",
-            "catch",
-            "throw",
-            "throws",
-            "error",
-            "exception",
-            "handler",
-            "validate",
-            "validation",
-            "check",
-            "verify",
-            "test",
-            "testing",
-            "config",
-            "configuration",
-            "setup",
-            "initialize",
-            "init",
-            "db",
-            "query",
-            "sql",
-            "api",
-            "endpoint",
-            "route",
-            "controller",
-            "service",
-            "repository",
-            "model",
-            "view",
-            "component",
-            "utils",
-            "utility",
-            "helper",
-            "fn",
-            "pub",
-            "def",
-            "return",
-        ]
-        .iter()
-        .cloned()
-        .collect();
-
-        // Common file extensions that can be removed
-        let file_extensions: std::collections::HashSet<&str> = [
-            ".rs", ".py", ".js", ".ts", ".md", ".txt", ".json", ".toml", ".yaml", ".yml", ".xml",
-            ".html", ".css", ".scss", ".sql", ".sh", ".bash",
-        ]
-        .iter()
-        .cloned()
-        .collect();
-
-        // Common noise words
-        let noise_words: std::collections::HashSet<&str> = [
-            "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with",
-            "by", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do",
-            "does", "did", "will", "would", "could", "should", "may", "might", "can", "this",
-            "that", "these", "those",
-        ]
-        .iter()
-        .cloned()
-        .collect();
-
-        // Split on whitespace and punctuation
-        let re = Regex::new(r"[ \t\n\r\.\:\(\)\{\}\[\],;]+")
-            .expect("Invalid regex for query simplification");
-        let tokens: Vec<&str> = re
-            .split(query)
-            .filter(|token| {
-                let token_lower = token.to_lowercase();
-                token.len() > 2
-                    && !programming_terms.contains(token_lower.as_str())
-                    && !file_extensions.contains(token)
-                    && !noise_words.contains(token_lower.as_str())
-            })
-            .collect();
-
-        if tokens.is_empty() {
-            "search term".to_string()
-        } else {
-            tokens.into_iter().take(3).collect::<Vec<_>>().join(" ")
-        }
+        utils::simplify_query(query)
     }
 
     #[cfg(test)]

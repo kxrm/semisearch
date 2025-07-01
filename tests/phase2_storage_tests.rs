@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use search::core::{FileIndexer, IndexerConfig};
 use search::storage::Database;
 use std::collections::HashSet;
