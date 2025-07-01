@@ -88,9 +88,10 @@ impl HumanFormatter {
             // Show technical details in advanced mode
             if advanced_mode {
                 if let Some(score) = result.score {
-                    output.push_str(&format!("   Score: {:.2}\n", score));
+                    output.push_str(&format!("   Score: {score:.2}\n"));
                     if score < 1.0 {
-                        output.push_str(&format!("   Relevance: {:.1}%\n", score * 100.0));
+                        let relevance = score * 100.0;
+                        output.push_str(&format!("   Relevance: {relevance:.1}%\n"));
                     }
                 }
 
@@ -174,9 +175,9 @@ impl HumanFormatter {
         );
 
         if advanced_mode {
-            format!("[{}] {:.2} ", bar, score_value)
+            format!("[{bar}] {score_value:.2} ")
         } else {
-            format!("[{}] ", bar)
+            format!("[{bar}] ")
         }
     }
 
@@ -227,7 +228,7 @@ impl HumanFormatter {
                     .iter()
                     .collect();
 
-                return format!("{}\x1b[1;33m{}\x1b[0m{}", before, matched, after);
+                return format!("{before}\x1b[1;33m{matched}\x1b[0m{after}");
             }
         }
 
@@ -307,7 +308,7 @@ impl HumanFormatter {
                 .collect();
             let after: String = content_chars[start + best_match_len..].iter().collect();
 
-            format!("{}\x1b[1;33m{}\x1b[0m{}", before, matched, after)
+            format!("{before}\x1b[1;33m{matched}\x1b[0m{after}")
         } else {
             // No match found, return content as-is
             content.to_string()

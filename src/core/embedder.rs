@@ -258,7 +258,8 @@ impl LocalEmbedder {
         let total_size = response.content_length().unwrap_or(0);
 
         if total_size > 0 {
-            println!("📦 Model size: {:.2} MB", total_size as f64 / 1_048_576.0);
+            let size_mb = total_size as f64 / 1_048_576.0;
+            println!("📦 Model size: {size_mb:.2} MB");
         }
 
         // Download the entire content at once instead of streaming
@@ -1071,8 +1072,10 @@ mod tests {
         println!("   🔤 Model: {}", config.model_name);
         println!("   📏 Max sequence length: {}", config.max_length);
         println!("   📦 Batch size: {}", config.batch_size);
-        println!("   🖥️  Device: {:?}", config.device);
-        println!("   💾 Cache directory: {:?}", config.cache_dir);
+        let device = &config.device;
+        let cache_dir = &config.cache_dir;
+        println!("   🖥️  Device: {device:?}");
+        println!("   💾 Cache directory: {cache_dir:?}");
 
         println!("\n🔍 System Capability Detection:");
         let capability = LocalEmbedder::detect_capabilities();
@@ -1098,7 +1101,8 @@ mod tests {
         match LocalEmbedder::new(config).await {
             Ok(embedder) => {
                 println!("✅ LocalEmbedder created successfully!");
-                println!("   📊 Final capability: {:?}", embedder.capability());
+                let capability = embedder.capability();
+        println!("   📊 Final capability: {capability:?}");
                 println!("   📐 Embedding dimension: {}", embedder.embedding_dim());
                 println!("   🧮 Has vocabulary: {}", embedder.has_vocabulary());
 

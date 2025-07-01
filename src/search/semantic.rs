@@ -311,7 +311,7 @@ impl SemanticSearch {
             if !chunks.is_empty() {
                 if self.advanced_mode {
                     let total_chunks = chunks.len();
-                    eprint!("🔍 Processing {}: ", path_str);
+                    eprint!("🔍 Processing {path_str}: ");
                     for (idx, chunk) in chunks.iter_mut().enumerate() {
                         if chunk.embedding.is_none() {
                             // Show progress for every 10 chunks or on the last chunk

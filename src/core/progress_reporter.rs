@@ -52,7 +52,8 @@ impl ProgressReporter for SilentReporter {
         println!("  Files updated: {}", stats.files_updated);
         println!("  Files skipped: {}", stats.files_skipped);
         println!("  Chunks created: {}", stats.chunks_created);
-        println!("  Duration: {:.2}s", stats.duration_seconds);
+        let duration = stats.duration_seconds;
+        println!("  Duration: {duration:.2}s");
         println!("  Errors: {}", stats.errors.len());
     }
 }
@@ -74,7 +75,7 @@ impl ProgressReporter for AdvancedReporter {
     }
 
     fn start_file_processing(&self, file_path: &str) {
-        print!("📄 Processing: {} ", file_path);
+        print!("📄 Processing: {file_path} ");
         let _ = io::stdout().flush();
     }
 
@@ -116,7 +117,8 @@ impl ProgressReporter for AdvancedReporter {
         println!("  🔄 Files updated: {}", stats.files_updated);
         println!("  ⏭️  Files skipped: {}", stats.files_skipped);
         println!("  📝 Chunks created: {}", stats.chunks_created);
-        println!("  ⏱️  Duration: {:.2}s", stats.duration_seconds);
+        let duration = stats.duration_seconds;
+        println!("  ⏱️  Duration: {duration:.2}s");
         println!("  ❌ Errors: {}", stats.errors.len());
 
         if self.has_embeddings {
@@ -131,8 +133,7 @@ impl ProgressReporter for AdvancedReporter {
             (stats.files_processed + stats.files_updated) as f64 / stats.duration_seconds;
         let chunks_per_second = stats.chunks_created as f64 / stats.duration_seconds;
         println!(
-            "  🚀 Performance: {:.1} files/sec, {:.1} chunks/sec",
-            files_per_second, chunks_per_second
+            "  🚀 Performance: {files_per_second:.1} files/sec, {chunks_per_second:.1} chunks/sec"
         );
     }
 }

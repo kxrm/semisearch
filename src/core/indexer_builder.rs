@@ -85,7 +85,7 @@ impl FileIndexerBuilder {
             }
             Err(e) => {
                 if self.advanced_mode {
-                    eprintln!("📊 Indexer: Embeddings disabled ({})", e);
+                    eprintln!("📊 Indexer: Embeddings disabled ({e})");
                 }
                 // Update config to disable embeddings
                 if let Some(ref mut config) = self.config {

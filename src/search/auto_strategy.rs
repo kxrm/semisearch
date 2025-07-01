@@ -451,8 +451,7 @@ impl AutoStrategy {
                 }
                 Err(e) => {
                     eprintln!(
-                        "Note: Semantic search unavailable ({}), using keyword search",
-                        e
+                        "Note: Semantic search unavailable ({e}), using keyword search"
                     );
                 }
             }
@@ -618,11 +617,7 @@ mod tests {
             let score = auto_strategy.calculate_semantic_score(query);
             assert!(
                 score >= min_score && score <= max_score,
-                "Query '{}' score {} not in expected range [{}, {}]",
-                query,
-                score,
-                min_score,
-                max_score
+                "Query '{query}' score {score} not in expected range [{min_score}, {max_score}]"
             );
         }
     }

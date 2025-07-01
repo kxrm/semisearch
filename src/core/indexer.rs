@@ -335,8 +335,7 @@ impl FileIndexer {
                 (stats.files_processed + stats.files_updated) as f64 / stats.duration_seconds;
             let chunks_per_second = stats.chunks_created as f64 / stats.duration_seconds;
             println!(
-                "  🚀 Performance: {:.1} files/sec, {:.1} chunks/sec",
-                files_per_second, chunks_per_second
+                "  🚀 Performance: {files_per_second:.1} files/sec, {chunks_per_second:.1} chunks/sec"
             );
         } else {
             println!("Indexing complete:");

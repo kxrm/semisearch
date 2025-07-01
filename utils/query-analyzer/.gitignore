@@ -1,0 +1,15 @@
+# Rust build artifacts
+/target/
+Cargo.lock
+
+# Test output files
+semantic_results.txt
+keyword_results.txt
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db 
