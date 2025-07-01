@@ -260,7 +260,7 @@ mod ux_validation_tests {
                 !all_output.contains("ONNX Runtime") && !all_output.contains("backtrace"),
                 "Query '{query}' should not show detailed technical errors"
             );
-            
+
             // With visual scoring improvements, ".rs" may find many matches and show them all
             // This is actually good behavior - showing users what was found
             if query == &".rs" && all_output.contains("Found") && all_output.contains("matches") {
