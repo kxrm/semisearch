@@ -7,14 +7,39 @@ pub struct HumanFormatter;
 impl HumanFormatter {
     /// Format search results in a human-friendly way (simple mode)
     pub fn format_results(results: &[SearchResult], query: &str, _search_time: Duration) -> String {
+        Self::format_results_unified(results, query, false, _search_time)
+    }
+
+    /// Format search results with technical details (advanced mode)
+    pub fn format_results_advanced(
+        results: &[SearchResult],
+        query: &str,
+        search_time: Duration,
+    ) -> String {
+        Self::format_results_unified(results, query, true, search_time)
+    }
+
+    /// Unified formatting function for all search result types
+    fn format_results_unified(
+        results: &[SearchResult],
+        query: &str,
+        advanced_mode: bool,
+        search_time: Duration,
+    ) -> String {
         if results.is_empty() {
             return Self::format_no_results(query);
         }
 
         let mut output = String::new();
 
-        // Simple, clear header
-        if results.len() == 1 {
+        // Header with optional timing
+        if advanced_mode {
+            output.push_str(&format!(
+                "Found {} matches in {:.2}s:\n\n",
+                results.len(),
+                search_time.as_secs_f64()
+            ));
+        } else if results.len() == 1 {
             output.push_str("Found 1 match:\n\n");
         } else {
             output.push_str(&format!("Found {} matches:\n\n", results.len()));
@@ -39,70 +64,15 @@ impl HumanFormatter {
                 }
             }
 
-            // Show line and content with simple formatting
+            // Show line and content with visual relevance bar and highlighting
             let content = result.content.trim();
-            output.push_str(&format!("   Line {}: {}\n", result.line_number, content));
+            let relevance_bar = Self::get_relevance_bar(result.score, results.len(), advanced_mode);
+            let highlighted_content = Self::highlight_match(content, query);
 
-            // Show context after if available
-            if let Some(ref context_after) = result.context_after {
-                for (i, line) in context_after.iter().enumerate() {
-                    let line_num = result.line_number + i + 1;
-                    output.push_str(&format!("   Line {}: {}\n", line_num, line.trim()));
-                }
-                output.push_str("   ---\n"); // Separator between matches
-            }
-        }
-
-        // Show truncation message if there are more results
-        if results.len() > 10 {
-            output.push('\n');
-            output.push_str(&format!("... and {} more matches\n", results.len() - 10));
-            output.push_str("💡 Tip: Use more specific terms to narrow results\n");
-        }
-
-        output
-    }
-
-    /// Format search results with technical details (advanced mode)
-    pub fn format_results_advanced(
-        results: &[SearchResult],
-        query: &str,
-        search_time: Duration,
-    ) -> String {
-        if results.is_empty() {
-            return Self::format_no_results(query);
-        }
-
-        let mut output = String::new();
-
-        // Advanced header with timing
-        output.push_str(&format!(
-            "Found {} matches in {:.2}s:\n\n",
-            results.len(),
-            search_time.as_secs_f64()
-        ));
-
-        let mut current_file = "";
-        let results_to_show = results.iter().take(10);
-
-        for result in results_to_show {
-            // Show file path only when it changes
-            if result.file_path != current_file {
-                output.push_str(&format!("📁 {}\n", result.file_path));
-                current_file = &result.file_path;
-            }
-
-            // Show context before if available
-            if let Some(ref context_before) = result.context_before {
-                for (i, line) in context_before.iter().enumerate() {
-                    let line_num = result.line_number.saturating_sub(context_before.len() - i);
-                    output.push_str(&format!("   Line {}: {}\n", line_num, line.trim()));
-                }
-            }
-
-            // Show line and content
-            let content = result.content.trim();
-            output.push_str(&format!("   Line {}: {}\n", result.line_number, content));
+            output.push_str(&format!(
+                "   Line {}: {}{}\n",
+                result.line_number, relevance_bar, highlighted_content
+            ));
 
             // Show context after if available
             if let Some(ref context_after) = result.context_after {
@@ -116,28 +86,98 @@ impl HumanFormatter {
             }
 
             // Show technical details in advanced mode
-            if let Some(score) = result.score {
-                if score < 1.0 {
-                    output.push_str(&format!("   Relevance: {:.1}%\n", score * 100.0));
+            if advanced_mode {
+                if let Some(score) = result.score {
+                    output.push_str(&format!("   Score: {:.2}\n", score));
+                    if score < 1.0 {
+                        output.push_str(&format!("   Relevance: {:.1}%\n", score * 100.0));
+                    }
                 }
-            }
 
-            if let Some(match_type) = &result.match_type {
-                if *match_type != MatchType::Exact {
-                    output.push_str(&format!("   Match type: {match_type:?}\n"));
+                if let Some(match_type) = &result.match_type {
+                    if *match_type != MatchType::Exact {
+                        output.push_str(&format!("   Match type: {match_type:?}\n"));
+                    }
                 }
-            }
 
-            output.push('\n');
+                output.push('\n');
+            }
         }
 
         // Show truncation message if there are more results
         if results.len() > 10 {
+            output.push('\n');
             output.push_str(&format!("... and {} more matches\n", results.len() - 10));
-            output.push_str("💡 Tip: Use more specific terms to narrow results\n");
+
+            // Only show basic tips for small-to-moderate result sets
+            // Let FeatureDiscovery handle guidance for larger result sets and user progression
+            if results.len() >= 11 && results.len() <= 25 {
+                output.push_str("💡 Tip: Use more specific terms to narrow results\n");
+            }
         }
 
         output
+    }
+
+    /// Generate visual relevance bar based on semantic score
+    fn get_relevance_bar(score: Option<f32>, _total_results: usize, advanced_mode: bool) -> String {
+        // Show relevance bars for ANY results with scores
+        // Following UX principles: visual feedback for scored results
+        let should_show_bar = score.is_some();
+
+        if !should_show_bar {
+            return String::new();
+        }
+
+        let score_value = score.unwrap_or(0.0);
+
+        // Debug: Check for problematic scores
+        if score_value.is_nan() || score_value.is_infinite() || !(0.0..=10.0).contains(&score_value)
+        {
+            // Return empty string for invalid scores to avoid crashes
+            return String::new();
+        }
+
+        // Create visual bar with consistent width for alignment
+        let bar_width = 10;
+
+        // Clamp score to valid range [0.0, 1.0] to prevent overflow
+        let clamped_score = score_value.clamp(0.0, 1.0);
+        let filled_width = (clamped_score * bar_width as f32) as usize;
+        let filled_width = filled_width.min(bar_width); // Extra safety check
+        let empty_width = bar_width.saturating_sub(filled_width); // Use saturating_sub to prevent underflow
+
+        // Use different characters for different score ranges
+        let (fill_char, empty_char, color_start, color_end) = if std::env::var("NO_COLOR").is_ok() {
+            // No color mode - use ASCII characters
+            ('█', '░', "", "")
+        } else {
+            // Color mode with ANSI escape codes
+            match score_value {
+                s if s >= 0.9 => ('█', '░', "\x1b[32m", "\x1b[0m"), // Green for excellent
+                s if s >= 0.7 => ('█', '░', "\x1b[33m", "\x1b[0m"), // Yellow for good
+                s if s >= 0.5 => ('█', '░', "\x1b[36m", "\x1b[0m"), // Cyan for okay
+                _ => ('█', '░', "\x1b[37m", "\x1b[0m"),             // Gray for weak
+            }
+        };
+
+        // Safety check: ensure we don't try to repeat with invalid values
+        let filled_width = filled_width.min(bar_width);
+        let empty_width = empty_width.min(bar_width);
+
+        let bar = format!(
+            "{}{}{}{}",
+            color_start,
+            fill_char.to_string().repeat(filled_width),
+            empty_char.to_string().repeat(empty_width),
+            color_end
+        );
+
+        if advanced_mode {
+            format!("[{}] {:.2} ", bar, score_value)
+        } else {
+            format!("[{}] ", bar)
+        }
     }
 
     /// Format no results message with helpful suggestions
@@ -154,11 +194,124 @@ impl HumanFormatter {
         )
     }
 
-    /// Highlight matches in content (simple highlighting for readability)
-    pub fn highlight_match(content: &str, _query: &str) -> String {
-        // For human-friendly output, we keep highlighting minimal to maintain readability
-        // In terminal output, we might use ANSI colors, but for now keep it simple
-        content.to_string()
+    /// Highlight matches in content with ANSI colors (respects NO_COLOR env var)
+    pub fn highlight_match(content: &str, query: &str) -> String {
+        // Check if colors should be disabled
+        if std::env::var("NO_COLOR").is_ok() {
+            return content.to_string();
+        }
+
+        // Try exact case-insensitive match first
+        let query_lower = query.to_lowercase();
+        let content_lower = content.to_lowercase();
+
+        // Find exact match using char indices to handle Unicode properly
+        let content_chars: Vec<char> = content.chars().collect();
+        let content_lower_chars: Vec<char> = content_lower.chars().collect();
+        let query_lower_chars: Vec<char> = query_lower.chars().collect();
+
+        // Look for exact match
+        for i in 0..content_lower_chars.len() {
+            if i + query_lower_chars.len() > content_lower_chars.len() {
+                break;
+            }
+
+            let slice = &content_lower_chars[i..i + query_lower_chars.len()];
+            if slice == query_lower_chars.as_slice() {
+                // Found exact match, highlight it
+                let before: String = content_chars[..i].iter().collect();
+                let matched: String = content_chars[i..i + query_lower_chars.len()]
+                    .iter()
+                    .collect();
+                let after: String = content_chars[i + query_lower_chars.len()..]
+                    .iter()
+                    .collect();
+
+                return format!("{}\x1b[1;33m{}\x1b[0m{}", before, matched, after);
+            }
+        }
+
+        // Try fuzzy highlighting for partial matches
+        // Look for the longest common substring or prefix match
+        let mut best_match_start = None;
+        let mut best_match_len = 0;
+
+        // Check if query is a prefix of any word in content
+        let mut word_start = 0;
+        let mut in_word = false;
+
+        for (i, ch) in content_lower_chars.iter().enumerate() {
+            if ch.is_whitespace() {
+                if in_word {
+                    // End of word, check if it starts with query
+                    let word_chars = &content_lower_chars[word_start..i];
+                    if word_chars.len() >= query_lower_chars.len() {
+                        let prefix = &word_chars[..query_lower_chars.len()];
+                        if prefix == query_lower_chars.as_slice() {
+                            best_match_start = Some(word_start);
+                            best_match_len = query_lower_chars.len();
+                            break;
+                        }
+                    }
+                }
+                in_word = false;
+            } else if !in_word {
+                word_start = i;
+                in_word = true;
+            }
+        }
+
+        // Check last word if we're still in one
+        if in_word && best_match_start.is_none() {
+            let word_chars = &content_lower_chars[word_start..];
+            if word_chars.len() >= query_lower_chars.len() {
+                let prefix = &word_chars[..query_lower_chars.len()];
+                if prefix == query_lower_chars.as_slice() {
+                    best_match_start = Some(word_start);
+                    best_match_len = query_lower_chars.len();
+                }
+            }
+        }
+
+        // If no prefix match, look for any substring that shares significant characters
+        if best_match_start.is_none() && query_lower_chars.len() >= 3 {
+            // Simple fuzzy match: find first character and check consecutive matches
+            for i in 0..content_lower_chars.len() {
+                if content_lower_chars[i] == query_lower_chars[0] {
+                    let mut matched = 1;
+
+                    for j in 1..query_lower_chars.len() {
+                        if i + j < content_lower_chars.len()
+                            && content_lower_chars[i + j] == query_lower_chars[j]
+                        {
+                            matched += 1;
+                        } else {
+                            break;
+                        }
+                    }
+
+                    // If we matched at least half the query, consider it a match
+                    if matched >= query_lower_chars.len() / 2 && matched > best_match_len {
+                        best_match_start = Some(i);
+                        best_match_len = matched;
+                    }
+                }
+            }
+        }
+
+        // Apply highlighting if we found a match
+        if let Some(start) = best_match_start {
+            let before: String = content_chars[..start].iter().collect();
+            let matched: String = content_chars[start..start + best_match_len]
+                .iter()
+                .collect();
+            let after: String = content_chars[start + best_match_len..].iter().collect();
+
+            format!("{}\x1b[1;33m{}\x1b[0m{}", before, matched, after)
+        } else {
+            // No match found, return content as-is
+            content.to_string()
+        }
     }
 
     /// Suggest simpler alternative terms for a query
@@ -192,6 +345,9 @@ mod tests {
 
     #[test]
     fn test_format_single_result() {
+        // Set NO_COLOR to disable ANSI color codes during testing
+        std::env::set_var("NO_COLOR", "1");
+
         let results = vec![SearchResult {
             file_path: "src/main.rs".to_string(),
             line_number: 42,
@@ -205,11 +361,19 @@ mod tests {
         let formatted =
             HumanFormatter::format_results(&results, "TODO", Duration::from_millis(150));
 
+        // Clean up environment variable
+        std::env::remove_var("NO_COLOR");
+
         // Should show clean, simple output
         assert!(formatted.contains("Found 1 match"));
         assert!(formatted.contains("src/main.rs"));
         assert!(formatted.contains("Line 42:"));
-        assert!(formatted.contains("TODO: implement this feature"));
+        // Check for the main parts of the content (highlighting may affect exact match)
+        assert!(formatted.contains("TODO"));
+        assert!(formatted.contains("implement this feature"));
+
+        // Should show relevance bars for ANY scored results (user requirement)
+        assert!(formatted.contains("[")); // Visual bars shown for all scored results
 
         // Should NOT show technical details in simple mode
         assert!(!formatted.contains("Score:"));
@@ -345,5 +509,87 @@ mod tests {
             "complex function"
         );
         assert_eq!(HumanFormatter::suggest_alternative("TODO"), "TODO");
+    }
+
+    #[test]
+    fn test_visual_relevance_bars() {
+        // Create multiple results with varying scores to test visual bars
+        let results = vec![
+            SearchResult {
+                file_path: "src/main.rs".to_string(),
+                line_number: 10,
+                content: "perfect match content".to_string(),
+                score: Some(0.95),
+                match_type: Some(MatchType::Semantic),
+                context_before: None,
+                context_after: None,
+            },
+            SearchResult {
+                file_path: "src/lib.rs".to_string(),
+                line_number: 20,
+                content: "good match content".to_string(),
+                score: Some(0.75),
+                match_type: Some(MatchType::Semantic),
+                context_before: None,
+                context_after: None,
+            },
+            SearchResult {
+                file_path: "src/utils.rs".to_string(),
+                line_number: 30,
+                content: "related content".to_string(),
+                score: Some(0.55),
+                match_type: Some(MatchType::Semantic),
+                context_before: None,
+                context_after: None,
+            },
+            SearchResult {
+                file_path: "src/test.rs".to_string(),
+                line_number: 40,
+                content: "possibly related content".to_string(),
+                score: Some(0.35),
+                match_type: Some(MatchType::Semantic),
+                context_before: None,
+                context_after: None,
+            },
+            SearchResult {
+                file_path: "src/other.rs".to_string(),
+                line_number: 50,
+                content: "weak match content".to_string(),
+                score: Some(0.15),
+                match_type: Some(MatchType::Semantic),
+                context_before: None,
+                context_after: None,
+            },
+        ];
+
+        // Test simple mode - should show visual bars for moderate result count
+        let formatted =
+            HumanFormatter::format_results(&results, "content", Duration::from_millis(100));
+
+        // Should show visual bars with different fill levels
+        assert!(formatted.contains("[")); // Visual bar brackets
+        assert!(formatted.contains("█")); // Filled bar characters
+        assert!(formatted.contains("░")); // Empty bar characters
+
+        // Should show all content
+        assert!(formatted.contains("perfect match"));
+        assert!(formatted.contains("good match"));
+        assert!(formatted.contains("related"));
+        assert!(formatted.contains("possibly related"));
+        assert!(formatted.contains("weak match"));
+
+        // Test advanced mode - should show bars with numeric scores
+        let formatted_advanced = HumanFormatter::format_results_advanced(
+            &results,
+            "content",
+            Duration::from_millis(100),
+        );
+
+        // Should show visual bars with scores in advanced mode
+        assert!(formatted_advanced.contains("["));
+        assert!(formatted_advanced.contains("0.95")); // High score
+        assert!(formatted_advanced.contains("0.75")); // Good score
+        assert!(formatted_advanced.contains("0.55")); // Medium score
+        assert!(formatted_advanced.contains("Score:")); // Technical details
     }
 }
