@@ -59,8 +59,6 @@ tfidf-only = []  # Legacy feature for minimal builds
 # Build optimizations
 [profile.release]
 
-[[example]]
-name = "semantic_demo"
-path = "examples/semantic_demo.rs"
+
 
 # Neural demo example was removed
