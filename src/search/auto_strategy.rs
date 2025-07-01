@@ -450,9 +450,7 @@ impl AutoStrategy {
                     self.file_type_strategy = file_type_strategy;
                 }
                 Err(e) => {
-                    eprintln!(
-                        "Note: Semantic search unavailable ({e}), using keyword search"
-                    );
+                    eprintln!("Note: Semantic search unavailable ({e}), using keyword search");
                 }
             }
         }

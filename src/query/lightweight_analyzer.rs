@@ -324,18 +324,10 @@ impl LightweightAnalyzer {
         let coherence = self.calculate_coherence(&tokens);
         let concept_density = self.detect_concepts(&tokens);
 
-        println!(
-            "├─ Character Perplexity: {char_perplexity:.2} (lower = more common patterns)"
-        );
-        println!(
-            "├─ Semantic Weight:      {semantic_weight:.2} (higher = richer vocabulary)"
-        );
-        println!(
-            "├─ Token Coherence:      {coherence:.2} (higher = better relationships)"
-        );
-        println!(
-            "├─ Concept Density:      {concept_density:.2} (higher = more entities/concepts)"
-        );
+        println!("├─ Character Perplexity: {char_perplexity:.2} (lower = more common patterns)");
+        println!("├─ Semantic Weight:      {semantic_weight:.2} (higher = richer vocabulary)");
+        println!("├─ Token Coherence:      {coherence:.2} (higher = better relationships)");
+        println!("├─ Concept Density:      {concept_density:.2} (higher = more entities/concepts)");
         println!("└─ Token Count:          {}", tokens.len());
 
         if !tokens.is_empty() {

@@ -26,10 +26,10 @@ fn test_regex_pattern_auto_detection() {
         assert!(!stdout.is_empty(), "Should show search results");
     } else {
         // If it fails, should provide helpful error message
-    assert!(
+        assert!(
             stderr.contains("No matches found") || stderr.contains("Try"),
             "Should provide helpful guidance when no matches found. stderr: {stderr}"
-    );
+        );
     }
 }
 

@@ -1102,7 +1102,7 @@ mod tests {
             Ok(embedder) => {
                 println!("✅ LocalEmbedder created successfully!");
                 let capability = embedder.capability();
-        println!("   📊 Final capability: {capability:?}");
+                println!("   📊 Final capability: {capability:?}");
                 println!("   📐 Embedding dimension: {}", embedder.embedding_dim());
                 println!("   🧮 Has vocabulary: {}", embedder.has_vocabulary());
 
