@@ -258,8 +258,18 @@ mod ux_validation_tests {
             // Note: Some technical info might appear in debug builds, but should be minimal
             assert!(
                 !all_output.contains("ONNX Runtime") && !all_output.contains("backtrace"),
-                "Query '{query}' should not show detailed technical errors. Output: {all_output}"
+                "Query '{query}' should not show detailed technical errors"
             );
+            
+            // With visual scoring improvements, ".rs" may find many matches and show them all
+            // This is actually good behavior - showing users what was found
+            if query == &".rs" && all_output.contains("Found") && all_output.contains("matches") {
+                // It's OK to find many .rs references in a Rust project
+                assert!(
+                    all_output.contains("📁") || all_output.contains("Line"),
+                    "Results should be properly formatted with visual indicators"
+                );
+            }
         }
     }
 
