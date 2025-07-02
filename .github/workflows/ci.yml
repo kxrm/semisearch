@@ -7,15 +7,9 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [ main, develop ]
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
   pull_request:
     branches: [ main ]
     types: [opened, synchronize, reopened, ready_for_review]
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
   workflow_dispatch:
     inputs:
       trigger_reason:
@@ -33,10 +27,51 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
+  # Check if changes are documentation-only
+  check-changes:
+    name: Check Changes
+    runs-on: ubuntu-latest
+    outputs:
+      docs-only: ${{ steps.changes.outputs.docs-only }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Check for docs-only changes
+      id: changes
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          # For PR, check changed files
+          git fetch origin ${{ github.base_ref }}
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+        else
+          # For push, check files in the commit
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+        fi
+        
+        echo "Changed files:"
+        echo "$CHANGED_FILES"
+        
+        # Check if all changed files are documentation
+        DOCS_ONLY=true
+        for file in $CHANGED_FILES; do
+          if [[ ! "$file" =~ ^docs/ ]] && [[ ! "$file" =~ \.md$ ]] && [[ ! "$file" =~ ^\.github/workflows/.*\.md$ ]]; then
+            DOCS_ONLY=false
+            break
+          fi
+        done
+        
+        echo "docs-only=$DOCS_ONLY" >> $GITHUB_OUTPUT
+        echo "Documentation-only changes: $DOCS_ONLY"
+
   # Test Matrix - Multiple Rust versions and platforms
   test:
     name: Test Suite
     runs-on: ${{ matrix.os }}
+    needs: check-changes
+    if: needs.check-changes.outputs.docs-only != 'true'
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -125,7 +160,8 @@ jobs:
   feature-tests:
     name: Feature Tests
     runs-on: ubuntu-latest
-    needs: test
+    needs: [check-changes, test]
+    if: needs.check-changes.outputs.docs-only != 'true'
 
     steps:
     - name: Checkout code
@@ -178,6 +214,8 @@ jobs:
   security:
     name: Security Audit
     runs-on: ubuntu-latest
+    needs: check-changes
+    if: needs.check-changes.outputs.docs-only != 'true'
 
     steps:
     - name: Checkout code
@@ -204,6 +242,7 @@ jobs:
   docs:
     name: Documentation
     runs-on: ubuntu-latest
+    needs: check-changes
 
     steps:
     - name: Checkout code
@@ -224,7 +263,8 @@ jobs:
   build:
     name: Build Release Binaries
     runs-on: ${{ matrix.os }}
-    needs: [test, feature-tests]
+    needs: [check-changes, test, feature-tests]
+    if: needs.check-changes.outputs.docs-only != 'true'
     strategy:
       matrix:
         include:
@@ -286,7 +326,8 @@ jobs:
   architecture-compliance:
     name: Architecture Plan Compliance
     runs-on: ubuntu-latest
-    needs: test
+    needs: [check-changes, test]
+    if: needs.check-changes.outputs.docs-only != 'true'
 
     steps:
     - name: Checkout code
@@ -405,20 +446,34 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [test, feature-tests, security, docs, build, architecture-compliance]
+    needs: [check-changes, test, feature-tests, security, docs, build, architecture-compliance]
     if: always()
 
     steps:
     - name: Check all jobs succeeded
       run: |
-        if [ "${{ needs.test.result }}" != "success" ] || \
-           [ "${{ needs.feature-tests.result }}" != "success" ] || \
-           [ "${{ needs.security.result }}" != "success" ] || \
-           [ "${{ needs.docs.result }}" != "success" ] || \
-           [ "${{ needs.build.result }}" != "success" ] || \
-           [ "${{ needs.architecture-compliance.result }}" != "success" ]; then
-          echo "❌ One or more CI jobs failed"
-          exit 1
+        # Check if this was a docs-only change
+        if [ "${{ needs.check-changes.outputs.docs-only }}" = "true" ]; then
+          echo "📝 Documentation-only changes detected"
+          # For docs-only changes, only check docs and check-changes jobs
+          if [ "${{ needs.check-changes.result }}" != "success" ] || \
+             [ "${{ needs.docs.result }}" != "success" ]; then
+            echo "❌ Documentation CI jobs failed"
+            exit 1
+          fi
+          echo "✅ Documentation changes validated successfully!"
+        else
+          echo "🔧 Full CI validation for code changes"
+          # For code changes, check all jobs that should have run
+          if [ "${{ needs.test.result }}" != "success" ] || \
+             [ "${{ needs.feature-tests.result }}" != "success" ] || \
+             [ "${{ needs.security.result }}" != "success" ] || \
+             [ "${{ needs.docs.result }}" != "success" ] || \
+             [ "${{ needs.build.result }}" != "success" ] || \
+             [ "${{ needs.architecture-compliance.result }}" != "success" ]; then
+            echo "❌ One or more CI jobs failed"
+            exit 1
+          fi
+          echo "✅ All CI jobs completed successfully!"
+          echo "🎉 Ready for Phase 3 implementation or production deployment"
         fi
-        echo "✅ All CI jobs completed successfully!"
-        echo "🎉 Ready for Phase 3 implementation or production deployment"
