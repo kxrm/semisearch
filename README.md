@@ -7,7 +7,7 @@ SemiSearch is a privacy-focused command-line tool that helps you search through 
 ## What Makes SemiSearch Different?
 
 ### 🧠 **Intelligent Text Analysis**
-Traditional search tools look for exact word matches. If you search for "car", you won't find documents about "automobile" or "vehicle". SemiSearch uses statistical analysis (TF-IDF) to understand that these words are related and finds them all.
+Traditional search tools look for exact word matches. If you search for "car", you won't find documents about "automobile" or "vehicle". SemiSearch uses statistical analysis (TF-IDF) to understand relationships between words and find related concepts.
 
 **Example**: Searching for "error handling" will find:
 - Code with try/catch blocks  
@@ -20,7 +20,7 @@ Everything happens on your computer. No data is sent to the cloud. No AI service
 
 ### ⚡ **Works Immediately**
 SemiSearch adapts to your system:
-- **Any computer**: Statistical text analysis that works great
+- **Any computer**: Statistical text analysis (TF-IDF) that works great
 - **Zero configuration**: Just install and start searching
 - **Progressive enhancement**: Advanced features unlock as you learn
 
@@ -28,17 +28,21 @@ SemiSearch adapts to your system:
 
 ### Installation
 
-Download the pre-built binary for your system from the [releases page](https://github.com/kxrm/semisearch/releases), or install with cargo:
-
+**Option 1: Build from Source (Recommended)**
 ```bash
-# Install from crates.io (when published)
-cargo install semisearch
-
-# Or build from source
+# Clone repository
 git clone https://github.com/kxrm/semisearch.git
 cd semisearch
-cargo build --release
+
+# Build release version
+cargo build --release --features neural-embeddings
+
+# The binary will be in target/release/semisearch
+./target/release/semisearch --help
 ```
+
+**Option 2: Download Pre-built Binaries**
+Download the pre-built binary for your system from the [releases page](https://github.com/kxrm/semisearch/releases) (when available).
 
 ### Basic Usage
 
@@ -89,8 +93,9 @@ SemiSearch automatically chooses the best search strategy based on your query:
 
 ### 🎯 **Smart Query Analysis**
 The tool automatically detects what kind of search you need:
-- **Simple words** → Fast keyword search
-- **Complex phrases** → Intelligent text analysis  
+- **Simple terms** → Fast keyword search
+- **Conceptual queries** → Semantic search for meaning and relationships
+- **Poor keyword results** → Automatic semantic fallback
 - **Code patterns** → Code-aware search
 - **Typos detected** → Automatic fuzzy matching
 
@@ -201,14 +206,17 @@ semisearch --advanced "query" --semantic-threshold 0.8
 Control what results you see:
 
 ```bash
-# Show surrounding context
-semisearch "password" --context 3
+# Show surrounding context lines
+./target/release/semisearch --advanced "password" --context 3
+
+# Use semantic search for conceptual queries
+./target/release/semisearch --advanced "authentication" --mode semantic
 
 # Output as JSON
-semisearch "config" --format json
+./target/release/semisearch --advanced "config" --format json
 
 # Show only file paths
-semisearch "function" --files-only
+./target/release/semisearch --advanced "function" --files-only
 ```
 
 ### System Capabilities
@@ -271,29 +279,25 @@ SemiSearch acts like that smart librarian for your files.
 
 ## Installation Guide
 
-### Option 1: Pre-built Binaries (Easiest)
-
-1. Go to the [releases page](https://github.com/kxrm/semisearch/releases)
-2. Download the binary for your system
-3. Make it executable and run:
+### Option 1: Build from Source (Required)
 
 ```bash
-# Linux/macOS
-chmod +x semisearch
-./semisearch "your query"
+# Clone the repository
+git clone https://github.com/kxrm/semisearch.git
+cd semisearch
 
-# Windows  
-semisearch.exe "your query"
+# Build with neural embeddings support
+cargo build --release --features neural-embeddings
+
+# Run the tool
+./target/release/semisearch "your query"
 ```
 
-### Option 2: Install with Cargo
+### Option 2: Pre-built Binaries (When Available)
 
-```bash
-# Requires Rust toolchain
-cargo install semisearch
-```
+Pre-built binaries may be available on the [releases page](https://github.com/kxrm/semisearch/releases) for some versions.
 
-### Option 3: Build from Source
+### Option 3: Development Build
 
 ```bash
 # Clone repository
@@ -426,15 +430,20 @@ SemiSearch provides contextual help based on what you're trying to do:
 
 ### Current Capabilities
 
-Based on your system, SemiSearch provides:
-- ✅ **Keyword search**: Fast exact matching
-- ✅ **Fuzzy search**: Typo tolerance
-- ✅ **TF-IDF analysis**: Statistical text understanding  
-- ✅ **Regex patterns**: Advanced pattern matching (in advanced mode)
-- ✅ **Context detection**: Project-aware search configuration
-- ✅ **Progressive learning**: Tips and suggestions that improve over time
+SemiSearch provides these search capabilities:
+- ✅ **Keyword search**: Fast exact matching for precise queries
+- ✅ **Fuzzy search**: Handles typos and similar words (`--fuzzy`)
+- ✅ **Semantic search**: Automatically used for conceptual queries and as fallback when keyword search fails
+- ✅ **TF-IDF analysis**: Statistical text analysis for concept matching
+- ✅ **Regex patterns**: Advanced pattern matching (`--advanced --mode regex`)
+- ✅ **Context lines**: Show surrounding lines around matches (`--advanced --context N`)
+- ✅ **Project detection**: Automatically adapts to Rust, JavaScript, Python, and documentation projects
+- ✅ **File filtering**: Include/exclude patterns (`--include "*.rs"`)
+- ✅ **Multiple output formats**: Plain text and JSON (`--format json`)
 
-Check your specific capabilities: `semisearch doctor`
+**Note**: Semantic search works automatically in basic searches - no `--advanced` flag needed!
+
+Check your specific capabilities: `./target/release/semisearch doctor`
 
 ---
 

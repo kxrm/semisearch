@@ -2,13 +2,35 @@
 
 ## What is SemiSearch?
 
-SemiSearch helps you find text in your files, even when you don't remember the exact words. It's designed to be simple for beginners but grows with you as you learn.
+SemiSearch helps you find text in your files, even when you don't remember the exact words. It automatically uses the best search strategy for your query:
+
+- **Simple terms** get fast keyword search
+- **Conceptual queries** automatically use semantic search to find related meanings
+- **Poor results** trigger automatic semantic fallback
+
+The tool is designed to be simple for beginners but grows with you as you learn.
+
+## Installation
+
+You need to build SemiSearch from source:
+
+```bash
+# Clone the repository
+git clone https://github.com/kxrm/semisearch.git
+cd semisearch
+
+# Build the tool
+cargo build --release --features neural-embeddings
+
+# The binary will be at target/release/semisearch
+./target/release/semisearch --help
+```
 
 ## Basic Usage
 
 Just type what you're looking for:
 ```bash
-semisearch "what you want to find"
+./target/release/semisearch "what you want to find"
 ```
 
 That's it! No configuration required.
@@ -17,28 +39,34 @@ That's it! No configuration required.
 
 ### Find TODO comments
 ```bash
-semisearch "TODO"
+./target/release/semisearch "TODO"
 ```
 
 ### Find database-related code
 ```bash
-semisearch "database"
+./target/release/semisearch "database"
 ```
 
 ### Find error handling
 ```bash
-semisearch "error"
+./target/release/semisearch "error"
 ```
 
 ### Find function definitions
 ```bash
-semisearch "function login"
+./target/release/semisearch "function login"
+```
+
+### Find concepts automatically
+```bash
+./target/release/semisearch "authentication"     # Finds login, auth, user validation, etc.
+./target/release/semisearch "error handling"     # Finds try/catch, exceptions, error recovery
 ```
 
 ### Search in specific places
 ```bash
-semisearch "TODO" src/          # Search only in src/ directory
-semisearch "config" config.json # Search in specific file
+./target/release/semisearch "TODO" src/          # Search only in src/ directory
+./target/release/semisearch "config" config.json # Search in specific file
 ```
 
 ## When Things Go Wrong
@@ -54,31 +82,31 @@ semisearch "nonexistent"
 ```
 
 Try:
-- **Check spelling**: `semisearch "databse" --fuzzy` (finds "database")
-- **Use simpler words**: `semisearch "login"` instead of `semisearch "authentication"`
-- **Search everywhere**: `semisearch "your search" .`
+- **Check spelling**: `./target/release/semisearch "databse" --fuzzy` (finds "database")
+- **Use simpler words**: `./target/release/semisearch "login"` instead of `./target/release/semisearch "authentication"`
+- **Search everywhere**: `./target/release/semisearch "your search" .`
 
 ### Too many results?
 SemiSearch automatically gives you tips:
 ```bash
-semisearch "function"
+./target/release/semisearch "function"
 # Shows: "Many results found. Use more specific terms or search in specific folders"
 ```
 
 Try:
-- **Be more specific**: `semisearch "function validateUser"`
-- **Search in specific folders**: `semisearch "TODO" src/`
-- **Use exact phrases**: `semisearch "exact phrase" --exact`
+- **Be more specific**: `./target/release/semisearch "function validateUser"`
+- **Search in specific folders**: `./target/release/semisearch "TODO" src/`
+- **Use exact phrases**: `./target/release/semisearch "exact phrase" --exact`
 
 ### Still stuck?
-Run: `semisearch help-me` for interactive help.
+Run: `./target/release/semisearch help-me` for interactive help.
 
 ## Interactive Help
 
 SemiSearch includes an interactive help system that guides you through common scenarios:
 
 ```bash
-semisearch help-me
+./target/release/semisearch help-me
 ```
 
 This will start an interactive session where you can:
@@ -93,30 +121,36 @@ The help system will guide you step by step and is perfect for learning.
 
 ### Handle typos and similar words
 ```bash
-semisearch "databse" --fuzzy
+./target/release/semisearch "databse" --fuzzy
 ```
 This will find "database" even with the typo!
 
 ### Find exact matches only
 ```bash
-semisearch "exact phrase" --exact
+./target/release/semisearch "exact phrase" --exact
 ```
 
 ### Show more context around matches
 ```bash
-semisearch "function" --context 2
+./target/release/semisearch --advanced "function" --context 2
+```
+
+### Find related concepts automatically
+```bash
+./target/release/semisearch "authentication"
+# Automatically finds: login, auth, user validation, credentials, etc.
 ```
 
 ### Get output as JSON (for scripts)
 ```bash
-semisearch "config" --format json
+./target/release/semisearch --advanced "config" --format json
 ```
 
 ## Getting Help
 
 ### Check if everything is working
 ```bash
-semisearch status
+./target/release/semisearch status
 ```
 This shows:
 - What type of project you're in (Rust, JavaScript, etc.)
@@ -126,24 +160,24 @@ This shows:
 
 ### Interactive help and tutorials
 ```bash
-semisearch help-me
+./target/release/semisearch help-me
 ```
 Perfect for beginners - guides you through examples step by step.
 
 ### Detailed diagnostics
 ```bash
-semisearch doctor
+./target/release/semisearch doctor
 ```
 Shows detailed information about your system and search capabilities.
 
 ### Quick command reference
 ```bash
-semisearch --help
+./target/release/semisearch --help
 ```
 
 ### Advanced options (when you're ready)
 ```bash
-semisearch --advanced --help
+./target/release/semisearch --advanced --help
 ```
 
 ## Progressive Learning
@@ -167,55 +201,63 @@ The tool automatically adjusts its suggestions based on how much you've used it.
 ## Common Use Cases
 
 ### For Developers
-- `semisearch "TODO"` - Find all TODO comments
-- `semisearch "async function"` - Find async functions
-- `semisearch "import React"` - Find React imports
-- `semisearch "try catch"` - Find error handling
-- `semisearch "fn main"` - Find main functions (Rust)
-- `semisearch "#[test]"` - Find test functions (Rust)
+- `./target/release/semisearch "TODO"` - Find all TODO comments
+- `./target/release/semisearch "async function"` - Find async functions
+- `./target/release/semisearch "import React"` - Find React imports
+- `./target/release/semisearch "try catch"` - Find error handling
+- `./target/release/semisearch "fn main"` - Find main functions (Rust)
+- `./target/release/semisearch "#[test]"` - Find test functions (Rust)
 
 ### For Writers
-- `semisearch "needs revision"` - Find draft sections
-- `semisearch "citation needed"` - Find unsourced claims
-- `semisearch "methodology"` - Find research methods
+- `./target/release/semisearch "needs revision"` - Find draft sections
+- `./target/release/semisearch "citation needed"` - Find unsourced claims
+- `./target/release/semisearch "methodology"` - Find research methods
 
 ### For Configuration
-- `semisearch "password"` - Find password-related items
-- `semisearch "config"` - Find configuration files
-- `semisearch "port 8080"` - Find port configurations
+- `./target/release/semisearch "password"` - Find password-related items
+- `./target/release/semisearch "config"` - Find configuration files
+- `./target/release/semisearch "port 8080"` - Find port configurations
 
 ## Tips for Better Results
 
 ### Start Simple, Then Get Specific
-1. Start with: `semisearch "login"`
-2. If too many results: `semisearch "login function"`
-3. If still too many: `semisearch "function validateLogin"`
+1. Start with: `./target/release/semisearch "login"`
+2. If too many results: `./target/release/semisearch "login function"`
+3. If still too many: `./target/release/semisearch "function validateLogin"`
 
 ### Use Different Words
 If "error" doesn't work, try:
-- `semisearch "exception"`
-- `semisearch "fail"`
-- `semisearch "catch"`
+- `./target/release/semisearch "exception"`
+- `./target/release/semisearch "fail"`
+- `./target/release/semisearch "catch"`
 
 ### Search in the Right Place
-- **Code**: `semisearch "function" src/`
-- **Documentation**: `semisearch "tutorial" docs/`
-- **Tests**: `semisearch "test" tests/`
+- **Code**: `./target/release/semisearch "function" src/`
+- **Documentation**: `./target/release/semisearch "tutorial" docs/`
+- **Tests**: `./target/release/semisearch "test" tests/`
 
 ### Handle Typos
 Always add `--fuzzy` when you're not sure about spelling:
 ```bash
-semisearch "databse connection" --fuzzy
+./target/release/semisearch "databse connection" --fuzzy
 ```
 
 ## What Makes SemiSearch Special?
 
-### Smart Search
+### Automatic Smart Search
 SemiSearch automatically chooses the best search method:
-- **Simple words** → Fast keyword search
-- **Complex phrases** → Intelligent text analysis
+- **Simple terms** → Fast keyword search
+- **Conceptual queries** → Semantic search finds related meanings
+- **Poor keyword results** → Automatic semantic fallback
 - **Code patterns** → Code-aware search
 - **Typos detected** → Automatic fuzzy matching
+
+### Examples of Automatic Behavior
+```bash
+./target/release/semisearch "TODO"           # Fast keyword search
+./target/release/semisearch "authentication" # Automatic semantic search
+./target/release/semisearch "user login"     # Keyword first, semantic if needed
+```
 
 ### Helpful Tips
 SemiSearch gives you contextual suggestions:
@@ -237,14 +279,14 @@ Just install and start searching. SemiSearch works immediately and gets better a
 
 ### Index Large Projects
 ```bash
-semisearch index .
+./target/release/semisearch index .
 ```
 This makes all future searches much faster. Do this once for each project.
 
 ### Search Specific Folders
 ```bash
-semisearch "function" src/    # Only search src/
-semisearch "TODO" tests/      # Only search tests/
+./target/release/semisearch "function" src/    # Only search src/
+./target/release/semisearch "TODO" tests/      # Only search tests/
 ```
 
 ## Understanding Your Results
@@ -259,28 +301,36 @@ SemiSearch organizes results to be helpful:
 
 Once you're comfortable with basic searching:
 
-1. **Try the advanced mode**: `semisearch --advanced --help`
-2. **Index your projects**: `semisearch index .` for faster searches
-3. **Explore project detection**: `semisearch status` to see how SemiSearch understands your project
+1. **Try the advanced mode**: `./target/release/semisearch --advanced --help`
+2. **Index your projects**: `./target/release/semisearch index .` for faster searches
+3. **Explore project detection**: `./target/release/semisearch status` to see how SemiSearch understands your project
 4. **Learn from tips**: Pay attention to the suggestions SemiSearch gives you
 
 ## Advanced Features (When You're Ready)
 
 ### Include/Exclude File Patterns
 ```bash
-semisearch --advanced "TODO" --include "*.rs"     # Only Rust files
-semisearch --advanced "test" --exclude "*test*"   # Exclude test files
+./target/release/semisearch --advanced "TODO" --include "*.rs"     # Only Rust files
+./target/release/semisearch --advanced "test" --exclude "*test*"   # Exclude test files
 ```
 
 ### Specific Search Modes
 ```bash
-semisearch --advanced "pattern.*regex" --mode regex  # Use regex patterns
-semisearch --advanced "exact text" --mode keyword    # Exact matching only
+./target/release/semisearch --advanced "pattern.*regex" --mode regex     # Use regex patterns
+./target/release/semisearch --advanced "authentication" --mode semantic  # Semantic/conceptual search
+./target/release/semisearch --advanced "exact text" --mode keyword       # Exact matching only
+```
+
+### Context and Output Options
+```bash
+./target/release/semisearch --advanced "function" --context 3            # Show surrounding lines
+./target/release/semisearch --advanced "config" --format json            # JSON output
+./target/release/semisearch --advanced "TODO" --files-only               # Show only file paths
 ```
 
 ### Fine-tune Results
 ```bash
-semisearch --advanced "query" --semantic-threshold 0.8  # Higher relevance
+./target/release/semisearch --advanced "query" --semantic-threshold 0.8  # Higher relevance
 ```
 
 ## Need More Help?
@@ -288,9 +338,9 @@ semisearch --advanced "query" --semantic-threshold 0.8  # Higher relevance
 SemiSearch is designed to guide you:
 
 - **Stuck on a search?** The tool will suggest what to try next
-- **Want to learn more?** `semisearch help-me` for interactive guidance
-- **Need technical details?** `semisearch doctor` for system information
-- **Ready for advanced features?** `semisearch --advanced --help`
+- **Want to learn more?** `./target/release/semisearch help-me` for interactive guidance
+- **Need technical details?** `./target/release/semisearch doctor` for system information
+- **Ready for advanced features?** `./target/release/semisearch --advanced --help`
 
 Remember: SemiSearch grows with you. Start simple, and the tool will teach you more advanced features as you're ready for them!
 
@@ -310,9 +360,9 @@ Also normal! SemiSearch will suggest:
 
 ### Search feels slow
 Try:
-- `semisearch index .` to speed up future searches
+- `./target/release/semisearch index .` to speed up future searches
 - Search in specific folders instead of everything
-- `semisearch doctor` to check system status
+- `./target/release/semisearch doctor` to check system status
 
 ### Not finding what you expect
 - Try `--fuzzy` for typo tolerance
